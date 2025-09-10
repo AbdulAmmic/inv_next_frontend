@@ -1,103 +1,165 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send } from "lucide-react";
+import Header from "@/components/header";
+
+export default function LoginPage() {
+  const [showForgot, setShowForgot] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen flex items-center justify-center bg-white px-2 py-6 sm:p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm sm:p-0 bg-transparent rounded-2xl shadow-none"
+      >
+        {/* Blue Header */}
+        <div className="rounded-t-2xl bg-blue-600 px-4 py-6 sm:px-8 text-center shadow-md">
+          <h1 className="text-2xl font-bold text-white tracking-tight">Tuhanas Kitchen</h1>
+          <p className="text-blue-100 mt-2 text-sm font-light">
+            {showForgot
+              ? "Reset your password"
+              : "Sign in to manage your kitchen inventory"}
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <motion.div
+          initial={{ scale: 0.97 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="bg-white/90 rounded-b-2xl px-4 py-8 sm:px-8 shadow-md -mt-2"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <AnimatePresence mode="wait">
+          {!showForgot ? (
+            <motion.div
+              key="login-form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Login Form */}
+
+              <form className="space-y-5 mt-2">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-500 p-1 rounded"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+
+
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs">
+                  <label className="flex items-center text-gray-500">
+                    <input
+                      type="checkbox"
+                      className="rounded border border-blue-200 text-blue-500 focus:ring-blue-400 accent-blue-500 h-4 w-4"
+                    />
+                    <span className="ml-2">Remember me</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(true)}
+                    className="text-blue-500 hover:text-blue-700 transition-colors px-2 py-1"
+                  >
+                    Forgot?
+                  </button>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  type="submit"
+                  className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-none text-base sm:text-sm"
+                >
+                  Sign In
+                </motion.button>
+              </form>
+
+              {/* Sign up link */}
+              <div className="text-center text-gray-400 text-xs mt-6">
+                Don't have an account?{' '}
+                <a href="#" className="text-blue-500 hover:text-blue-700 font-medium transition-colors">
+                  Create account
+                </a>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="forgot-form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Forgot Password Form */}
+              <form className="space-y-5 mt-2">
+                <p className="text-gray-500 text-xs text-center mb-2">
+                  Enter your email and we'll send you a reset link.
+                </p>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
+                  <input
+                    type="email"
+                    placeholder="Your email address"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
+                    autoComplete="email"
+                  />
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  type="submit"
+                  className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-none text-base sm:text-sm"
+                >
+                  <Send size={18} />
+                  Send Reset Link
+                </motion.button>
+              </form>
+              {/* Back to Login */}
+              <button
+                onClick={() => setShowForgot(false)}
+                className="mt-6 text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-1 px-2 py-1"
+              >
+                <ArrowLeft size={16} />
+                Back to Login
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
