@@ -276,6 +276,10 @@ export const createExpense = (data: {
 export const getDailySales = (shop_id?: string) =>
   api.get(`/reports/daily-sales`, { params: { shop_id } });
 
+export const getInventoryReport = (shop_id?: string) =>
+  api.get(`/reports/inventory`, { params: { shop_id } });
+
+
 // #############################################################
 // ⚙ HEALTH
 // #############################################################

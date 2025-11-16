@@ -1,61 +1,164 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Header from "@/components/header";
+import { useEffect, useState } from "react";
 import Sidebar from "@/components/sidebar";
-import DashboardStats from "@/components/dashboardStats";
-import { Menu } from "lucide-react";
+import Header from "@/components/header";
+import { api } from "@/apiCalls";
 
-export default function DashboardApp() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+import {
+  Package,
+  Users,
+  Truck,
+  AlertTriangle,
+  TrendingUp,
+  BarChart3,
+} from "lucide-react";
 
-  // Check if we're on mobile and adjust sidebar state accordingly
+export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [role, setRole] = useState<string>("");
+  const [selectedShop, setSelectedShop] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const checkIsMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        setIsSidebarOpen(false);
-      }
-    };
+    const savedUser = localStorage.getItem("user");
+    const savedShop = localStorage.getItem("selected_shop_id");
 
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkIsMobile);
-    };
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      setRole(parsed.role);
+
+      if (parsed.role === "manager") setSelectedShop(parsed.shop_id);
+    }
+
+    if (savedShop) setSelectedShop(savedShop);
   }, []);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+  useEffect(() => {
+    if (selectedShop) loadStats(selectedShop);
+  }, [selectedShop]);
+
+  const loadStats = async (shopId: string) => {
+    try {
+      setLoading(true);
+      const res = await api.get("/reports/full-stats", {
+        params: { shop_id: shopId },
+      });
+      setStats(res.data);
+    } catch (err) {
+      console.error("Dashboard Stats Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const format = (n: number) => "₦" + Number(n || 0).toLocaleString();
+
+  if (loading || !stats) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar isOpen={isSidebarOpen} isMobile={isMobile} toggleSidebar={toggleSidebar} />
-      
-      {/* Main content */}
-      <div className={`flex-1 flex flex-col ${isSidebarOpen && !isMobile ? 'md:ml-0' : 'md:ml-0'} transition-margin duration-300`}>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar isOpen={true} isMobile={false} toggleSidebar={() => {}} />
+
+      <div className="flex-1 flex flex-col">
         <Header />
-        <main className="p-6">
-          <div className="flex items-center mb-6">
-            {isMobile && (
-              <button
-                onClick={toggleSidebar}
-                className="mr-3 p-2 rounded-lg bg-white border border-gray-200 shadow-sm"
-              >
-                <Menu className="w-5 h-5 text-gray-600" />
-              </button>
-            )}
-            <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
+
+        <main className="p-6 space-y-8">
+          {/* Page Title */}
+          <div>
+            <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">
+              Dashboard
+            </h1>
+            <p className="text-gray-500 mt-1 text-sm">
+              Quick overview of business activity
+            </p>
           </div>
-          
-        
-          <DashboardStats />
+
+          {/* Basic Metrics */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <MetricCard
+              title="Products"
+              value={stats.products_count}
+              icon={<Package className="w-6 h-6 text-blue-600" />}
+            />
+            <MetricCard
+              title="Customers"
+              value={stats.customers_count}
+              icon={<Users className="w-6 h-6 text-green-600" />}
+            />
+            <MetricCard
+              title="Suppliers"
+              value={stats.suppliers_count}
+              icon={<Truck className="w-6 h-6 text-purple-600" />}
+            />
+            <MetricCard
+              title="Low Stock"
+              value={stats.low_stock_count}
+              icon={<AlertTriangle className="w-6 h-6 text-red-600" />}
+            />
+          </section>
+
+          {/* Admin Financial Metrics */}
+          {role === "admin" && (
+            <section>
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">
+                Financial Summary
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <MetricCard
+                  title="Total Sales"
+                  value={format(stats.total_sales_amount)}
+                  icon={<TrendingUp className="w-6 h-6 text-emerald-600" />}
+                />
+                <MetricCard
+                  title="Gross Profit"
+                  value={format(stats.gross_profit)}
+                  icon={<BarChart3 className="w-6 h-6 text-indigo-600" />}
+                />
+                <MetricCard
+                  title="Net Profit"
+                  value={format(stats.net_profit)}
+                  icon={<TrendingUp className="w-6 h-6 text-orange-600" />}
+                />
+              </div>
+            </section>
+          )}
         </main>
       </div>
     </div>
   );
 }
+
+/* ------------------------- */
+/* METRIC CARD COMPONENT     */
+/* ------------------------- */
+
+const MetricCard = ({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: any;
+  icon: any;
+}) => {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-gray-600 text-sm font-medium">{title}</h3>
+        <div className="p-2 bg-gray-100 rounded-lg">{icon}</div>
+      </div>
+
+      <p className="text-3xl font-semibold text-gray-800 tracking-tight">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+    </div>
+  );
+};

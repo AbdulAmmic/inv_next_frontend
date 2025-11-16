@@ -1,63 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Header from "@/components/header";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
-import { getUsers, getShops, registerUser } from "@/apiCalls";
+import Header from "@/components/header";
+import { getUsers, registerUser, getShops } from "@/apiCalls";
 import { toast } from "react-toastify";
-
 import {
   Plus,
-  User,
+  Trash,
   Mail,
-  Shield,
-  Store,
+  User,
   Lock,
-  X,
+  Store,
+  Shield,
 } from "lucide-react";
 
-interface UserType {
-  id: string;
-  full_name: string;
-  email: string;
-  role: string;
-  shop_id?: string | null;
-  phone?: string | null;
-  is_active: boolean;
-}
-
-interface ShopType {
-  id: string;
-  name: string;
-}
-
-export default function UsersSettingsPage() {
-  const [loading, setLoading] = useState(true);
+export default function UsersPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [shops, setShops] = useState<ShopType[]>([]);
-
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [shops, setShops] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   const [newUser, setNewUser] = useState({
-    full_name: "",
+    name: "",
     email: "",
     password: "",
     role: "staff",
     shop_id: "",
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  // ============================
+  // LOAD USERS + SHOPS
+  // ============================
   const loadData = async () => {
     try {
-      const usersRes = await getUsers();
-      const shopsRes = await getShops();
-      setUsers(usersRes.data);
-      setShops(shopsRes.data);
+      const [u, s] = await Promise.all([getUsers(), getShops()]);
+      setUsers(u.data);
+      setShops(s.data);
     } catch (err) {
       toast.error("Failed to load users");
     } finally {
@@ -65,51 +46,70 @@ export default function UsersSettingsPage() {
     }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // ============================
   // CREATE USER
-  const handleAddUser = async () => {
-    if (!newUser.full_name || !newUser.email || !newUser.password) {
+  // ============================
+  const handleCreateUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password) {
       toast.error("Please fill all required fields");
       return;
     }
 
     try {
-      const payload: any = {
-        name: newUser.full_name,
+      const response = await registerUser({
+        name: newUser.name,
         email: newUser.email,
         password: newUser.password,
         role: newUser.role,
-      };
+        shop_id: newUser.shop_id || undefined,
+      });
 
-      if (newUser.shop_id) {
-          payload.shop_id = newUser.shop_id;
-      }
+      const created = response.data;
 
-      const res = await registerUser(payload);
+      // Keep password visible for admin
+      created.plain_password = newUser.password;
 
-      toast.success("User created successfully!");
-      setShowAddModal(false);
+      setUsers((prev) => [created, ...prev]);
+      toast.success("User created successfully");
 
-      setUsers((prev) => [...prev, res.data.user]);
-
+      setShowModal(false);
       setNewUser({
-        full_name: "",
+        name: "",
         email: "",
         password: "",
         role: "staff",
         shop_id: "",
       });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to create user");
+      toast.error(err.response?.data?.error || "User creation failed");
     }
   };
 
-  if (loading) {
+  // ============================
+  // DELETE USER
+  // ============================
+//   const deleteUserHandler = async (id: string) => {
+//     if (!confirm("Are you sure you want to delete this user?")) return;
+
+//     try {
+//       await deleteUser(id);
+//       setUsers((prev) => prev.filter((u) => u.id !== id));
+//       toast.success("User deleted");
+//     } catch (err: any) {
+//       toast.error(err.response?.data?.error || "Failed to delete");
+//     }
+//   };
+
+  if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading Users...
+        Loading...
       </div>
     );
-  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -123,168 +123,204 @@ export default function UsersSettingsPage() {
         <Header />
 
         <main className="p-6">
-
-          {/* HEADER */}
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-              <p className="text-gray-600">Manage system users & permissions</p>
+              <h1 className="text-2xl font-bold">Users</h1>
+              <p className="text-gray-600">Manage system users</p>
             </div>
 
             <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700"
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              <Plus className="w-4" /> Add User
+              <Plus className="w-4" />
+              New User
             </button>
           </div>
 
-          {/* USERS TABLE */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-100 border-b">
-                <tr>
-                  <th className="p-4 text-left text-sm font-semibold text-gray-700">Name</th>
-                  <th className="p-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                  <th className="p-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                  <th className="p-4 text-left text-sm font-semibold text-gray-700">Shop</th>
+          {/* TABLE */}
+          <div className="bg-white p-6 rounded-xl border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="p-3 text-left">Name</th>
+                  <th className="p-3 text-left">Email</th>
+                  <th className="p-3 text-left">Role</th>
+                  <th className="p-3 text-left">Shop</th>
+                  <th className="p-3 text-left text-red-600">Password (Visible)</th>
+                  <th className="p-3 text-left">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+
+              <tbody>
                 {users.map((u) => (
-                  <tr key={u.id}>
-                    <td className="p-4">{u.full_name}</td>
-                    <td className="p-4">{u.email}</td>
-                    <td className="p-4 capitalize">{u.role}</td>
-                    <td className="p-4">
-                      {shops.find((s) => s.id === u.shop_id)?.name || "—"}
+                  <tr key={u.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3">{u.full_name}</td>
+                    <td className="p-3">{u.email}</td>
+
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium 
+                          ${
+                            u.role === "admin"
+                              ? "bg-red-100 text-red-700"
+                              : u.role === "manager"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+
+                    <td className="p-3">
+                      {shops.find((s) => s.id === u.shop_id)?.name || "-"}
+                    </td>
+
+                    {/* PASSWORD (VISIBLE) */}
+                    <td className="p-3 font-semibold text-gray-900">
+                      {u.plain_password || "—"}
+                    </td>
+
+                    <td className="p-3">
+                      <button
+                        // onClick={() => deleteUserHandler(u.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash className="w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
+
             </table>
           </div>
-
-          {/* ADD USER MODAL */}
-          {showAddModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-              <div className="bg-white w-full max-w-lg p-6 rounded-xl shadow-lg relative">
-                
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-5" />
-                </button>
-
-                <h2 className="text-xl font-bold mb-4">Add New User</h2>
-
-                <div className="flex flex-col gap-4">
-
-                  {/* FULL NAME */}
-                  <div>
-                    <label className="text-sm text-gray-600">Full Name</label>
-                    <div className="flex items-center bg-gray-50 border rounded-lg p-2">
-                      <User className="w-4 text-gray-400 mr-2" />
-                      <input
-                        value={newUser.full_name}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, full_name: e.target.value })
-                        }
-                        className="flex-1 bg-transparent outline-none"
-                        placeholder="Enter full name"
-                      />
-                    </div>
-                  </div>
-
-                  {/* EMAIL */}
-                  <div>
-                    <label className="text-sm text-gray-600">Email</label>
-                    <div className="flex items-center bg-gray-50 border rounded-lg p-2">
-                      <Mail className="w-4 text-gray-400 mr-2" />
-                      <input
-                        value={newUser.email}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, email: e.target.value })
-                        }
-                        className="flex-1 bg-transparent outline-none"
-                        placeholder="Enter email"
-                      />
-                    </div>
-                  </div>
-
-                  {/* PASSWORD (VISIBLE AS REQUESTED) */}
-                  <div>
-                    <label className="text-sm text-gray-600">Password</label>
-                    <div className="flex items-center bg-gray-50 border rounded-lg p-2">
-                      <Lock className="w-4 text-gray-400 mr-2" />
-                      <input
-                        type="text"   // 👈 visible password as you requested
-                        value={newUser.password}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, password: e.target.value })
-                        }
-                        className="flex-1 bg-transparent outline-none"
-                        placeholder="Enter password"
-                      />
-                    </div>
-                  </div>
-
-                  {/* ROLE */}
-                  <div>
-                    <label className="text-sm text-gray-600">Role</label>
-                    <div className="flex items-center bg-gray-50 border rounded-lg p-2">
-                      <Shield className="w-4 text-gray-400 mr-2" />
-                      <select
-                        value={newUser.role}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, role: e.target.value })
-                        }
-                        className="flex-1 bg-transparent outline-none"
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
-                        <option value="staff">Staff</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* SHOP */}
-                  <div>
-                    <label className="text-sm text-gray-600">Assign Shop (Optional)</label>
-                    <div className="flex items-center bg-gray-50 border rounded-lg p-2">
-                      <Store className="w-4 text-gray-400 mr-2" />
-                      <select
-                        value={newUser.shop_id}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, shop_id: e.target.value })
-                        }
-                        className="flex-1 bg-transparent outline-none"
-                      >
-                        <option value="">— No Shop —</option>
-                        {shops.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* SAVE BUTTON */}
-                  <button
-                    onClick={handleAddUser}
-                    className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 mt-3"
-                  >
-                    Create User
-                  </button>
-
-                </div>
-              </div>
-            </div>
-          )}
         </main>
       </div>
+
+      {/* =======================
+          ADD USER MODAL
+      ======================== */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-lg rounded-xl p-6 shadow-xl">
+
+            <h2 className="text-xl font-bold mb-4">Create User</h2>
+
+            <div className="space-y-4">
+
+              {/* NAME */}
+              <div>
+                <label className="text-sm text-gray-600">Full Name</label>
+                <div className="flex items-center bg-gray-50 border rounded-lg p-2">
+                  <User className="w-4 text-gray-400 mr-2" />
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, name: e.target.value })
+                    }
+                    className="flex-1 bg-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* EMAIL */}
+              <div>
+                <label className="text-sm text-gray-600">Email</label>
+                <div className="flex items-center bg-gray-50 border rounded-lg p-2">
+                  <Mail className="w-4 text-gray-400 mr-2" />
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, email: e.target.value })
+                    }
+                    className="flex-1 bg-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* PASSWORD (VISIBLE) */}
+              <div>
+                <label className="text-sm text-gray-600">Password</label>
+                <div className="flex items-center bg-gray-50 border rounded-lg p-2">
+                  <Lock className="w-4 text-gray-400 mr-2" />
+                  <input
+                    type="text" // 👈 PASSWORD VISIBLE
+                    value={newUser.password}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, password: e.target.value })
+                    }
+                    className="flex-1 bg-transparent outline-none"
+                    placeholder="Enter password"
+                  />
+                </div>
+              </div>
+
+              {/* ROLE */}
+              <div>
+                <label className="text-sm text-gray-600">Role</label>
+                <div className="flex items-center bg-gray-50 border rounded-lg p-2">
+                  <Shield className="w-4 text-gray-400 mr-2" />
+                  <select
+                    value={newUser.role}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, role: e.target.value })
+                    }
+                    className="flex-1 bg-transparent outline-none"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="staff">Staff</option>
+                    <option value="subadmin">Sub Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* SHOP */}
+              <div>
+                <label className="text-sm text-gray-600">Shop</label>
+                <div className="flex items-center bg-gray-50 border rounded-lg p-2">
+                  <Store className="w-4 text-gray-400 mr-2" />
+                  <select
+                    value={newUser.shop_id}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, shop_id: e.target.value })
+                    }
+                    className="flex-1 bg-transparent outline-none"
+                  >
+                    <option value="">No shop</option>
+                    {shops.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* BUTTONS */}
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create User
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
