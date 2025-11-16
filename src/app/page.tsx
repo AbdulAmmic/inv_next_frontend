@@ -3,161 +3,263 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send } from "lucide-react";
-import Header from "@/components/header";
+import { loginUser } from "@/apiCalls";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
+
+  // ------------------------------------------------------------
+  // VALIDATION
+  // ------------------------------------------------------------
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = { email: "", password: "" };
+
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Enter a valid email";
+      valid = false;
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  // ------------------------------------------------------------
+  // HANDLE INPUT
+  // ------------------------------------------------------------
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: "" });
+  };
+
+  // ------------------------------------------------------------
+  // LOGIN
+  // ------------------------------------------------------------
+  const handleLogin = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const response = await loginUser(formData.email, formData.password);
+      const data = response.data;
+
+      if (data?.access_token) {
+        // Save tokens
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        toast.success("Login successful!");
+
+        // Smooth redirect
+        setTimeout(() => {
+          router.replace("/dashboard");
+        }, 500);
+      } else {
+        toast.error("Login failed. Try again.");
+      }
+    } catch (err: any) {
+      toast.error(
+        err.response?.data?.error ||
+          err.message ||
+          "Incorrect email or password"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // FORGOT PASSWORD (Mocked)
+  // ------------------------------------------------------------
+  const handleForgotPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast.info("Password reset link sent to your email");
+    setShowForgot(false);
+  };
+
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white px-2 py-6 sm:p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 p-4">
+      <ToastContainer position="top-right" autoClose={2500} />
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-sm sm:p-0 bg-transparent rounded-2xl shadow-none"
+        transition={{ duration: 0.45 }}
+        className="w-full max-w-md"
       >
-        {/* Blue Header */}
-        <div className="rounded-t-2xl bg-blue-600 px-4 py-6 sm:px-8 text-center shadow-md">
-          <h1 className="text-2xl font-bold text-white tracking-tight">Tuhanas Kitchen</h1>
-          <p className="text-blue-100 mt-2 text-sm font-light">
+        {/* Header */}
+        <div className="rounded-t-xl bg-gradient-to-r from-purple-700 to-indigo-700 px-6 py-8 text-center shadow-xl">
+          <h1 className="text-3xl font-bold text-white">Tuhana's Inventory</h1>
+          <p className="text-purple-200 mt-2 text-sm">
             {showForgot
               ? "Reset your password"
-              : "Sign in to manage your kitchen inventory"}
+              : "Smart multi-shop inventory system"}
           </p>
         </div>
+
+        {/* FORM CONTAINER */}
         <motion.div
           initial={{ scale: 0.97 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="bg-white/90 rounded-b-2xl px-4 py-8 sm:px-8 shadow-md -mt-2"
+          className="bg-white rounded-b-xl px-6 py-8 shadow-xl"
         >
+          <AnimatePresence mode="wait">
+            {/* LOGIN SCREEN */}
+            {!showForgot ? (
+              <motion.div
+                key="login"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div
+                  className="space-y-6"
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                >
+                  {/* Email */}
+                  <div>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
+                      <input
+                        type="email"
+                        name="email"
+                        placeholder="Email address"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 border transition-all focus:outline-none ${
+                          errors.email
+                            ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-purple-300 focus:ring-2 focus:ring-purple-500"
+                        }`}
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
 
-        <AnimatePresence mode="wait">
-          {!showForgot ? (
-            <motion.div
-              key="login-form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Login Form */}
+                  {/* Password */}
+                  <div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        placeholder="Password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className={`w-full pl-10 pr-10 py-3 rounded-lg bg-gray-50 text-gray-800 border transition-all focus:outline-none ${
+                          errors.password
+                            ? "border-red-500 focus:ring-2 focus:ring-red-500"
+                            : "border-purple-300 focus:ring-2 focus:ring-purple-500"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.password}
+                      </p>
+                    )}
+                  </div>
 
-              <form className="space-y-5 mt-2">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
-                    autoComplete="email"
-                  />
-                </div>
-
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-500 p-1 rounded"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-
-
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs">
-                  <label className="flex items-center text-gray-500">
-                    <input
-                      type="checkbox"
-                      className="rounded border border-blue-200 text-blue-500 focus:ring-blue-400 accent-blue-500 h-4 w-4"
-                    />
-                    <span className="ml-2">Remember me</span>
-                  </label>
+                  {/* Forgot Password */}
                   <button
                     type="button"
                     onClick={() => setShowForgot(true)}
-                    className="text-blue-500 hover:text-blue-700 transition-colors px-2 py-1"
+                    className="text-xs text-purple-600 hover:text-purple-800 block text-right"
                   >
-                    Forgot?
+                    Forgot password?
                   </button>
-                </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  type="submit"
-                  className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-none text-base sm:text-sm"
-                >
-                  Sign In
-                </motion.button>
-              </form>
-
-              {/* Sign up link */}
-              <div className="text-center text-gray-400 text-xs mt-6">
-                Don't have an account?{' '}
-                <a href="#" className="text-blue-500 hover:text-blue-700 font-medium transition-colors">
-                  Create account
-                </a>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="forgot-form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Forgot Password Form */}
-              <form className="space-y-5 mt-2">
-                <p className="text-gray-500 text-xs text-center mb-2">
-                  Enter your email and we'll send you a reset link.
-                </p>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-300" />
-                  <input
-                    type="email"
-                    placeholder="Your email address"
-                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-blue-500 transition-all text-base sm:text-sm"
-                    autoComplete="email"
-                  />
+                  {/* Login Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    type="button"
+                    onClick={handleLogin}
+                    disabled={loading}
+                    className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-95 transition disabled:opacity-60"
+                  >
+                    {loading ? "Signing in..." : "Sign In"}
+                  </motion.button>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  type="submit"
-                  className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-none text-base sm:text-sm"
-                >
-                  <Send size={18} />
-                  Send Reset Link
-                </motion.button>
-              </form>
-              {/* Back to Login */}
-              <button
-                onClick={() => setShowForgot(false)}
-                className="mt-6 text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-1 px-2 py-1"
+              </motion.div>
+            ) : (
+              /* FORGOT PASSWORD SCREEN */
+              <motion.div
+                key="forgot-screen"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
               >
-                <ArrowLeft size={16} />
-                Back to Login
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <form onSubmit={handleForgotPassword} className="space-y-6">
+                  <p className="text-gray-600 text-sm text-center">
+                    Enter your email to receive a reset link.
+                  </p>
+
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email address"
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 border border-purple-300 focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    type="submit"
+                    className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-center gap-2 hover:opacity-90"
+                  >
+                    <Send size={18} />
+                    Send Reset Link
+                  </motion.button>
+                </form>
+
+                <button
+                  onClick={() => setShowForgot(false)}
+                  className="mt-4 text-sm text-purple-600 hover:text-purple-800 flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft size={16} /> Back to Login
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </motion.div>
     </div>

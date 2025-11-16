@@ -1,115 +1,158 @@
-import { Edit, Trash2 } from 'lucide-react';
+"use client";
+
+import { useState } from "react";
+import { Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ProductsTableProps {
-  products: Product[];
+  products: any[];
   selectedProducts: string[];
   onSelectProduct: (ids: string[]) => void;
-  onEditProduct: (product: Product) => void;
-  onDeleteProduct: (product: Product) => void;
+  onEditProduct: (product: any) => void;
+  onDeleteProduct: (product: any) => void;
+  onBulkDelete: () => void;
 }
 
-const ProductsTable: React.FC<ProductsTableProps> = ({
+export default function ProductsTable({
   products,
   selectedProducts,
   onSelectProduct,
   onEditProduct,
   onDeleteProduct,
-}) => {
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      onSelectProduct(products.map(p => p.id));
+  onBulkDelete,
+}: ProductsTableProps) {
+  const [sortField, setSortField] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      onSelectProduct([]);
+      setSortField(field);
+      setSortOrder("asc");
     }
   };
 
-  const handleSelectOne = (id: string, checked: boolean) => {
-    if (checked) {
-      onSelectProduct([...selectedProducts, id]);
+  const sortedProducts = [...products].sort((a, b) => {
+    const valA = a[sortField] ?? "";
+    const valB = b[sortField] ?? "";
+    if (sortOrder === "asc") return valA > valB ? 1 : -1;
+    return valA < valB ? 1 : -1;
+  });
+
+  const toggleSelect = (id: string) => {
+    if (selectedProducts.includes(id)) {
+      onSelectProduct(selectedProducts.filter((x) => x !== id));
     } else {
-      onSelectProduct(selectedProducts.filter(selectedId => selectedId !== id));
+      onSelectProduct([...selectedProducts, id]);
     }
   };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.length === products.length) {
+      onSelectProduct([]);
+    } else {
+      onSelectProduct(products.map((p) => p.id));
+    }
+  };
+
+  const sortIcon = (field: string) =>
+    sortField !== field ? (
+      <ChevronDown className="w-4 h-4 opacity-40" />
+    ) : sortOrder === "asc" ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="overflow-x-auto">
+      {selectedProducts.length > 0 && (
+        <div className="flex items-center justify-between p-3 bg-red-50 border-b border-red-200">
+          <p className="text-red-600 font-medium">
+            {selectedProducts.length} selected
+          </p>
+          <button
+            onClick={onBulkDelete}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Delete Selected
+          </button>
+        </div>
+      )}
+
+      <table className="w-full text-left min-w-[900px]">
         <thead>
-          <tr>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <input
-                type="checkbox"
-                checked={selectedProducts.length === products.length && products.length > 0}
-                onChange={handleSelectAll}
-              />
+          <tr className="bg-gray-100 border-b text-sm">
+            <th className="p-3"></th>
+            <th className="p-3 cursor-pointer" onClick={() => toggleSort("name")}>
+              Name {sortIcon("name")}
             </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Product Name
+            <th className="p-3">Category</th>
+            <th className="p-3 cursor-pointer" onClick={() => toggleSort("stockQuantity")}>
+              Stock {sortIcon("stockQuantity")}
             </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Category
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              SKU
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Stock
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Price
-            </th>
-            <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
+            <th className="p-3">Cost</th>
+            <th className="p-3">Price</th>
+            <th className="p-3">Status</th>
+            <th className="p-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {products.map((product) => (
-            <tr key={product.id}>
-              <td className="px-6 py-4 whitespace-nowrap">
+
+        <tbody>
+          {sortedProducts.map((product) => (
+            <tr key={product.id} className="border-b hover:bg-gray-50 text-sm">
+              <td className="p-3">
                 <input
                   type="checkbox"
                   checked={selectedProducts.includes(product.id)}
-                  onChange={(e) => handleSelectOne(product.id, e.target.checked)}
+                  onChange={() => toggleSelect(product.id)}
                 />
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">{product.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{product.category}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{product.sku}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span
-                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    product.stockQuantity > 10
-                      ? 'bg-green-100 text-green-800'
-                      : product.stockQuantity === 0
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {product.stockQuantity}
-                </span>
+
+              <td className="p-3 font-medium">{product.name}</td>
+              <td className="p-3">{product.category}</td>
+              <td className="p-3">{product.stockQuantity}</td>
+              <td className="p-3">₦{product.costPrice}</td>
+              <td className="p-3">₦{product.sellingPrice}</td>
+
+              <td className="p-3">
+                {product.status === "inStock" && (
+                  <span className="text-green-600 font-medium">In stock</span>
+                )}
+                {product.status === "lowStock" && (
+                  <span className="text-amber-600 font-medium">Low stock</span>
+                )}
+                {product.status === "outOfStock" && (
+                  <span className="text-red-600 font-medium">Out of stock</span>
+                )}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">${product.sellingPrice}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+
+              <td className="p-3 flex justify-end gap-3">
                 <button
-                  className="text-indigo-600 hover:text-indigo-900 mr-3"
                   onClick={() => onEditProduct(product)}
+                  className="p-2 rounded hover:bg-blue-50 text-blue-600"
                 >
-                  <Edit size={16} />
+                  <Pencil size={17} />
                 </button>
                 <button
-                  className="text-red-600 hover:text-red-900"
                   onClick={() => onDeleteProduct(product)}
+                  className="p-2 rounded hover:bg-red-50 text-red-600"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={17} />
                 </button>
               </td>
             </tr>
           ))}
+
+          {!products.length && (
+            <tr>
+              <td colSpan={8} className="p-6 text-center text-gray-500">
+                No products available.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
   );
-};
-
-export default ProductsTable;
+}

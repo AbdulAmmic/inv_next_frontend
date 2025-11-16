@@ -30,6 +30,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   const menuItems = [
     { icon: Home, label: "Dashboard", href: "/dashboard", active: true },
     { icon: Package, label: "Products", href: "/dashboard/products" },
+    { icon: DollarSign, label: "Stock", href: "/dashboard/stock" },
     { icon: Folder, label: "Categories", href: "/dashboard/categories" },
     { icon: Users, label: "Customers", href: "/dashboard/customers" },
     { icon: BarChart3, label: "Finances", href: "/dashboard/finances" },
