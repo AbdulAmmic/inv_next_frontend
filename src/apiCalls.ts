@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  process.env.NEXT_PUBLIC_API_URL || "https://invflask-connectorstech7925-12l4k6at.leapcell.dev";
 
 // -------------------------------------------------------------
 // 🔧 AXIOS INSTANCE
