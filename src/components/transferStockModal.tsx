@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { createTransfer } from "@/apiCalls";
+import { useState, useEffect } from "react";
+import { createTransfer, getShops } from "@/apiCalls";
 import { toast } from "react-toastify";
 
 interface StockRow {
@@ -21,8 +21,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   row: StockRow;
-  shops: Shop[];
-  currentShopId?: string;
+  currentShopId?: string;     // Admin's shop
   onSuccess: () => void;
   isAdmin: boolean;
 }
@@ -31,32 +30,58 @@ export default function TransferStockModal({
   open,
   onClose,
   row,
-  shops,
   currentShopId,
   onSuccess,
   isAdmin,
 }: Props) {
-  const [fromShopId, setFromShopId] = useState<string>(
-    currentShopId || ""
-  );
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [fromShopId, setFromShopId] = useState<string>(currentShopId || "");
   const [toShopId, setToShopId] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [shopsLoading, setShopsLoading] = useState(true);
 
+  // ===========================================
+  // LOAD SHOPS AUTOMATICALLY
+  // ===========================================
+  useEffect(() => {
+    const loadShops = async () => {
+      try {
+        const res = await getShops();
+        setShops(res.data);
+      } catch (err) {
+        toast.error("Failed to load shops");
+      } finally {
+        setShopsLoading(false);
+      }
+    };
+
+    if (open) loadShops();
+  }, [open]);
+
+  // If modal closed or not admin → don't render
   if (!open || !isAdmin) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!fromShopId || !toShopId) {
       toast.error("Select both source and destination shop");
       return;
     }
+
     if (fromShopId === toShopId) {
       toast.error("Cannot transfer to the same shop");
       return;
     }
+
     if (!quantity || quantity <= 0) {
-      toast.error("Enter a valid quantity to transfer");
+      toast.error("Enter valid quantity");
+      return;
+    }
+
+    if (quantity > row.currentStock) {
+      toast.error("Cannot transfer more than available stock");
       return;
     }
 
@@ -68,7 +93,8 @@ export default function TransferStockModal({
         product_id: row.product_id,
         quantity,
       });
-      toast.success("Stock transferred");
+
+      toast.success("Stock transferred successfully");
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -84,7 +110,8 @@ export default function TransferStockModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white w-full max-w-md rounded-xl shadow-xl">
+      <div className="bg-white w-full max-w-md rounded-xl shadow-xl animate-[fadeIn_0.2s_ease]">
+        {/* HEADER */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-900">
             Transfer Stock – {row.productName}
@@ -98,9 +125,10 @@ export default function TransferStockModal({
           </button>
         </div>
 
+        {/* BODY */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4 text-sm">
           <p className="text-xs text-gray-600">
-            Current stock in selected shop:{" "}
+            Current stock in this shop:{" "}
             <span className="font-semibold text-gray-900">
               {row.currentStock}
             </span>
@@ -111,17 +139,24 @@ export default function TransferStockModal({
             <label className="block text-xs font-medium text-gray-700 mb-1">
               From Shop
             </label>
+
             <select
               value={fromShopId}
               onChange={(e) => setFromShopId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isAdmin && !!currentShopId}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-lg
+                ${isAdmin && currentShopId
+                  ? "bg-gray-100 text-gray-500"
+                  : "focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                }`}
             >
-              <option value="">Select source shop</option>
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              <option value="">Select shop</option>
+              {!shopsLoading &&
+                shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -130,23 +165,26 @@ export default function TransferStockModal({
             <label className="block text-xs font-medium text-gray-700 mb-1">
               To Shop
             </label>
+
             <select
               value={toShopId}
               onChange={(e) => setToShopId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select destination shop</option>
-              {shops
-                .filter((s) => s.id !== fromShopId)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+
+              {!shopsLoading &&
+                shops
+                  .filter((s) => s.id !== fromShopId)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
             </select>
           </div>
 
-          {/* QTY */}
+          {/* QUANTITY */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Quantity
@@ -154,12 +192,13 @@ export default function TransferStockModal({
             <input
               type="number"
               value={quantity}
+              min={1}
               onChange={(e) => setQuantity(Number(e.target.value))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              min={1}
             />
           </div>
 
+          {/* ACTIONS */}
           <div className="flex gap-3 pt-3">
             <button
               type="button"
@@ -169,6 +208,7 @@ export default function TransferStockModal({
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={loading || !fromShopId || !toShopId || !quantity}

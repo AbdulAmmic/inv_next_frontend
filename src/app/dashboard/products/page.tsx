@@ -186,13 +186,13 @@ export default function ProductsPage() {
     setFilteredProducts(list);
   }, [search, products]);
 
-  const handleShopChange = async (shopId: string) => {
-    setSelectedShop(shopId);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("selected_shop_id", shopId);
-    }
-    await fetchProducts(shopId);
-  };
+  // const handleShopChange = async (shopId: string) => {
+  //   setSelectedShop(shopId);
+  //   if (typeof window !== "undefined") {
+  //     localStorage.setItem("selected_shop_id", shopId);
+  //   }
+  //   await fetchProducts(shopId);
+  // };
 
   // ------------------------------------------------
   // ADD / EDIT / DELETE HANDLERS
@@ -271,20 +271,7 @@ export default function ProductsPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Shop selector */}
-              <select
-                value={selectedShop}
-                onChange={(e) => handleShopChange(e.target.value)}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {shops.length === 0 && (
-                  <option value="">No shops</option>
-                )}
-                {shops.map((shop) => (
-                  <option key={shop.id} value={shop.id}>
-                    {shop.name}
-                  </option>
-                ))}
-              </select>
+             
 
               <button
                 onClick={handleRefresh}

@@ -23,11 +23,11 @@ export default function Header() {
 
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
-  const [shopName, setShopName] = useState<string>(""); // ✅ FIXED: for subadmin/manager
+  const [shopName, setShopName] = useState<string>("");
 
-  // ================================
-  // LOAD USER
-  // ================================
+  // ============================
+  // LOAD USER FROM LOCALSTORAGE
+  // ============================
   const userRaw =
     typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const user = userRaw ? JSON.parse(userRaw) : null;
@@ -37,16 +37,15 @@ export default function Header() {
   const userRole = user?.role || "staff";
   const userShopId = user?.shop_id || null;
 
-  // ================================
-  // SETUP SHOP ON PAGE LOAD
-  // ================================
+  // ============================
+  // INITIAL SHOP SELECTION
+  // ============================
   useEffect(() => {
-    const savedShop = localStorage.getItem("selected_shop_id");
+    const saved = localStorage.getItem("selected_shop_id");
 
     if (userRole === "admin") {
-      if (savedShop) setSelectedShop(savedShop);
+      if (saved) setSelectedShop(saved);
     } else {
-      // SUBADMIN & MANAGER
       if (userShopId) {
         setSelectedShop(userShopId);
         localStorage.setItem("selected_shop_id", userShopId);
@@ -54,13 +53,44 @@ export default function Header() {
     }
   }, []);
 
-  // ================================
-  // LOAD SHOP NAME FOR SUBADMIN / MANAGER
-  // ================================
+  // ============================
+  // LOAD SHOPS (ALL ROLES)
+  // ============================
+  const loadShops = async () => {
+    try {
+      const res = await getShops();
+      setShops(res.data);
+
+      // ADMIN → Select first shop if none saved
+      if (userRole === "admin") {
+        const saved = localStorage.getItem("selected_shop_id");
+        if (!saved && res.data.length > 0) {
+          const first = res.data[0].id;
+          setSelectedShop(first);
+          localStorage.setItem("selected_shop_id", first);
+        }
+      } else {
+        // ALL OTHER ROLES → force their assigned shop
+        if (userShopId) {
+          setSelectedShop(userShopId);
+          localStorage.setItem("selected_shop_id", userShopId);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading shops:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadShops();
+  }, []);
+
+  // ============================
+  // LOAD SHOP NAME FOR NON-ADMIN
+  // ============================
   useEffect(() => {
     if (!selectedShop) return;
 
-    // Only fetch their shop name if not admin
     if (userRole !== "admin") {
       api
         .get(`/shops/${selectedShop}`)
@@ -69,35 +99,9 @@ export default function Header() {
     }
   }, [selectedShop]);
 
-  // ================================
-  // LOAD SHOPS (ADMIN ONLY)
-  // ================================
-  const loadShops = async () => {
-    if (userRole !== "admin") return;
-
-    try {
-      const res = await getShops();
-      setShops(res.data);
-
-      const saved = localStorage.getItem("selected_shop_id");
-
-      if (!saved && res.data.length > 0) {
-        const first = res.data[0].id;
-        setSelectedShop(first);
-        localStorage.setItem("selected_shop_id", first);
-      }
-    } catch (err) {
-      console.error("Failed loading shops:", err);
-    }
-  };
-
-  useEffect(() => {
-    loadShops();
-  }, []);
-
-  // ================================
-  // SHOP CHANGE HANDLER
-  // ================================
+  // ============================
+  // SHOP SWITCH HANDLER
+  // ============================
   const handleShopChange = (e: any) => {
     const shopId = e.target.value;
     setSelectedShop(shopId);
@@ -107,6 +111,9 @@ export default function Header() {
 
   const navigate = (path: string) => router.push(path);
 
+  // ============================
+  // RENDER HEADER
+  // ============================
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-3 flex items-center justify-between shadow-sm">
 
@@ -140,31 +147,29 @@ export default function Header() {
       {/* RIGHT SIDE */}
       <div className="flex items-center gap-4">
 
-        {/* ADMIN: CAN SWITCH SHOPS */}
-        {userRole === "admin" && (
-          <div className="relative">
-            <Store className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <select
-              value={selectedShop || ""}
-              onChange={handleShopChange}
-              className="pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-sm"
-            >
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* SHOP SELECTOR (visible for ALL, switch only for admin) */}
+        <div className="relative">
+          <Store className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
 
-        {/* SUBADMIN & MANAGER — SHOW THEIR SHOP NAME */}
-        {(userRole === "subadmin" || userRole === "manager") && (
-          <div className="px-3 py-1.5 bg-gray-100 border rounded-lg text-sm text-gray-700 flex items-center gap-2">
-            <Store className="w-4 h-4 text-gray-600" />
-            {shopName || "Loading..."}   {/* ✅ FIXED: shows real shop name */}
-          </div>
-        )}
+          <select
+            value={selectedShop || ""}
+            onChange={handleShopChange}
+            disabled={userRole !== "admin"}
+            className={`pl-8 pr-3 py-1.5 border rounded-lg text-sm
+              ${
+                userRole !== "admin"
+                  ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                  : "bg-gray-50"
+              }
+            `}
+          >
+            {shops.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Notifications */}
         <button className="p-2 hover:bg-gray-100 rounded-lg relative">
@@ -177,10 +182,14 @@ export default function Header() {
           onClick={() => setDarkMode(!darkMode)}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
-          {darkMode ? <Sun className="w-5 h-5 text-gray-600" /> : <Moon className="w-5 h-5 text-gray-600" />}
+          {darkMode ? (
+            <Sun className="w-5 h-5 text-gray-600" />
+          ) : (
+            <Moon className="w-5 h-5 text-gray-600" />
+          )}
         </button>
 
-        {/* PROFILE */}
+        {/* PROFILE DROPDOWN */}
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
