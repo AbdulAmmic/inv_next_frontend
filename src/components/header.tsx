@@ -1,44 +1,93 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Moon, Sun, Bell, Search, ChevronDown, Settings, LogOut, User, Store } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Bell,
+  Search,
+  ChevronDown,
+  Settings,
+  LogOut,
+  User,
+  Store,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getShops } from "@/apiCalls";
+import { getShops, api } from "@/apiCalls";
 
 export default function Header() {
   const router = useRouter();
 
   const [darkMode, setDarkMode] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
+  const [shopName, setShopName] = useState<string>(""); // ✅ FIXED: for subadmin/manager
 
-  // ---------------------------
-  // GET USER FROM LOCALSTORAGE
-  // ---------------------------
-  const userRaw = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  // ================================
+  // LOAD USER
+  // ================================
+  const userRaw =
+    typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const user = userRaw ? JSON.parse(userRaw) : null;
 
   const fullName = user?.full_name || "User";
   const userEmail = user?.email || "unknown";
-  const userRole = user?.role || "manager";
+  const userRole = user?.role || "staff";
+  const userShopId = user?.shop_id || null;
 
-  // For admin: get selected shop from localStorage
+  // ================================
+  // SETUP SHOP ON PAGE LOAD
+  // ================================
   useEffect(() => {
-    const saved = localStorage.getItem("selected_shop_id");
-    if (saved) setSelectedShop(saved);
+    const savedShop = localStorage.getItem("selected_shop_id");
+
+    if (userRole === "admin") {
+      if (savedShop) setSelectedShop(savedShop);
+    } else {
+      // SUBADMIN & MANAGER
+      if (userShopId) {
+        setSelectedShop(userShopId);
+        localStorage.setItem("selected_shop_id", userShopId);
+      }
+    }
   }, []);
 
-  // -----------------------------------------------------
-  // LOAD SHOPS ONLY IF THE USER IS ADMIN
-  // -----------------------------------------------------
+  // ================================
+  // LOAD SHOP NAME FOR SUBADMIN / MANAGER
+  // ================================
+  useEffect(() => {
+    if (!selectedShop) return;
+
+    // Only fetch their shop name if not admin
+    if (userRole !== "admin") {
+      api
+        .get(`/shops/${selectedShop}`)
+        .then((res) => setShopName(res.data.name))
+        .catch(() => setShopName("My Shop"));
+    }
+  }, [selectedShop]);
+
+  // ================================
+  // LOAD SHOPS (ADMIN ONLY)
+  // ================================
   const loadShops = async () => {
     if (userRole !== "admin") return;
+
     try {
       const res = await getShops();
       setShops(res.data);
+
+      const saved = localStorage.getItem("selected_shop_id");
+
+      if (!saved && res.data.length > 0) {
+        const first = res.data[0].id;
+        setSelectedShop(first);
+        localStorage.setItem("selected_shop_id", first);
+      }
     } catch (err) {
-      console.error("Failed to load shops:", err);
+      console.error("Failed loading shops:", err);
     }
   };
 
@@ -46,14 +95,14 @@ export default function Header() {
     loadShops();
   }, []);
 
-  // -----------------------------------------------------
-  // CHANGE SHOP (ADMIN ONLY)
-  // -----------------------------------------------------
+  // ================================
+  // SHOP CHANGE HANDLER
+  // ================================
   const handleShopChange = (e: any) => {
     const shopId = e.target.value;
     setSelectedShop(shopId);
     localStorage.setItem("selected_shop_id", shopId);
-    window.location.reload(); // refresh dashboards live
+    window.location.reload();
   };
 
   const navigate = (path: string) => router.push(path);
@@ -71,7 +120,9 @@ export default function Header() {
         </button>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
-          <button onClick={() => navigate("/dashboard/stores")} className="hover:text-blue-600">Stores</button>
+          <button onClick={() => navigate("/dashboard/stores")} className="hover:text-blue-600">
+            Stores
+          </button>
           <button className="hover:text-blue-600">AI</button>
         </nav>
       </div>
@@ -89,7 +140,7 @@ export default function Header() {
       {/* RIGHT SIDE */}
       <div className="flex items-center gap-4">
 
-        {/* ADMIN SHOP SWITCHER */}
+        {/* ADMIN: CAN SWITCH SHOPS */}
         {userRole === "admin" && (
           <div className="relative">
             <Store className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -98,13 +149,20 @@ export default function Header() {
               onChange={handleShopChange}
               className="pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-sm"
             >
-              <option value="">Select Shop</option>
               {shops.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* SUBADMIN & MANAGER — SHOW THEIR SHOP NAME */}
+        {(userRole === "subadmin" || userRole === "manager") && (
+          <div className="px-3 py-1.5 bg-gray-100 border rounded-lg text-sm text-gray-700 flex items-center gap-2">
+            <Store className="w-4 h-4 text-gray-600" />
+            {shopName || "Loading..."}   {/* ✅ FIXED: shows real shop name */}
           </div>
         )}
 
@@ -139,22 +197,23 @@ export default function Header() {
               <div className="px-4 pb-3 border-b">
                 <div className="text-gray-900 font-medium">{fullName}</div>
                 <div className="text-gray-500 text-sm">{userEmail}</div>
-                <div className="text-xs mt-1 text-blue-600 font-semibold uppercase">{userRole}</div>
+                <div className="text-xs mt-1 text-blue-600 font-semibold uppercase">
+                  {userRole}
+                </div>
               </div>
 
-              <button
-                onClick={() => navigate("/dashboard/profile")}
-                className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-              >
+              <button className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-gray-100">
                 <User className="w-4 h-4 mr-3" /> Profile
               </button>
 
-              <button
-                onClick={() => navigate("/dashboard/settings")}
-                className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-              >
-                <Settings className="w-4 h-4 mr-3" /> Settings
-              </button>
+              {userRole === "admin" && (
+                <button
+                  onClick={() => navigate("/dashboard/settings")}
+                  className="flex items-center w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                >
+                  <Settings className="w-4 h-4 mr-3" /> Settings
+                </button>
+              )}
 
               <button
                 onClick={() => {
