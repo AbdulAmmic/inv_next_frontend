@@ -442,7 +442,7 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Mobile Footer Info */}
+      
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-100">
           <div className="text-xs text-gray-500 mb-2">Account</div>
           <div className="text-sm text-gray-700">{userEmail}</div>
