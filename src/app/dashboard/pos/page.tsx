@@ -811,6 +811,7 @@ export default function POSPage() {
                   <div>{new Date().toLocaleString()}</div>
                   <div>Staff: {user?.full_name || "N/A"}</div>
                   <div>Customer: {receipt.sale?.customer_name || "Walk-in Customer"}</div>
+
                 </div>
               </div>
 
@@ -855,6 +856,7 @@ export default function POSPage() {
                   <span className="text-blue-600">
                     ₦{receipt.sale?.total_amount?.toFixed(2)}
                   </span>
+                  <p>Thank you for Doing Business with us!, </p>
                 </div>
               </div>
             </div>
