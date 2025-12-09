@@ -7,7 +7,7 @@ import ProductsStats from "@/components/productsStats";
 import ProductsTable from "@/components/productsTable";
 import ProductFormModal from "@/components/productsModal";
 import DeleteProductModal from "@/components/deleteProductsModal";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Filter, AlertCircle } from "lucide-react";
 import { getProducts, deleteProduct, getShops } from "@/apiCalls";
 import type { Product, StockStatus } from "@/app/types/products";
 import { toast } from "react-toastify";
@@ -27,6 +27,10 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
 
+  const [stockFilter, setStockFilter] = useState<
+    "" | "outOfStock" | "lowStock" | "inStock"
+  >("");
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,10 +44,7 @@ export default function ProductsPage() {
   // ------------------------------------------------
   // UTIL – determine stock status
   // ------------------------------------------------
-  const getStockStatus = (
-    quantity: number,
-    minQty: number
-  ): StockStatus => {
+  const getStockStatus = (quantity: number, minQty: number): StockStatus => {
     if (quantity <= 0) return "outOfStock";
     if (quantity <= minQty) return "lowStock";
     return "inStock";
@@ -71,16 +72,14 @@ export default function ProductsPage() {
             try {
               const user = JSON.parse(userRaw);
               if (user.role !== "admin" && user.shop_id) {
-                // normal user restricted to their shop
                 initialShopId = user.shop_id;
               }
             } catch {
-              // ignore parse errors
+              // ignore JSON errors
             }
           }
         }
 
-        // If still empty, fallback to first shop if exists
         if (!initialShopId && list.length > 0) {
           initialShopId = list[0].id;
         }
@@ -99,7 +98,6 @@ export default function ProductsPage() {
     };
 
     init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ------------------------------------------------
@@ -123,6 +121,7 @@ export default function ProductsPage() {
 
         const price =
           stock.price != null ? Number(stock.price) : Number(p.price || 0);
+
         const cost =
           stock.cost_price != null
             ? Number(stock.cost_price)
@@ -168,11 +167,12 @@ export default function ProductsPage() {
   };
 
   // ------------------------------------------------
-  // FILTER HANDLER
+  // FILTER HANDLER (Search + Stock)
   // ------------------------------------------------
   useEffect(() => {
     let list = [...products];
 
+    // Search filter
     if (search.trim()) {
       const term = search.toLowerCase();
       list = list.filter(
@@ -183,22 +183,39 @@ export default function ProductsPage() {
       );
     }
 
-    setFilteredProducts(list);
-  }, [search, products]);
+    // Stock status filter
+    if (stockFilter) {
+      list = list.filter((p) => p.status === stockFilter);
+    }
 
-  // const handleShopChange = async (shopId: string) => {
-  //   setSelectedShop(shopId);
-  //   if (typeof window !== "undefined") {
-  //     localStorage.setItem("selected_shop_id", shopId);
-  //   }
-  //   await fetchProducts(shopId);
-  // };
+    setFilteredProducts(list);
+  }, [search, stockFilter, products]);
+
+  // ------------------------------------------------
+  // OUT OF STOCK BUTTON HANDLER
+  // ------------------------------------------------
+  const handleShowOutOfStock = () => {
+    // Filter products where stockQuantity is 0
+    const outOfStockProducts = products.filter((p) => p.stockQuantity === 0);
+    setFilteredProducts(outOfStockProducts);
+    setStockFilter("outOfStock"); // Set the dropdown to match
+    toast.info(`Showing ${outOfStockProducts.length} out-of-stock products`);
+  };
+
+  // ------------------------------------------------
+  // CLEAR FILTERS
+  // ------------------------------------------------
+  const handleClearFilters = () => {
+    setStockFilter("");
+    setFilteredProducts(products);
+    setSearch("");
+    toast.info("Filters cleared");
+  };
 
   // ------------------------------------------------
   // ADD / EDIT / DELETE HANDLERS
   // ------------------------------------------------
-  const handleProductSaved = (p: Product) => {
-    // After modal, we already refetch in products page OR we can just refresh here
+  const handleProductSaved = () => {
     fetchProducts(selectedShop);
   };
 
@@ -270,9 +287,6 @@ export default function ProductsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Shop selector */}
-             
-
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
@@ -296,15 +310,80 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Search bar */}
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <input
-              type="text"
-              placeholder="Search by name, SKU, or category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full max-w-md rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {/* Search + Filter Bar */}
+          <div className="mb-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by name, SKU, or category..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Out of Stock Button */}
+                <button
+                  onClick={handleShowOutOfStock}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                    stockFilter === "outOfStock"
+                      ? "bg-red-100 text-red-700 ring-2 ring-red-300"
+                      : "bg-white text-gray-700 hover:bg-red-50 hover:text-red-600"
+                  } border border-gray-200 shadow-sm`}
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  Show Out of Stock
+                </button>
+
+                {/* Stock Filter Dropdown */}
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <select
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value as any)}
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All Products</option>
+                    <option value="inStock">In Stock</option>
+                    <option value="lowStock">Low Stock</option>
+                    <option value="outOfStock">Out of Stock</option>
+                  </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                {(stockFilter || search) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Filters Indicator */}
+            {stockFilter && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Showing:</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                  {stockFilter === "outOfStock" && "Out of Stock Products"}
+                  {stockFilter === "lowStock" && "Low Stock Products"}
+                  {stockFilter === "inStock" && "In Stock Products"}
+                  <button
+                    onClick={handleClearFilters}
+                    className="ml-1 rounded-full p-0.5 hover:bg-blue-200"
+                  >
+                    ×
+                  </button>
+                </span>
+                <span className="text-sm text-gray-500">
+                  ({filteredProducts.length} products)
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stats */}

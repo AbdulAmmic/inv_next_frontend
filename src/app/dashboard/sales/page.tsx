@@ -18,7 +18,7 @@ export default function SalesPage() {
     try {
       setLoading(true);
 
-      const res = await getSales(shopId); // PASS SHOP ID
+      const res = await getSales(shopId);
       const data = res.data.data || [];
 
       const cleaned = data.map((s: any) => {
@@ -26,16 +26,22 @@ export default function SalesPage() {
 
         return {
           id: s.id,
-          sale_number: "SO-" + s.id.substring(0, 8).toUpperCase(),
-          shop_name: s.shop_id || "Unknown",
-          staff_name: s.staff_name || "Unknown",
-          amount: isReturned ? -Math.abs(s.total_amount || 0) : s.total_amount || 0,
-          payment_method: s.payment_method || "cash",
-          item_count: (s.items && s.items.length) || 1,
+          sale_number: s.sale_number,      // ⬅️ backend already provides
+          shop_name: s.shop_name,          // ⬅️ correct shop name
+          staff_name: s.staff_name,        // ⬅️ staff name
+          customer_name: s.customer_name,  // ⬅️ added customer name
+
+          amount: isReturned
+            ? -Math.abs(s.total_amount || 0)
+            : s.total_amount || 0,
+
+          payment_method: s.payment_method,
+          item_count: s.item_count,        // ⬅️ backend already returns this
           created_at_display: s.created_at
             ? new Date(s.created_at).toLocaleString()
             : "Unknown",
-          status: s.status || "completed",
+
+          status: s.status,
         };
       });
 
@@ -47,10 +53,8 @@ export default function SalesPage() {
     }
   };
 
-  // On page load → read shop from localStorage
   useEffect(() => {
     const shopId = localStorage.getItem("selected_shop_id");
-
     setSelectedShop(shopId);
 
     if (shopId) {
@@ -60,7 +64,6 @@ export default function SalesPage() {
     }
   }, []);
 
-  // If shop not selected (admin)
   if (!selectedShop) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
@@ -99,6 +102,7 @@ export default function SalesPage() {
                 <tr>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">Sale #</th>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">Staff</th>
+                  <th className="p-4 text-left text-sm font-semibold text-gray-700">Customer</th>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">Amount</th>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">Payment</th>
                   <th className="p-4 text-left text-sm font-semibold text-gray-700">Items</th>
@@ -115,6 +119,10 @@ export default function SalesPage() {
                       <td className="p-4 font-semibold text-gray-900">{sale.sale_number}</td>
 
                       <td className="p-4 text-gray-700">{sale.staff_name}</td>
+
+                      <td className="p-4 text-gray-700">
+                        {sale.customer_name || "Walk-in"}
+                      </td>
 
                       <td
                         className={`p-4 font-semibold ${
@@ -155,7 +163,7 @@ export default function SalesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-500">
+                    <td colSpan={9} className="p-8 text-center text-gray-500">
                       No sales found for this shop.
                     </td>
                   </tr>
@@ -163,7 +171,7 @@ export default function SalesPage() {
               </tbody>
             </table>
           </div>
-        </main> 
+        </main>
       </div>
     </div>
   );

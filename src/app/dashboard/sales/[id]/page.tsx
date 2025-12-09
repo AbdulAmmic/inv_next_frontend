@@ -22,18 +22,18 @@ export default function SaleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [refundLoading, setRefundLoading] = useState(false);
 
-  /** -----------------------------------------
-   *  FETCH SALE DETAILS (Hydration-safe)
-   * ---------------------------------------- */
+  /** ---------------------------
+   *  FETCH SALE DETAILS
+   * --------------------------- */
   useEffect(() => {
     if (!id) return;
 
     const fetchSale = async () => {
       try {
         setLoading(true);
+
         const res = await getSale(id as string);
 
-        // Ensure safe values
         setSale({
           ...res.data.sale,
           items: res.data.items || [],
@@ -48,9 +48,9 @@ export default function SaleDetailPage() {
     fetchSale();
   }, [id]);
 
-  /** -----------------------------------------
+  /** ---------------------------
    *  REFUND SALE
-   * ---------------------------------------- */
+   * --------------------------- */
   const handleRefund = async () => {
     if (!confirm("Are you sure you want to refund this sale?")) return;
 
@@ -67,19 +67,18 @@ export default function SaleDetailPage() {
     }
   };
 
-  /** -----------------------------------------
-   *  LOADING STATE
-   * ---------------------------------------- */
+  /** ---------------------------
+   *  LOADING
+   * --------------------------- */
   if (loading || !sale) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600 font-medium">Loading sale details...</p>
+        <p className="text-gray-600">Loading sale details...</p>
       </div>
     );
   }
 
-  /** Safe values */
-  const safeId = sale?.id ? sale.id.slice(0, 8) : "N/A";
+  const safeId = sale.id ? sale.id.slice(0, 8) : "N/A";
   const safeItems = Array.isArray(sale.items) ? sale.items : [];
 
   return (
@@ -90,7 +89,7 @@ export default function SaleDetailPage() {
         <Header />
 
         <main className="p-6 space-y-6">
-          {/* Back */}
+          {/* BACK BUTTON */}
           <button
             onClick={() => router.push("/dashboard/sales")}
             className="flex items-center gap-2 text-gray-600 hover:text-blue-600"
@@ -106,24 +105,35 @@ export default function SaleDetailPage() {
 
             {/* INFO GRID */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Shop */}
               <InfoCard
                 icon={<Store className="w-5 h-5 text-gray-500" />}
                 label="Shop"
                 value={sale.shop_name || sale.shop_id || "Unknown"}
               />
 
+              {/* Staff */}
               <InfoCard
                 icon={<User className="w-5 h-5 text-gray-500" />}
                 label="Staff"
                 value={sale.staff_name || sale.staff_id || "Unknown"}
               />
 
+              {/* ✔ CUSTOMER */}
+              <InfoCard
+                icon={<User className="w-5 h-5 text-blue-500" />}
+                label="Customer"
+                value={sale.customer_name || "Walk-in"}
+              />
+
+              {/* Payment */}
               <InfoCard
                 icon={<ShoppingCart className="w-5 h-5 text-gray-500" />}
                 label="Payment"
-                value={sale.payment_method || "Unknown"}
+                value={sale.payment_method}
               />
 
+              {/* Total */}
               <InfoCard
                 icon={<Receipt className="w-5 h-5 text-gray-500" />}
                 label="Total"
@@ -142,10 +152,13 @@ export default function SaleDetailPage() {
                     <th className="p-4 text-left text-gray-700">Total</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {safeItems.map((item: any) => (
                     <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">{item.product_name || item.product_id}</td>
+                      <td className="p-4">
+                        {item.product_name || item.product_id}
+                      </td>
                       <td className="p-4">{item.quantity}</td>
                       <td className="p-4">
                         ₦{Number(item.unit_price || 0).toLocaleString()}
@@ -159,9 +172,8 @@ export default function SaleDetailPage() {
               </table>
             </div>
 
-            {/* ACTION BUTTONS */}
+            {/* ACTIONS */}
             <div className="flex gap-4 mt-4">
-              {/* PRINT */}
               <button
                 onClick={() => window.print()}
                 className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -170,7 +182,6 @@ export default function SaleDetailPage() {
                 Print Receipt
               </button>
 
-              {/* REFUND */}
               <button
                 onClick={handleRefund}
                 disabled={refundLoading}
@@ -187,7 +198,7 @@ export default function SaleDetailPage() {
   );
 }
 
-/** Small component to reduce repetition */
+/** Simple reusable component */
 function InfoCard({
   icon,
   label,
