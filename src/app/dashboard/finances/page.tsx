@@ -18,6 +18,7 @@ import {
   Download,
   Calendar,
   MoreVertical,
+  ChevronDown,
 } from "lucide-react";
 import { getShops } from "@/apiCalls";
 import { api } from "@/apiCalls";
@@ -75,17 +76,47 @@ export default function FinancesPage() {
   const [selectedShop, setSelectedShop] = useState<string>("");
   const [timeRange, setTimeRange] = useState<string>("month");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: "",
+    endDate: "",
+  });
+  const [dateRangeLabel, setDateRangeLabel] = useState("This Month");
+
+  // Predefined date ranges
+  const predefinedRanges = [
+    { label: "Today", value: "today" },
+    { label: "Yesterday", value: "yesterday" },
+    { label: "Last 7 Days", value: "last7days" },
+    { label: "Last 30 Days", value: "last30days" },
+    { label: "This Week", value: "week" },
+    { label: "Last Week", value: "lastweek" },
+    { label: "This Month", value: "month" },
+    { label: "Last Month", value: "lastmonth" },
+    { label: "This Quarter", value: "quarter" },
+    { label: "Last Quarter", value: "lastquarter" },
+    { label: "This Year", value: "year" },
+    { label: "Last Year", value: "lastyear" },
+    { label: "Year to Date", value: "ytd" },
+    { label: "Custom Range", value: "custom" },
+  ];
 
   useEffect(() => {
     loadShops();
+    // Set default dates
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    setCustomDateRange({
+      startDate: formatDate(firstDayOfMonth),
+      endDate: formatDate(today),
+    });
   }, []);
 
   useEffect(() => {
     if (selectedShop) {
       fetchStats(selectedShop);
     }
-  }, [selectedShop, timeRange]);
+  }, [selectedShop, timeRange, customDateRange]);
 
   const loadShops = async () => {
     try {
@@ -102,9 +133,19 @@ export default function FinancesPage() {
   const fetchStats = async (shopId: string) => {
     try {
       setLoading(true);
-      const res = await api.get("/reports/full-stats", {
-        params: { shop_id: shopId, period: timeRange },
-      });
+      const params: any = { shop_id: shopId };
+      
+      if (timeRange === "custom") {
+        if (customDateRange.startDate && customDateRange.endDate) {
+          params.start_date = customDateRange.startDate;
+          params.end_date = customDateRange.endDate;
+          params.period = "custom";
+        }
+      } else {
+        params.period = timeRange;
+      }
+
+      const res = await api.get("/reports/full-stats", { params });
       setStats(res.data);
     } catch (err) {
       console.error("Failed loading stats", err);
@@ -119,6 +160,125 @@ export default function FinancesPage() {
     if (selectedShop) {
       fetchStats(selectedShop);
     }
+  };
+
+  const handleTimeRangeChange = (value: string) => {
+    setTimeRange(value);
+    setShowDatePicker(false);
+    
+    // Update date range label
+    const selected = predefinedRanges.find(range => range.value === value);
+    if (selected) {
+      setDateRangeLabel(selected.label);
+    }
+    
+    // Set custom dates for predefined ranges
+    const today = new Date();
+    switch (value) {
+      case "today":
+        setCustomDateRange({
+          startDate: formatDate(today),
+          endDate: formatDate(today),
+        });
+        break;
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        setCustomDateRange({
+          startDate: formatDate(yesterday),
+          endDate: formatDate(yesterday),
+        });
+        break;
+      case "last7days":
+        const last7Days = new Date(today);
+        last7Days.setDate(last7Days.getDate() - 6);
+        setCustomDateRange({
+          startDate: formatDate(last7Days),
+          endDate: formatDate(today),
+        });
+        break;
+      case "last30days":
+        const last30Days = new Date(today);
+        last30Days.setDate(last30Days.getDate() - 29);
+        setCustomDateRange({
+          startDate: formatDate(last30Days),
+          endDate: formatDate(today),
+        });
+        break;
+      case "week":
+        const firstDayOfWeek = new Date(today);
+        const day = firstDayOfWeek.getDay();
+        const diff = firstDayOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        firstDayOfWeek.setDate(diff);
+        setCustomDateRange({
+          startDate: formatDate(firstDayOfWeek),
+          endDate: formatDate(today),
+        });
+        break;
+      case "lastweek":
+        const lastWeekStart = new Date(today);
+        lastWeekStart.setDate(lastWeekStart.getDate() - 7 - lastWeekStart.getDay());
+        const lastWeekEnd = new Date(lastWeekStart);
+        lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+        setCustomDateRange({
+          startDate: formatDate(lastWeekStart),
+          endDate: formatDate(lastWeekEnd),
+        });
+        break;
+      case "month":
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        setCustomDateRange({
+          startDate: formatDate(firstDayOfMonth),
+          endDate: formatDate(today),
+        });
+        break;
+      case "lastmonth":
+        const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        setCustomDateRange({
+          startDate: formatDate(firstDayLastMonth),
+          endDate: formatDate(lastDayLastMonth),
+        });
+        break;
+      case "quarter":
+        const quarter = Math.floor(today.getMonth() / 3);
+        const firstDayOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
+        setCustomDateRange({
+          startDate: formatDate(firstDayOfQuarter),
+          endDate: formatDate(today),
+        });
+        break;
+      case "year":
+        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+        setCustomDateRange({
+          startDate: formatDate(firstDayOfYear),
+          endDate: formatDate(today),
+        });
+        break;
+    }
+  };
+
+  const handleCustomDateApply = () => {
+    if (customDateRange.startDate && customDateRange.endDate) {
+      setTimeRange("custom");
+      setDateRangeLabel(
+        `${formatDisplayDate(customDateRange.startDate)} - ${formatDisplayDate(customDateRange.endDate)}`
+      );
+      setShowDatePicker(false);
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const formatDisplayDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+    });
   };
 
   const formatNaira = (n: number) =>
@@ -143,7 +303,7 @@ export default function FinancesPage() {
 
   return (
     <div className="flex bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-   <Sidebar
+      <Sidebar
         isOpen={sidebarOpen}
         toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         isMobile={false}
@@ -166,17 +326,80 @@ export default function FinancesPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <select
-                  className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value)}
-                >
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="quarter">This Quarter</option>
-                  <option value="year">This Year</option>
-                </select>
+                {/* Date Range Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm hover:bg-gray-50 min-w-[200px] justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span className="font-medium">{dateRangeLabel}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Date Picker Dropdown */}
+                  {showDatePicker && (
+                    <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 z-50 min-w-[300px]">
+                      <div className="p-4">
+                        <div className="mb-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">Predefined Ranges</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {predefinedRanges.map((range) => (
+                              <button
+                                key={range.value}
+                                onClick={() => handleTimeRangeChange(range.value)}
+                                className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                                  timeRange === range.value
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'text-gray-700 hover:bg-gray-100'
+                                }`}
+                              >
+                                {range.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                          <h3 className="font-semibold text-gray-900 mb-2">Custom Range</h3>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                From Date
+                              </label>
+                              <input
+                                type="date"
+                                value={customDateRange.startDate}
+                                onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                To Date
+                              </label>
+                              <input
+                                type="date"
+                                value={customDateRange.endDate}
+                                onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <button
+                              onClick={handleCustomDateApply}
+                              disabled={!customDateRange.startDate || !customDateRange.endDate}
+                              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Apply Custom Range
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <select
                   className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm min-w-[200px]"
@@ -201,8 +424,22 @@ export default function FinancesPage() {
               </div>
             </div>
 
+            {/* Date Range Display */}
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {timeRange === "custom" 
+                    ? `${formatDisplayDate(customDateRange.startDate)} - ${formatDisplayDate(customDateRange.endDate)}`
+                    : dateRangeLabel
+                  }
+                </span>
+              </div>
+            </div>
+
             {/* Performance Indicators */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* ... existing performance indicators ... */}
               <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-2xl shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
