@@ -263,6 +263,12 @@ export const createExpenseCategory = (data: { name: string }) =>
 export const getExpenses = (shop_id?: string) =>
   api.get(`/expenses`, { params: shop_id ? { shop_id } : {} });
 
+
+// delete Expenses
+
+export const deleteExpense = (id: string) =>
+  api.delete(`/expenses/${id}`);  
+
 export const createExpense = (data: {
   shop_id: string;
   category_id: string;
