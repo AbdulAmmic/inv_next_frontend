@@ -6,6 +6,7 @@ import {
   createSale,
   getCustomers,
   getSale,
+  createCustomer,
 } from "@/apiCalls";
 import { toast } from "react-toastify";
 import ReceiptComponent from "@/components/ReceiptComponent";
@@ -27,8 +28,17 @@ import {
   ChevronRight,
   User,
   Check,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  ChevronsUpDown
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
+
+// Dynamic import for QrReader to avoid SSR issues
+const QrReader = dynamic(() => import("react-qr-reader").then((mod) => mod.QrReader), {
+  ssr: false,
+});
 
 /* -------------------------
    Types
@@ -59,7 +69,7 @@ interface PaymentMethod {
 
 interface Customer {
   id: string;
-  full_name: string;
+  name: string; // Changed from full_name to match backend
   phone?: string;
 }
 
@@ -85,16 +95,66 @@ export default function POSPage() {
   const [savingSale, setSavingSale] = useState(false);
   const [receipt, setReceipt] = useState<any | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [lastScanned, setLastScanned] = useState<string>("");
+  const [query, setQuery] = useState("");
+
+  // Quick Add Customer State
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: "", phone: "" });
+
+  const handleAddCustomer = async () => {
+    if (!newCustomer.name) {
+      toast.error("Name is required");
+      return;
+    }
+    try {
+      setCreatingCustomer(true);
+      const res = await createCustomer(newCustomer);
+      if (res.data) {
+        const created = res.data; // backend returns created customer object
+        // Map if necessary, but backend create_customer returns dict matching model?
+        // Let's assume it matches Customer interface roughly (name, phone, id)
+        // Wait, backend create_customer returns `customer.to_dict()`
+        // checking models.py: to_dict returns {id, name, phone ...}
+        // It matches properly (except full_name vs name which I fixed in frontend).
+        // Actually backend user model has full_name, customer model has name.
+
+        const newCus: Customer = {
+          id: created.id,
+          name: created.name,
+          phone: created.phone
+        };
+
+        setCustomers(prev => [...prev, newCus]);
+        setCustomerId(newCus.id); // Auto-select
+        toast.success("Customer created!");
+        setShowAddCustomerModal(false);
+        setNewCustomer({ name: "", phone: "" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to create customer");
+    } finally {
+      setCreatingCustomer(false);
+    }
+  };
+
 
   const shopId =
     typeof window !== "undefined"
       ? localStorage.getItem("selected_shop_id") || ""
       : "";
 
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "{}")
-      : {};
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (stored) setUser(JSON.parse(stored));
+    }
+  }, []);
 
   const paymentMethods: PaymentMethod[] = [
     { id: "cash", name: "Cash", icon: <Banknote className="w-4 h-4" /> },
@@ -346,6 +406,17 @@ export default function POSPage() {
       (s.sku || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const filteredCustomers =
+    query === ""
+      ? customers
+      : customers.filter((person) => {
+        return (
+          person.name.toLowerCase().includes(query.toLowerCase()) ||
+          (person.phone || "").toLowerCase().includes(query.toLowerCase())
+        );
+      });
+
+
   /* -------------------------
      TTS Helper
   ------------------------- */
@@ -357,37 +428,57 @@ export default function POSPage() {
     }
   };
 
-  const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && search) {
-      const scannedSku = search.toLowerCase().trim();
-      const product = stock.find((s) => (s.sku || "").toLowerCase() === scannedSku);
+  const processSku = (sku: string) => {
+    const scannedSku = sku.toLowerCase().trim();
+    if (!scannedSku) return;
 
-      if (product) {
-        if (product.currentStock <= 0) {
-          speak("Product out of stock");
-          toast.info("Out of stock");
-          return;
-        }
+    // Prevent double scan of same item within 2 seconds if camera is continuous
+    if (scannedSku === lastScanned) return;
+    setLastScanned(scannedSku);
+    setTimeout(() => setLastScanned(""), 2000);
 
-        // Add to cart
-        addToCart(product);
-        setSearch("");
+    const product = stock.find((s) => (s.sku || "").toLowerCase() === scannedSku);
 
-        // Speak feedback
-        // We estimate the new total by adding the product price to the current total
-        // This is an approximation because discounts might be percentage-based
-        let addedPrice = product.sellingPrice;
-        let estimatedTotal = total + addedPrice;
-
-        // If percentage discount, recalculate
-        if (discountType === 'percent' && discountValue > 0) {
-          const newSub = subtotal + addedPrice;
-          const discountAmt = (newSub * discountValue) / 100;
-          estimatedTotal = newSub - discountAmt + otherCharges;
-        }
-
-        speak(`Added ${product.productName}. Total is ${Math.round(estimatedTotal)}`);
+    if (product) {
+      if (product.currentStock <= 0) {
+        speak("Product out of stock");
+        toast.info("Out of stock");
+        return;
       }
+
+      // Add to cart
+      addToCart(product);
+      setSearch("");
+
+      // Speak feedback
+      // We estimate the new total by adding the product price to the current total
+      // This is an approximation because discounts might be percentage-based
+      let addedPrice = product.sellingPrice;
+      let estimatedTotal = total + addedPrice;
+
+      // If percentage discount, recalculate
+      if (discountType === 'percent' && discountValue > 0) {
+        const newSub = subtotal + addedPrice;
+        const discountAmt = (newSub * discountValue) / 100;
+        estimatedTotal = newSub - discountAmt + otherCharges;
+      }
+
+      speak(`Added ${product.productName}. Total is ${Math.round(estimatedTotal)}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && search) {
+      // Clear last scanned for manual input to allow repeated entry
+      setLastScanned("");
+      processSku(search);
+    }
+  };
+
+  const handleCameraScan = (result: any, error: any) => {
+    if (result) {
+      const text = result?.text || result; // handle different versions
+      processSku(text);
     }
   };
 
@@ -448,10 +539,19 @@ export default function POSPage() {
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      onKeyDown={handleScan}
+                      onKeyDown={handleKeyDown}
                       autoFocus
                     />
                   </div>
+
+                  <button
+                    onClick={() => setShowScanner(true)}
+                    className="p-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                    title="Scan with Camera"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span className="hidden sm:inline text-sm font-medium">Scan</span>
+                  </button>
 
                   <button
                     onClick={loadStock}
@@ -619,28 +719,98 @@ export default function POSPage() {
               </h2>
 
               {/* Customer Selection */}
+              {/* Customer Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Customer
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
-                    value={customerId || ""}
-                    onChange={(e) =>
-                      setCustomerId(e.target.value ? e.target.value : null)
-                    }
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Customer</label>
+                  <button
+                    onClick={() => setShowAddCustomerModal(true)}
+                    className="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1"
                   >
-                    <option value="">Walk-in Customer</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.full_name}
-                        {c.phone ? ` (${c.phone})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronRight className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" />
+                    <Plus className="w-3 h-3" /> Quick Add
+                  </button>
                 </div>
+                <Combobox
+                  value={customers.find((c) => c.id === customerId) || null}
+                  onChange={(val: Customer | null) => {
+                    setCustomerId(val ? val.id : null);
+                  }}
+                  onClose={() => setQuery('')}
+                >
+                  <div className="relative">
+                    <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 sm:text-sm">
+                      <ComboboxInput
+                        className="w-full border-none py-2.5 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                        displayValue={(person: Customer) => person ? `${person.name} ${person.phone ? `(${person.phone})` : ''}` : ''}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search customer by name or phone..."
+                      />
+                      <ComboboxButton className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronsUpDown
+                          className="h-5 w-5 text-gray-400"
+                          aria-hidden="true"
+                        />
+                      </ComboboxButton>
+                    </div>
+                    <ComboboxOptions className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50">
+                      {/* Option for Walk-in (Clearing selection) */}
+                      <ComboboxOption
+                        key="walk-in"
+                        value={null}
+                        className={({ active }) =>
+                          `relative cursor-default select-none py-2 pl-4 pr-4 ${active ? 'bg-blue-600 text-white' : 'text-gray-900'
+                          }`
+                        }
+                      >
+                        {({ selected, active }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                              Walk-in Customer
+                            </span>
+                            {selected ? (
+                              <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-white' : 'text-blue-600'}`}>
+                                {/* <Check className="h-5 w-5" aria-hidden="true" /> */}
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </ComboboxOption>
+
+                      {filteredCustomers.length === 0 && query !== "" ? (
+                        <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                          Nothing found.
+                        </div>
+                      ) : (
+                        filteredCustomers.map((person) => (
+                          <ComboboxOption
+                            key={person.id}
+                            value={person}
+                            className={({ active }) =>
+                              `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-blue-600 text-white' : 'text-gray-900'
+                              }`
+                            }
+                          >
+                            {({ selected, active }) => (
+                              <>
+                                <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                  {person.name} <span className={`text-xs ${active ? 'text-blue-100' : 'text-gray-500'}`}>{person.phone ? `(${person.phone})` : ''}</span>
+                                </span>
+                                {selected ? (
+                                  <span
+                                    className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-white' : 'text-blue-600'
+                                      }`}
+                                  >
+                                    <Check className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </ComboboxOption>
+                        ))
+                      )}
+                    </ComboboxOptions>
+                  </div>
+                </Combobox>
               </div>
 
               {/* Totals */}
@@ -799,7 +969,7 @@ export default function POSPage() {
                   <span className="text-gray-600">Customer</span>
                   <span className="font-medium">
                     {customerId
-                      ? customers.find(c => c.id === customerId)?.full_name || "Customer"
+                      ? customers.find(c => c.id === customerId)?.name || "Customer"
                       : "Walk-in Customer"}
                   </span>
                 </div>
@@ -831,6 +1001,90 @@ export default function POSPage() {
                   {savingSale ? "Processing..." : "Confirm Sale"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CAMERA SCANNER MODAL */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl relative">
+            <button
+              onClick={() => setShowScanner(false)}
+              className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 transition-colors"
+            >
+              <X className="w-5 h-5 text-black" />
+            </button>
+
+            <div className="p-4 bg-gray-900">
+              <h3 className="text-white text-center font-semibold mb-1">Scan Code</h3>
+              <p className="text-gray-400 text-center text-xs">Point camera at a product code</p>
+            </div>
+
+            <div className="relative aspect-square bg-black">
+              <QrReader
+                onResult={handleCameraScan}
+                constraints={{ facingMode: 'environment' }}
+                containerStyle={{ width: '100%', height: '100%' }}
+                videoStyle={{ objectFit: 'cover' }}
+              />
+              {/* Visual guide overlay */}
+              <div className="absolute inset-0 border-2 border-blue-500/50 m-12 rounded-lg pointer-events-none animate-pulse"></div>
+            </div>
+
+            <div className="p-4 bg-white text-center">
+              <button
+                onClick={() => setShowScanner(false)}
+                className="text-gray-500 text-sm hover:text-gray-700 font-medium"
+              >
+                Close Scanner
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK ADD CUSTOMER MODAL */}
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800">New Customer</h3>
+              <button onClick={() => setShowAddCustomerModal(false)}><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={newCustomer.name}
+                  onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  placeholder="Customer Name"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Phone (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={newCustomer.phone}
+                  onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  placeholder="Phone Number"
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t flex gap-3">
+              <button onClick={() => setShowAddCustomerModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={handleAddCustomer}
+                disabled={creatingCustomer || !newCustomer.name}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {creatingCustomer ? "Saving..." : "Save Customer"}
+              </button>
             </div>
           </div>
         </div>
