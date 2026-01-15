@@ -52,22 +52,28 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
                         font-family: 'Courier New', Courier, monospace; 
                         width: 80mm; 
                         margin: 0;
-                        padding: 10px;
+                        padding: 5px;
                         color: black;
                     }
                     .no-print { display: none !important; }
                     .print-only { display: block !important; }
-                    /* Reset tailwind/browser defaults for print */
+                    
+                    /* Reset defaults */
                     * { box-sizing: border-box; }
+                    
+                    /* Helper overrides for print readability */
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
                     .font-bold { font-weight: bold; }
                     .text-sm { font-size: 12px; }
                     .text-xs { font-size: 10px; }
                     .border-b { border-bottom: 1px dashed #000; }
+                    .border-t { border-top: 1px dashed #000; }
                     .mb-2 { margin-bottom: 0.5rem; }
                     .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-                    .grid { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; }
+                    
+                    /* Ensure grid works as 12-col via tailwind, don't override generic .grid */
+                    /* If specific layout needed, use specific classes */
                 }
             `;
             document.head.appendChild(style);

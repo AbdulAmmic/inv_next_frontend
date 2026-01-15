@@ -65,7 +65,13 @@ export default function SalesPage() {
     try {
       const res = await getSale(saleId);
       if (res.data) {
-        setSelectedReceipt(res.data);
+        const saleData = {
+          ...res.data.sale,
+          items: res.data.items,
+          total: res.data.sale.total_amount,
+          discount: res.data.sale.discount_amount,
+        };
+        setSelectedReceipt(saleData);
       }
     } catch (err) {
       console.error("Failed to fetch sale details", err);

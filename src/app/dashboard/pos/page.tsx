@@ -1,12 +1,15 @@
-"use client";
+'use client'
 
 import { useEffect, useMemo, useState } from "react";
 import {
   getStocks,
   createSale,
   getCustomers,
+  getSale,
 } from "@/apiCalls";
 import { toast } from "react-toastify";
+import ReceiptComponent from "@/components/ReceiptComponent";
+
 import {
   ShoppingCart,
   RefreshCw,
@@ -301,7 +304,14 @@ export default function POSPage() {
       const res = await createSale(payload);
 
       if (res.data) {
-        setReceipt(res.data);
+        // Map API response to ReceiptComponent format
+        const saleData = {
+          ...res.data.sale,
+          items: res.data.items,
+          total: res.data.sale.total_amount,
+          discount: res.data.sale.discount_amount,
+        };
+        setReceipt(saleData);
         setCart([]);
         setDiscountValue(0);
         setOtherCharges(0);
@@ -354,7 +364,7 @@ export default function POSPage() {
                 <p className="text-xs text-gray-500">Manage sales and transactions</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -429,13 +439,12 @@ export default function POSPage() {
                         )}
                       </div>
                       <div
-                        className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          product.currentStock <= 0
-                            ? "bg-red-100 text-red-800"
-                            : product.currentStock <= 5
+                        className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${product.currentStock <= 0
+                          ? "bg-red-100 text-red-800"
+                          : product.currentStock <= 5
                             ? "bg-orange-100 text-orange-800"
                             : "bg-green-100 text-green-800"
-                        }`}
+                          }`}
                       >
                         {product.currentStock} stock
                       </div>
@@ -630,21 +639,19 @@ export default function POSPage() {
                 <div className="flex gap-2">
                   <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                     <button
-                      className={`px-3 py-2 text-sm ${
-                        discountType === "flat"
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-gray-700 hover:bg-gray-50"
-                      } transition-colors`}
+                      className={`px-3 py-2 text-sm ${discountType === "flat"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                        } transition-colors`}
                       onClick={() => setDiscountType("flat")}
                     >
                       ₦
                     </button>
                     <button
-                      className={`px-3 py-2 text-sm ${
-                        discountType === "percent"
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-gray-700 hover:bg-gray-50"
-                      } transition-colors`}
+                      className={`px-3 py-2 text-sm ${discountType === "percent"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                        } transition-colors`}
                       onClick={() => setDiscountType("percent")}
                     >
                       %
@@ -690,11 +697,10 @@ export default function POSPage() {
                     <button
                       key={method.id}
                       onClick={() => setPaymentMethod(method.id)}
-                      className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-                        paymentMethod === method.id
-                          ? "border-blue-600 bg-blue-50 text-blue-700"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                      }`}
+                      className={`p-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${paymentMethod === method.id
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                        }`}
                     >
                       {method.icon}
                       {method.name}
@@ -745,7 +751,7 @@ export default function POSPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Customer</span>
                   <span className="font-medium">
-                    {customerId 
+                    {customerId
                       ? customers.find(c => c.id === customerId)?.full_name || "Customer"
                       : "Walk-in Customer"}
                   </span>
@@ -785,99 +791,10 @@ export default function POSPage() {
 
       {/* RECEIPT MODAL */}
       {receipt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Sale Completed
-                </h3>
-                <p className="text-sm text-gray-500">Receipt #{receipt.sale?.id || "N/A"}</p>
-              </div>
-              <button
-                onClick={() => setReceipt(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="text-center mb-6">
-                <div className="font-bold text-lg text-gray-900 mb-2">
-                  TUHANAS KITCHEN AND SCENTS
-                </div>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <div>{new Date().toLocaleString()}</div>
-                  <div>Staff: {user?.full_name || "N/A"}</div>
-                  <div>Customer: {receipt.sale?.customer_name || "Walk-in Customer"}</div>
-
-                </div>
-              </div>
-
-              <div className="border-y border-gray-200 py-4 my-4 space-y-3">
-                {receipt.items?.map((item: any) => (
-                  <div
-                    key={item.product_id}
-                    className="flex justify-between items-center text-sm"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {item.product_name || item.product_id}
-                      </div>
-                      <div className="text-gray-500 text-xs">
-                        {item.quantity} × ₦{item.unit_price?.toLocaleString()}
-                      </div>
-                    </div>
-                    <span className="font-semibold">
-                      ₦{item.total_price?.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₦{receipt.sale?.subtotal?.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Discount</span>
-                  <span className="text-red-600">
-                    -₦{receipt.sale?.discount_amount?.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Other Charges</span>
-                  <span>+₦{receipt.sale?.other_charges?.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-3 mt-3">
-                  <span>Total Paid</span>
-                  <span className="text-blue-600">
-                    ₦{receipt.sale?.total_amount?.toFixed(2)}
-                  </span>
-                  <p>Thank you for Doing Business with us!, </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => window.print()}
-                className="flex-1 border border-gray-300 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm"
-              >
-                <Printer className="w-4 h-4" />
-                Print
-              </button>
-              <button
-                onClick={() => setReceipt(null)}
-                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReceiptComponent
+          sale={receipt}
+          onClose={() => setReceipt(null)}
+        />
       )}
     </div>
   );
