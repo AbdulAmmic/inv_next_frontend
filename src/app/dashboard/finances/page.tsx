@@ -71,6 +71,7 @@ interface StockAlertCardProps {
 export default function FinancesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Preparing Dashboard..."); // New State
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
@@ -114,12 +115,14 @@ export default function FinancesPage() {
 
   useEffect(() => {
     if (selectedShop) {
+      if (stats) setRefreshing(true); // Don't full screen load if we have data
       fetchStats(selectedShop);
     }
-  }, [selectedShop, timeRange, customDateRange]);
+  }, [selectedShop, customDateRange]);
 
   const loadShops = async () => {
     try {
+      setLoadingMessage("Loading Shops...");
       const res = await getShops();
       setShops(res.data);
       if (res.data.length > 0) {
@@ -132,17 +135,24 @@ export default function FinancesPage() {
 
   const fetchStats = async (shopId: string) => {
     try {
-      setLoading(true);
+      if (!stats) setLoading(true);
+
+      // Fun dynamic messages
+      const messages = [
+        "Analyzing Sales Trends...",
+        "Calculating Profit Margins...",
+        "Reviewing Expenses...",
+        "Checking Inventory Value...",
+        "Summarizing Financial Health..."
+      ];
+      setLoadingMessage(messages[Math.floor(Math.random() * messages.length)]);
+
       const params: any = { shop_id: shopId };
-      
-      if (timeRange === "custom") {
-        if (customDateRange.startDate && customDateRange.endDate) {
-          params.start_date = customDateRange.startDate;
-          params.end_date = customDateRange.endDate;
-          params.period = "custom";
-        }
-      } else {
-        params.period = timeRange;
+
+      // Always use the computed customDateRange which is kept in sync by handleTimeRangeChange
+      if (customDateRange.startDate && customDateRange.endDate) {
+        params.start_date = customDateRange.startDate;
+        params.end_date = customDateRange.endDate;
       }
 
       const res = await api.get("/reports/full-stats", { params });
@@ -165,13 +175,13 @@ export default function FinancesPage() {
   const handleTimeRangeChange = (value: string) => {
     setTimeRange(value);
     setShowDatePicker(false);
-    
+
     // Update date range label
     const selected = predefinedRanges.find(range => range.value === value);
     if (selected) {
       setDateRangeLabel(selected.label);
     }
-    
+
     // Set custom dates for predefined ranges
     const today = new Date();
     switch (value) {
@@ -248,11 +258,34 @@ export default function FinancesPage() {
           endDate: formatDate(today),
         });
         break;
-      case "year":
+      case "lastquarter":
+        const currentQuarter = Math.floor(today.getMonth() / 3);
+        const lastQParams = currentQuarter === 0
+          ? { year: today.getFullYear() - 1, q: 3 }
+          : { year: today.getFullYear(), q: currentQuarter - 1 };
+
+        const firstDayLastQuarter = new Date(lastQParams.year, lastQParams.q * 3, 1);
+        const lastDayLastQuarter = new Date(lastQParams.year, (lastQParams.q + 1) * 3, 0);
+
+        setCustomDateRange({
+          startDate: formatDate(firstDayLastQuarter),
+          endDate: formatDate(lastDayLastQuarter),
+        });
+        break;
+      case "year": // This Year / YTD
+      case "ytd":
         const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
         setCustomDateRange({
           startDate: formatDate(firstDayOfYear),
           endDate: formatDate(today),
+        });
+        break;
+      case "lastyear":
+        const firstDayLastYear = new Date(today.getFullYear() - 1, 0, 1);
+        const lastDayLastYear = new Date(today.getFullYear(), 0, 0);
+        setCustomDateRange({
+          startDate: formatDate(firstDayLastYear),
+          endDate: formatDate(lastDayLastYear),
         });
         break;
     }
@@ -269,13 +302,16 @@ export default function FinancesPage() {
   };
 
   const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatDisplayDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     });
@@ -295,20 +331,30 @@ export default function FinancesPage() {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading financial dashboard...</p>
+          <p className="text-gray-600 text-lg font-medium animate-pulse">{loadingMessage}</p>
+          <p className="text-gray-400 text-sm mt-2">Crunching the numbers for you...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className="flex bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen relative">
+      {refreshing && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center border border-gray-100">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-800 font-medium text-lg">{loadingMessage}</p>
+            <p className="text-gray-500 text-sm">Please wait a moment...</p>
+          </div>
+        </div>
+      )}
       <Sidebar
         isOpen={sidebarOpen}
         toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         isMobile={false}
       />
-      
+
       <div className="flex-1 flex flex-col">
         <Header />
 
@@ -350,11 +396,10 @@ export default function FinancesPage() {
                               <button
                                 key={range.value}
                                 onClick={() => handleTimeRangeChange(range.value)}
-                                className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                                  timeRange === range.value
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : 'text-gray-700 hover:bg-gray-100'
-                                }`}
+                                className={`px-3 py-2 text-sm rounded-lg transition-colors ${timeRange === range.value
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : 'text-gray-700 hover:bg-gray-100'
+                                  }`}
                               >
                                 {range.label}
                               </button>
@@ -429,10 +474,8 @@ export default function FinancesPage() {
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg">
                 <Calendar className="w-4 h-4" />
                 <span className="text-sm font-medium">
-                  {timeRange === "custom" 
-                    ? `${formatDisplayDate(customDateRange.startDate)} - ${formatDisplayDate(customDateRange.endDate)}`
-                    : dateRangeLabel
-                  }
+                  {timeRange !== "custom" && <span className="mr-1 opacity-75">{dateRangeLabel}:</span>}
+                  {formatDisplayDate(customDateRange.startDate)} - {formatDisplayDate(customDateRange.endDate)}
                 </span>
               </div>
             </div>
@@ -445,7 +488,7 @@ export default function FinancesPage() {
                   <div>
                     <p className="text-green-100 text-sm font-medium">Profit Margin</p>
                     <p className="text-2xl font-bold mt-1">
-                      {stats && stats.total_sales_amount > 0 
+                      {stats && stats.total_sales_amount > 0
                         ? `${((stats.net_profit / stats.total_sales_amount) * 100).toFixed(1)}%`
                         : "0%"
                       }
@@ -624,9 +667,9 @@ export default function FinancesPage() {
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                        style={{ 
+                        style={{
                           width: stats && stats.products_count > 0
                             ? `${100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)}%`
                             : '100%'
@@ -664,13 +707,13 @@ export default function FinancesPage() {
 }
 
 // Enhanced Metric Card Component
-const MetricCard = ({ 
-  title, 
-  value, 
-  change, 
-  icon, 
-  color, 
-  compactValue 
+const MetricCard = ({
+  title,
+  value,
+  change,
+  icon,
+  color,
+  compactValue
 }: MetricCardProps) => {
   const colorClasses = {
     green: "from-green-500 to-green-600",
@@ -691,7 +734,7 @@ const MetricCard = ({
           <MoreVertical className="w-5 h-5 text-gray-400" />
         </div>
       </div>
-      
+
       <div>
         <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
         <div className="flex items-end justify-between">
@@ -700,11 +743,10 @@ const MetricCard = ({
             <p className="text-gray-400 text-sm mt-1">{value}</p>
           </div>
           {change !== undefined && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              change >= 0 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-red-100 text-red-800'
-            }`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${change >= 0
+              ? 'bg-green-100 text-green-800'
+              : 'bg-red-100 text-red-800'
+              }`}>
               {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
             </span>
           )}

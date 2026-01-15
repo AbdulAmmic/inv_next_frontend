@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
-import Header from "@/components/header";
+import DashboardLayout from "@/components/dashboardLayout";
 import { api, getShops } from "@/apiCalls";
 
 import {
@@ -89,45 +88,39 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar isOpen={true} isMobile={false} toggleSidebar={() => {}} />
+    <DashboardLayout>
+      <main className="p-6 space-y-8">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Quick overview of business activity
+          </p>
+        </div>
 
-      <div className="flex-1 flex flex-col">
-        <Header />
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+          <MetricCard title="Products" value={stats.products_count} icon={<Package className="w-6 h-6 text-blue-600" />} />
+          <MetricCard title="Customers" value={stats.customers_count} icon={<Users className="w-6 h-6 text-green-600" />} />
+          <MetricCard title="Suppliers" value={stats.suppliers_count} icon={<Truck className="w-6 h-6 text-purple-600" />} />
+          <MetricCard title="Low Stock" value={stats.low_stock_count} icon={<AlertTriangle className="w-6 h-6 text-red-600" />} />
+        </section>
 
-        <main className="p-6 space-y-8">
-          <div>
-            <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">
-              Dashboard
-            </h1>
-            <p className="text-gray-500 mt-1 text-sm">
-              Quick overview of business activity
-            </p>
-          </div>
+        {role === "admin" && (
+          <section>
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">
+              Financial Summary
+            </h2>
 
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <MetricCard title="Products" value={stats.products_count} icon={<Package className="w-6 h-6 text-blue-600" />} />
-            <MetricCard title="Customers" value={stats.customers_count} icon={<Users className="w-6 h-6 text-green-600" />} />
-            <MetricCard title="Suppliers" value={stats.suppliers_count} icon={<Truck className="w-6 h-6 text-purple-600" />} />
-            <MetricCard title="Low Stock" value={stats.low_stock_count} icon={<AlertTriangle className="w-6 h-6 text-red-600" />} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <MetricCard title="Total Sales" value={format(stats.total_sales_amount)} icon={<TrendingUp className="w-6 h-6 text-emerald-600" />} />
+              <MetricCard title="Gross Profit" value={format(stats.gross_profit)} icon={<BarChart3 className="w-6 h-6 text-indigo-600" />} />
+              <MetricCard title="Net Profit" value={format(stats.net_profit)} icon={<TrendingUp className="w-6 h-6 text-orange-600" />} />
+            </div>
           </section>
-
-          {role === "admin" && (
-            <section>
-              <h2 className="text-lg font-semibold text-gray-700 mb-3">
-                Financial Summary
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                <MetricCard title="Total Sales" value={format(stats.total_sales_amount)} icon={<TrendingUp className="w-6 h-6 text-emerald-600" />} />
-                <MetricCard title="Gross Profit" value={format(stats.gross_profit)} icon={<BarChart3 className="w-6 h-6 text-indigo-600" />} />
-                <MetricCard title="Net Profit" value={format(stats.net_profit)} icon={<TrendingUp className="w-6 h-6 text-orange-600" />} />
-              </div>
-            </section>
-          )}
-        </main>
-      </div>
-    </div>
+        )}
+      </main>
+    </DashboardLayout>
   );
 }
 

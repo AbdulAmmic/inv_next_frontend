@@ -99,12 +99,12 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
       <aside
         className={`
-          fixed md:relative top-0 left-0 z-40 h-screen
-          flex flex-col bg-white border-r border-gray-200
-          transition-all duration-300 ease-in-out
-          ${isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : ""}
-          ${isOpen ? "w-64" : "w-20"}
-        `}
+            fixed top-0 left-0 z-40 h-screen
+            flex flex-col bg-white border-r border-gray-200
+            transition-all duration-300 ease-in-out
+            ${isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "sticky top-0"}
+            ${isOpen ? "w-64" : "w-20"}
+          `}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">

@@ -1,33 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Eye, Printer, ShoppingBag, RefreshCw, Download, Filter,
+  TrendingUp, DollarSign, TrendingDown, BarChart3, Search,
+  User, Users, CreditCard, Package, Calendar, Clock,
+  ArrowUpDown, XCircle, CheckCircle
+} from "lucide-react";
+import { getSales, getSale } from "@/apiCalls";
+import ReceiptComponent from "@/components/ReceiptComponent";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
-import { getSales } from "@/apiCalls";
-import { 
-  Eye, 
-  Search, 
-  Filter, 
-  Calendar, 
-  User, 
-  Users, 
-  CreditCard, 
-  Package,
-  Download,
-  RefreshCw,
-  ChevronDown,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  ShoppingBag,
-  CheckCircle,
-  XCircle,
-  Clock,
-  MoreVertical,
-  ArrowUpDown,
-  BarChart3
-} from "lucide-react";
 
 interface Sale {
   id: string;
@@ -60,10 +44,12 @@ export default function SalesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(true);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ 
-    key: 'created_at', 
-    direction: 'desc' 
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'created_at',
+    direction: 'desc'
   });
+
+  const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
 
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -74,6 +60,18 @@ export default function SalesPage() {
     startDate: "",
     endDate: ""
   });
+
+  const handleViewReceipt = async (saleId: string) => {
+    try {
+      const res = await getSale(saleId);
+      if (res.data) {
+        setSelectedReceipt(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch sale details", err);
+      alert("Could not load receipt details.");
+    }
+  };
 
   // Mock data for dropdowns (in real app, fetch from API)
   const customers = ["All Customers", "John Doe", "Jane Smith", "Mike Johnson", "Sarah Williams", "Walk-in"];
@@ -131,7 +129,7 @@ export default function SalesPage() {
   const filteredSales = sales.filter(sale => {
     // Search filter
     if (filters.search && !sale.sale_number.toLowerCase().includes(filters.search.toLowerCase()) &&
-        !sale.customer_name?.toLowerCase().includes(filters.search.toLowerCase())) {
+      !sale.customer_name?.toLowerCase().includes(filters.search.toLowerCase())) {
       return false;
     }
 
@@ -162,12 +160,12 @@ export default function SalesPage() {
     // Date range filter
     if (filters.startDate || filters.endDate) {
       const saleDate = new Date(sale.created_at);
-      
+
       if (filters.startDate) {
         const startDate = new Date(filters.startDate);
         if (saleDate < startDate) return false;
       }
-      
+
       if (filters.endDate) {
         const endDate = new Date(filters.endDate);
         endDate.setHours(23, 59, 59, 999);
@@ -180,23 +178,23 @@ export default function SalesPage() {
 
   const sortedSales = [...filteredSales].sort((a, b) => {
     if (sortConfig.key === 'amount') {
-      return sortConfig.direction === 'asc' 
-        ? a.amount - b.amount 
+      return sortConfig.direction === 'asc'
+        ? a.amount - b.amount
         : b.amount - a.amount;
     }
-    
+
     if (sortConfig.key === 'created_at') {
-      return sortConfig.direction === 'asc' 
+      return sortConfig.direction === 'asc'
         ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
-    
+
     if (sortConfig.key === 'item_count') {
-      return sortConfig.direction === 'asc' 
-        ? a.item_count - b.item_count 
+      return sortConfig.direction === 'asc'
+        ? a.item_count - b.item_count
         : b.item_count - a.item_count;
     }
-    
+
     return 0;
   });
 
@@ -245,7 +243,13 @@ export default function SalesPage() {
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100">
-      <Sidebar isOpen={true} toggleSidebar={() => {}} isMobile={false} />
+      {selectedReceipt && (
+        <ReceiptComponent
+          sale={selectedReceipt}
+          onClose={() => setSelectedReceipt(null)}
+        />
+      )}
+      <Sidebar isOpen={true} toggleSidebar={() => { }} isMobile={false} />
 
       <div className="flex-1 flex flex-col">
         <Header />
@@ -369,7 +373,7 @@ export default function SalesPage() {
                       type="text"
                       placeholder="Search sales..."
                       value={filters.search}
-                      onChange={(e) => setFilters({...filters, search: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
@@ -382,7 +386,7 @@ export default function SalesPage() {
                     </div>
                     <select
                       value={filters.customer}
-                      onChange={(e) => setFilters({...filters, customer: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, customer: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="all">All Customers</option>
@@ -401,7 +405,7 @@ export default function SalesPage() {
                     </div>
                     <select
                       value={filters.staff}
-                      onChange={(e) => setFilters({...filters, staff: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, staff: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="all">All Staff</option>
@@ -419,7 +423,7 @@ export default function SalesPage() {
                     </div>
                     <select
                       value={filters.payment_method}
-                      onChange={(e) => setFilters({...filters, payment_method: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, payment_method: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="all">All Methods</option>
@@ -439,14 +443,14 @@ export default function SalesPage() {
                     </div>
                     <select
                       value={filters.status}
-                      onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       {statuses.map(status => (
                         <option key={status} value={status === "All Status" ? "all" : status}>
-                          {status === "completed" ? "Completed" : 
-                           status === "refunded" ? "Refunded" : 
-                           status === "pending" ? "Pending" : status}
+                          {status === "completed" ? "Completed" :
+                            status === "refunded" ? "Refunded" :
+                              status === "pending" ? "Pending" : status}
                         </option>
                       ))}
                     </select>
@@ -461,7 +465,7 @@ export default function SalesPage() {
                     <input
                       type="date"
                       value={filters.startDate}
-                      onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
@@ -475,7 +479,7 @@ export default function SalesPage() {
                     <input
                       type="date"
                       value={filters.endDate}
-                      onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
@@ -510,7 +514,7 @@ export default function SalesPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-4 text-left">
-                        <button 
+                        <button
                           onClick={() => handleSort('sale_number')}
                           className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
                         >
@@ -521,7 +525,7 @@ export default function SalesPage() {
                       <th className="p-4 text-left text-sm font-semibold text-gray-700">Staff</th>
                       <th className="p-4 text-left text-sm font-semibold text-gray-700">Customer</th>
                       <th className="p-4 text-left">
-                        <button 
+                        <button
                           onClick={() => handleSort('amount')}
                           className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
                         >
@@ -531,7 +535,7 @@ export default function SalesPage() {
                       </th>
                       <th className="p-4 text-left text-sm font-semibold text-gray-700">Payment</th>
                       <th className="p-4 text-left">
-                        <button 
+                        <button
                           onClick={() => handleSort('item_count')}
                           className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
                         >
@@ -541,7 +545,7 @@ export default function SalesPage() {
                       </th>
                       <th className="p-4 text-left text-sm font-semibold text-gray-700">Status</th>
                       <th className="p-4 text-left">
-                        <button 
+                        <button
                           onClick={() => handleSort('created_at')}
                           className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-gray-900"
                         >
@@ -556,8 +560,8 @@ export default function SalesPage() {
                   <tbody className="divide-y divide-gray-200">
                     {sortedSales.length > 0 ? (
                       sortedSales.map((sale) => (
-                        <tr 
-                          key={sale.id} 
+                        <tr
+                          key={sale.id}
                           className="hover:bg-gray-50 transition-colors group"
                         >
                           <td className="p-4">
@@ -587,9 +591,8 @@ export default function SalesPage() {
                           </td>
 
                           <td className="p-4">
-                            <div className={`font-semibold flex items-center gap-1 ${
-                              sale.amount < 0 ? "text-red-600" : "text-gray-900"
-                            }`}>
+                            <div className={`font-semibold flex items-center gap-1 ${sale.amount < 0 ? "text-red-600" : "text-gray-900"
+                              }`}>
                               {sale.amount < 0 ? (
                                 <TrendingDown className="w-4 h-4" />
                               ) : (
@@ -644,8 +647,12 @@ export default function SalesPage() {
                                 <Eye className="w-4 h-4" />
                                 View
                               </button>
-                              <button className="p-1.5 text-gray-400 hover:text-gray-600">
-                                <MoreVertical className="w-4 h-4" />
+                              <button
+                                onClick={() => handleViewReceipt(sale.id)}
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                <Printer className="w-4 h-4" />
+                                Receipt
                               </button>
                             </div>
                           </td>
@@ -658,8 +665,8 @@ export default function SalesPage() {
                             <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <h4 className="text-lg font-semibold text-gray-700 mb-2">No sales found</h4>
                             <p className="text-gray-500 mb-4">
-                              {filters.search || filters.customer !== "all" || filters.staff !== "all" 
-                                ? "Try adjusting your filters to see more results." 
+                              {filters.search || filters.customer !== "all" || filters.staff !== "all"
+                                ? "Try adjusting your filters to see more results."
                                 : "No sales records available for this shop."}
                             </p>
                             {(filters.search || filters.customer !== "all" || filters.staff !== "all") && (
