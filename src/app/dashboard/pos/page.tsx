@@ -347,6 +347,51 @@ export default function POSPage() {
   );
 
   /* -------------------------
+     TTS Helper
+  ------------------------- */
+  const speak = (text: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel(); // Cancel current speaking
+      const utterance = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && search) {
+      const scannedSku = search.toLowerCase().trim();
+      const product = stock.find((s) => (s.sku || "").toLowerCase() === scannedSku);
+
+      if (product) {
+        if (product.currentStock <= 0) {
+          speak("Product out of stock");
+          toast.info("Out of stock");
+          return;
+        }
+
+        // Add to cart
+        addToCart(product);
+        setSearch("");
+
+        // Speak feedback
+        // We estimate the new total by adding the product price to the current total
+        // This is an approximation because discounts might be percentage-based
+        let addedPrice = product.sellingPrice;
+        let estimatedTotal = total + addedPrice;
+
+        // If percentage discount, recalculate
+        if (discountType === 'percent' && discountValue > 0) {
+          const newSub = subtotal + addedPrice;
+          const discountAmt = (newSub * discountValue) / 100;
+          estimatedTotal = newSub - discountAmt + otherCharges;
+        }
+
+        speak(`Added ${product.productName}. Total is ${Math.round(estimatedTotal)}`);
+      }
+    }
+  };
+
+  /* -------------------------
      UI
   ------------------------- */
   return (
@@ -399,10 +444,12 @@ export default function POSPage() {
                   <div className="relative flex-1 lg:w-64">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      placeholder="Search products or SKU..."
+                      placeholder="Scan SKU or Search..."
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={handleScan}
+                      autoFocus
                     />
                   </div>
 
