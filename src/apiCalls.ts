@@ -13,12 +13,51 @@ const api = axios.create({
 });
 
 // -------------------------------------------------------------
-// 🔐 REQUEST INTERCEPTOR — Attach Token
+// 🔧 UTILS
+// -------------------------------------------------------------
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch (e) {
+    return null;
+  }
+};
+
+// -------------------------------------------------------------
+// 🔐 REQUEST INTERCEPTOR — Attach Token & Auto Refresh
 // -------------------------------------------------------------
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
+      let token = localStorage.getItem("access_token");
+      const refreshToken = localStorage.getItem("refresh_token");
+
+      if (token && refreshToken) {
+        const payload = parseJwt(token);
+        const now = Date.now() / 1000;
+
+        // If expiring in less than 5 minutes (300s), try to refresh
+        if (payload && payload.exp - now < 300) {
+          try {
+            console.log("🔄 Refreshing token...");
+            // We use a new axios instance to avoid infinite loops if this fails
+            const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+              refresh_token: refreshToken,
+            });
+
+            if (res.data.access_token) {
+              token = res.data.access_token;
+              localStorage.setItem("access_token", token!);
+              console.log("✅ Token flushed");
+            }
+          } catch (err) {
+            console.error("❌ Token refresh failed", err);
+            // Optionally force logout here if refresh fails strongly (401)
+            // But let's let the main 401 interceptor handle the rejection eventually
+          }
+        }
+      }
+
       if (token) config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
