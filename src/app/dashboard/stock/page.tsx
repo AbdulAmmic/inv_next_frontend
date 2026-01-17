@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
-import { getStocks, adjustStock, createTransfer, getShops } from "@/apiCalls";
+import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-toastify";
-import { ArrowLeftRight, RefreshCw, Wrench } from "lucide-react";
+import { ArrowLeftRight, RefreshCw, Wrench, Edit } from "lucide-react";
 
 // --------------------------------------------------
 // TYPES
@@ -40,7 +40,7 @@ export default function StockPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState<StockRow | null>(null);
-  const [modalType, setModalType] = useState<"adjust" | "transfer" | null>(null);
+  const [modalType, setModalType] = useState<"adjust" | "transfer" | "edit" | null>(null);
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const toggleSidebar = () => setSidebarOpen((s) => !s);
@@ -154,22 +154,37 @@ export default function StockPage() {
   };
 
   // --------------------------------------------------
+  // UPDATE STOCK HANDLER
+  // --------------------------------------------------
+  const handleUpdateStock = async (data: any) => {
+    if (!selectedRow?.id) return;
+    try {
+      await updateStock(selectedRow.id, data);
+      toast.success("Stock details updated");
+      setModalType(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error("Failed to update stock");
+    }
+  }
+
+  // --------------------------------------------------
   // STOCK ROW CARD STYLING
   // --------------------------------------------------
   const statusColor = (status: string) =>
     status === "outOfStock"
       ? "bg-red-100 text-red-700"
       : status === "lowStock"
-      ? "bg-amber-100 text-amber-700"
-      : "bg-green-100 text-green-700";
+        ? "bg-amber-100 text-amber-700"
+        : "bg-green-100 text-green-700";
 
   // --------------------------------------------------
   // PAGE UI
   // --------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 flex">
-            <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMobile={false} />
-      
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMobile={false} />
+
       <div className="flex-1 flex flex-col">
         <Header />
 
@@ -234,6 +249,17 @@ export default function StockPage() {
                           <Wrench size={18} />
                         </button>
 
+                        <button
+                          className="text-gray-600 hover:text-gray-900"
+                          onClick={() => {
+                            setSelectedRow(row);
+                            setModalType("edit");
+                          }}
+                          title="Edit Details"
+                        >
+                          <Edit size={18} />
+                        </button>
+
                         {/* Admin only transfer control will be added later */}
                         <button
                           className="text-amber-600 hover:text-amber-800"
@@ -274,6 +300,17 @@ export default function StockPage() {
           shops={shops}
           onClose={() => setModalType(null)}
           onTransfer={handleTransferStock}
+        />
+      )}
+
+      {/* ------------------------ */}
+      {/* MODAL: EDIT STOCK DETAILS */}
+      {/* ------------------------ */}
+      {modalType === "edit" && selectedRow && (
+        <EditStockModal
+          row={selectedRow}
+          onClose={() => setModalType(null)}
+          onUpdate={handleUpdateStock}
         />
       )}
     </div>
@@ -391,6 +428,103 @@ function TransferModal({
           >
             Transfer
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+//
+// --------------------------------------------------
+// EDIT STOCK MODAL
+// --------------------------------------------------
+function EditStockModal({
+  row,
+  onClose,
+  onUpdate
+}: {
+  row: StockRow,
+  onClose: () => void,
+  onUpdate: (data: any) => void
+}) {
+  const [formData, setFormData] = useState({
+    min_quantity: String(row.minStockLevel),
+    max_quantity: row.maxStockLevel ? String(row.maxStockLevel) : "",
+    shop_price: row.sellingPrice ? String(row.sellingPrice) : "",
+    shop_cost_price: row.costPrice ? String(row.costPrice) : ""
+  });
+
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = () => {
+    const payload: any = {};
+    if (formData.min_quantity !== "") payload.min_quantity = Number(formData.min_quantity);
+    payload.max_quantity = formData.max_quantity === "" ? null : Number(formData.max_quantity);
+    payload.shop_price = formData.shop_price === "" ? null : Number(formData.shop_price);
+    payload.shop_cost_price = formData.shop_cost_price === "" ? null : Number(formData.shop_cost_price);
+
+    onUpdate(payload);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white p-6 rounded-xl w-full max-w-lg">
+        <h2 className="text-xl font-bold mb-4">Edit Stock Details — {row.productName}</h2>
+
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
+            <input
+              type="number"
+              name="min_quantity"
+              value={formData.min_quantity}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Stock Level</label>
+            <input
+              type="number"
+              name="max_quantity"
+              value={formData.max_quantity}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="Unlimited"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Selling Price (Override)</label>
+            <input
+              type="number"
+              name="shop_price"
+              value={formData.shop_price}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="Default"
+            />
+            <p className="text-xs text-gray-400 mt-1">Leave empty to use global price</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price (Override)</label>
+            <input
+              type="number"
+              name="shop_cost_price"
+              value={formData.shop_cost_price}
+              onChange={handleChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="Default"
+            />
+            <p className="text-xs text-gray-400 mt-1">Leave empty to use global cost</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end mt-6">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
         </div>
       </div>
     </div>

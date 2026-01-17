@@ -83,9 +83,9 @@ export const createShop = (data: { name: string; location?: string }) =>
 // #############################################################
 // 📦 PRODUCTS (GLOBAL CATALOG)
 // #############################################################
-export const getProducts = (params?: { 
-  include_stock?: boolean; 
-  shop_id?: string; 
+export const getProducts = (params?: {
+  include_stock?: boolean;
+  shop_id?: string;
 }) =>
   api.get(`/products`, {
     params: {
@@ -148,7 +148,18 @@ export const createStock = (data: {
   max_quantity?: number;
   shop_price?: number;
   shop_cost_price?: number;
+
 }) => api.post(`/stocks`, data);
+
+export const updateStock = (
+  id: string,
+  data: {
+    min_quantity?: number;
+    max_quantity?: number;
+    shop_price?: number;
+    shop_cost_price?: number;
+  }
+) => api.put(`/stocks/${id}`, data);
 
 export const adjustStock = (data: {
   shop_id: string;
@@ -267,7 +278,7 @@ export const getExpenses = (shop_id?: string) =>
 // delete Expenses
 
 export const deleteExpense = (id: string) =>
-  api.delete(`/expenses/${id}`);  
+  api.delete(`/expenses/${id}`);
 
 export const createExpense = (data: {
   shop_id: string;
