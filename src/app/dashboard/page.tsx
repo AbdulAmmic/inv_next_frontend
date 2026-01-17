@@ -26,10 +26,12 @@ export default function DashboardPage() {
   const [selectedShop, setSelectedShop] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
 
   // Load user + selected shop
   useEffect(() => {
+    // ... (existing code, ensure it doesn't break)
     const savedUser = localStorage.getItem("user");
     const savedShop = localStorage.getItem("selected_shop_id");
 
@@ -37,9 +39,12 @@ export default function DashboardPage() {
       const parsed = JSON.parse(savedUser);
       setRole(parsed.role);
 
+      // Don't auto-load stats for staff here if they can't access it, 
+      // but let's handle the error gracefully instead of blocking valid logic purely on frontend belief.
+
       if (parsed.role === "manager") {
         setSelectedShop(parsed.shop_id);
-        loadShops(); // Still load shops for dropdown info
+        loadShops();
         return;
       }
     }
@@ -52,6 +57,7 @@ export default function DashboardPage() {
   }, []);
 
   const loadShops = async () => {
+    // ...
     try {
       const res = await getShops();
       if (res.data.length > 0) {
@@ -75,12 +81,19 @@ export default function DashboardPage() {
   const loadStats = async (shopId: string) => {
     try {
       setLoading(true);
+      setError(null);
       const res = await api.get("/reports/full-stats", {
         params: { shop_id: shopId },
       });
       setStats(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Dashboard Stats Error:", err);
+      if (err.response?.status === 403) {
+        setError("You do not have permission to view dashboard statistics.");
+      } else {
+        setError("Failed to load dashboard statistics.");
+      }
+      setStats(null); // Ensure stats is null if failed
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,9 +112,10 @@ export default function DashboardPage() {
     return shop ? shop.name : "Unknown Shop";
   };
 
-  if (loading && !stats) {
+  if (loading && !stats && !error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+        {/* ... existing loader ... */}
         <div className="relative">
           <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
           <div className="w-16 h-16 border-4 border-transparent border-t-blue-600 rounded-full animate-spin absolute top-0 left-0"></div>
@@ -111,6 +125,36 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  // Error State Display
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 flex flex-col items-center justify-center h-full text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied / Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Defensive check for rendering if stats is null but no error (shouldn't happen with above logic, but safe code)
+  const safeStats = stats || {
+    products_count: 0,
+    customers_count: 0,
+    suppliers_count: 0,
+    low_stock_count: 0,
+    total_sales_amount: 0,
+    gross_profit: 0,
+    net_profit: 0
+  };
 
   return (
     <DashboardLayout>
@@ -180,7 +224,7 @@ export default function DashboardPage() {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <MetricCard
             title="Total Products"
-            value={stats.products_count}
+            value={safeStats.products_count}
             icon={<Package className="w-5 h-5" />}
             color="blue"
             trend="+12% from last month"
@@ -188,7 +232,7 @@ export default function DashboardPage() {
           />
           <MetricCard
             title="Active Customers"
-            value={stats.customers_count}
+            value={safeStats.customers_count}
             icon={<Users className="w-5 h-5" />}
             color="green"
             trend="+8% from last month"
@@ -196,7 +240,7 @@ export default function DashboardPage() {
           />
           <MetricCard
             title="Suppliers"
-            value={stats.suppliers_count}
+            value={safeStats.suppliers_count}
             icon={<Truck className="w-5 h-5" />}
             color="purple"
             trend="+3 new this month"
@@ -204,7 +248,7 @@ export default function DashboardPage() {
           />
           <MetricCard
             title="Low Stock Items"
-            value={stats.low_stock_count}
+            value={safeStats.low_stock_count}
             icon={<AlertTriangle className="w-5 h-5" />}
             color="red"
             trend="Requires attention"
@@ -230,7 +274,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <FinancialCard
                 title="Total Sales"
-                value={format(stats.total_sales_amount)}
+                value={format(safeStats.total_sales_amount)}
                 icon={<ShoppingCart className="w-5 h-5" />}
                 color="emerald"
                 subtitle="All-time revenue"
@@ -238,7 +282,7 @@ export default function DashboardPage() {
               />
               <FinancialCard
                 title="Gross Profit"
-                value={format(stats.gross_profit)}
+                value={format(safeStats.gross_profit)}
                 icon={<BarChart3 className="w-5 h-5" />}
                 color="indigo"
                 subtitle="Before expenses"
@@ -246,7 +290,7 @@ export default function DashboardPage() {
               />
               <FinancialCard
                 title="Net Profit"
-                value={format(stats.net_profit)}
+                value={format(safeStats.net_profit)}
                 icon={<TrendingUp className="w-5 h-5" />}
                 color="orange"
                 subtitle="After all deductions"
@@ -261,8 +305,8 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Profit Margin</span>
                   <span className="font-semibold text-emerald-600">
-                    {stats.gross_profit && stats.total_sales_amount
-                      ? `${((stats.gross_profit / stats.total_sales_amount) * 100).toFixed(1)}%`
+                    {safeStats.gross_profit && safeStats.total_sales_amount
+                      ? `${((safeStats.gross_profit / safeStats.total_sales_amount) * 100).toFixed(1)}%`
                       : "0%"
                     }
                   </span>
