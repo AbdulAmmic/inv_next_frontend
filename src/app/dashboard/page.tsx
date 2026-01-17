@@ -114,7 +114,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <main className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
+      <main className="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-2">
         {/* Header with shop selector and refresh */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -302,11 +302,11 @@ const MetricCard = ({ title, value, icon, color, trend, loading }: any) => {
     <div className="group bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <p className="text-gray-500 text-sm font-medium">{title}</p>
+          <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{title}</p>
           {loading ? (
-            <div className="h-10 w-24 bg-gray-200 animate-pulse rounded mt-2"></div>
+            <div className="h-8 w-24 bg-gray-200 animate-pulse rounded mt-2"></div>
           ) : (
-            <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
+            <p className="text-xl md:text-2xl font-bold text-gray-900 mt-1">
               {typeof value === "number" ? value.toLocaleString() : value}
             </p>
           )}
@@ -350,11 +350,11 @@ const FinancialCard = ({ title, value, icon, color, subtitle, loading }: any) =>
       </div>
 
       <div>
-        <p className="text-gray-500 text-sm font-medium">{title}</p>
+        <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{title}</p>
         {loading ? (
-          <div className="h-8 w-32 bg-gray-200 animate-pulse rounded mt-2"></div>
+          <div className="h-6 w-32 bg-gray-200 animate-pulse rounded mt-2"></div>
         ) : (
-          <p className="text-xl md:text-2xl font-bold text-gray-900 mt-2 truncate">
+          <p className="text-lg md:text-xl font-bold text-gray-900 mt-1 truncate">
             {value}
           </p>
         )}

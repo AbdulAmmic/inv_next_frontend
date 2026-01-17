@@ -56,8 +56,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50">
-                    {/* Apply Zoom Wrapper on Desktop */}
-                    <div className="desktop-zoom min-h-full">
+                    {/* Main Content with Max Width for Minimalist Layout */}
+                    <div className="min-h-full max-w-[1600px] mx-auto w-full">
                         {children}
                     </div>
                 </div>
