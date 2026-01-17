@@ -535,7 +535,7 @@ export default function POSPage() {
                   <div className="relative flex-1 lg:w-64">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      placeholder="Scan SKU or Search..."
+                      placeholder="Scan Barcode or Search..."
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -547,10 +547,10 @@ export default function POSPage() {
                   <button
                     onClick={() => setShowScanner(true)}
                     className="p-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                    title="Scan with Camera"
+                    title="Scan Barcode"
                   >
                     <Camera className="w-4 h-4" />
-                    <span className="hidden sm:inline text-sm font-medium">Scan</span>
+                    <span className="hidden sm:inline text-sm font-medium">Scan Barcode</span>
                   </button>
 
                   <button
@@ -1018,8 +1018,8 @@ export default function POSPage() {
             </button>
 
             <div className="p-4 bg-gray-900">
-              <h3 className="text-white text-center font-semibold mb-1">Scan Code</h3>
-              <p className="text-gray-400 text-center text-xs">Point camera at a product code</p>
+              <h3 className="text-white text-center font-semibold mb-1">Scan Barcode</h3>
+              <p className="text-gray-400 text-center text-xs">Point camera at a barcode</p>
             </div>
 
             <div className="relative aspect-square bg-black">
