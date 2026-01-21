@@ -5,7 +5,8 @@ import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-toastify";
-import { ArrowLeftRight, RefreshCw, Wrench, Edit } from "lucide-react";
+import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download } from "lucide-react";
+import jsPDF from "jspdf";
 
 // --------------------------------------------------
 // TYPES
@@ -41,6 +42,7 @@ export default function StockPage() {
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState<StockRow | null>(null);
   const [modalType, setModalType] = useState<"adjust" | "transfer" | "edit" | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const toggleSidebar = () => setSidebarOpen((s) => !s);
@@ -179,6 +181,50 @@ export default function StockPage() {
         : "bg-green-100 text-green-700";
 
   // --------------------------------------------------
+  // FILTER & PDF
+  // --------------------------------------------------
+  const filteredStock = stock.filter(item =>
+    item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Stock Report", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+
+    let y = 40;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.text("Product", 14, y);
+    doc.text("Category", 80, y);
+    doc.text("Stock", 130, y);
+    doc.text("Status", 160, y);
+    y += 10;
+    doc.setFont("helvetica", "normal");
+
+    filteredStock.forEach((item) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      const name = item.productName.length > 30 ? item.productName.substring(0, 30) + "..." : item.productName;
+      doc.text(name, 14, y);
+      doc.text(item.category, 80, y);
+      doc.text(String(item.currentStock), 130, y);
+      doc.text(item.status, 160, y);
+      y += 8;
+    });
+
+    doc.save("stock_report.pdf");
+    toast.success("PDF exported");
+  };
+
+  // --------------------------------------------------
   // PAGE UI
   // --------------------------------------------------
   return (
@@ -192,17 +238,37 @@ export default function StockPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Stock Overview</h1>
 
-            <button
-              onClick={fetchData}
-              className="flex gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm hover:shadow-md"
-            >
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
+            <div className="flex-1 flex gap-4 justify-end">
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <button
+                onClick={exportPDF}
+                className="flex gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-sm hover:bg-red-700"
+              >
+                <Download className="w-4 h-4" /> PDF
+              </button>
+
+              <button
+                onClick={fetchData}
+                className="flex gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm hover:shadow-md"
+              >
+                <RefreshCw className="w-4 h-4" /> Refresh
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <div className="text-center py-10 text-gray-500">Loading...</div>
-          ) : stock.length === 0 ? (
+          ) : filteredStock.length === 0 ? (
             <div className="text-center py-10 text-gray-500">
               No stock found for this shop.
             </div>
@@ -221,7 +287,7 @@ export default function StockPage() {
                 </thead>
 
                 <tbody>
-                  {stock.map((row) => (
+                  {filteredStock.map((row) => (
                     <tr key={row.product_id} className="border-b">
                       <td className="p-3">{row.productName}</td>
                       <td className="p-3">{row.sku}</td>
