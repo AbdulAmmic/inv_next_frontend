@@ -50,10 +50,12 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
                 @media print {
                     body { 
                         font-family: 'Courier New', Courier, monospace; 
-                        width: 80mm; 
                         margin: 0;
-                        padding: 5px;
+                        padding: 20px;
                         color: black;
+                        display: flex; /* Centering fix */
+                        justify-content: center; /* Centering fix */
+                        align-items: flex-start; /* Centering fix */
                     }
                     .no-print { display: none !important; }
                     .print-only { display: block !important; }
@@ -71,9 +73,13 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
                     .border-t { border-top: 1px dashed #000; }
                     .mb-2 { margin-bottom: 0.5rem; }
                     .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-                    
-                    /* Ensure grid works as 12-col via tailwind, don't override generic .grid */
-                    /* If specific layout needed, use specific classes */
+
+                    /* Ensure container width is respected */
+                    div[style*="max-width: 80mm"] {
+                        max-width: 80mm !important;
+                        width: 80mm !important;
+                        margin: 0 auto; /* Centering fix */
+                    }
                 }
             `;
             document.head.appendChild(style);
@@ -91,17 +97,13 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
             const canvas = await html2canvas(receiptRef.current, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
 
-            // For a longer receipt, we might want a different format, but A4 PDF or vertical image is standard
-            const pdf = new jsPDF({
-                unit: 'mm',
-                format: [80, 200] // 80mm width (POS standard), arbitrary height
-            });
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`receipt-${sale.sale_number}.pdf`);
+            // Download as PNG
+            const link = document.createElement('a');
+            link.href = imgData;
+            link.download = `receipt-${sale.sale_number}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     };
 

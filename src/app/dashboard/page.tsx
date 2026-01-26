@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/dashboardLayout";
+import Loader from "@/components/Loader";
 import { api, getShops } from "@/apiCalls";
 import {
   Package,
@@ -29,7 +30,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
 
-  
+
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     const savedShop = localStorage.getItem("selected_shop_id");
@@ -109,17 +110,7 @@ export default function DashboardPage() {
   };
 
   if (loading && !stats && !error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        {/* ... existing loader ... */}
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
-          <div className="w-16 h-16 border-4 border-transparent border-t-blue-600 rounded-full animate-spin absolute top-0 left-0"></div>
-        </div>
-        <p className="mt-6 text-gray-600 font-medium">Loading dashboard...</p>
-        <p className="text-sm text-gray-400 mt-2">Preparing your insights</p>
-      </div>
-    );
+    return <Loader text="Loading dashboard..." subText="Preparing your insights" />;
   }
 
   // Error State Display

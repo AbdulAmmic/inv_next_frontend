@@ -7,6 +7,7 @@ import { Menu, Package, AlertTriangle, Search, Filter, RefreshCw, BarChart3, Dow
 import { getStocks } from "@/apiCalls"; // Import API call
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
+import Loader from "@/components/Loader";
 
 interface StockItem {
   id: string;
@@ -150,8 +151,12 @@ export default function OutOfStockPage() {
             </div>
           </div>
 
+          import Loader from "@/components/Loader";
+
+          // ...
+
           {loading ? (
-            <div className="text-center py-20 text-gray-500">Loading stock data...</div>
+            <Loader text="Loading stock data..." />
           ) : filteredProducts.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />

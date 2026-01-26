@@ -7,6 +7,7 @@ import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@
 import { toast } from "react-toastify";
 import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download } from "lucide-react";
 import jsPDF from "jspdf";
+import Loader from "@/components/Loader";
 
 // --------------------------------------------------
 // TYPES
@@ -266,8 +267,12 @@ export default function StockPage() {
             </div>
           </div>
 
+          import Loader from "@/components/Loader";
+
+          // ... (inside component)
+
           {loading ? (
-            <div className="text-center py-10 text-gray-500">Loading...</div>
+            <Loader text="Loading stock data..." />
           ) : filteredStock.length === 0 ? (
             <div className="text-center py-10 text-gray-500">
               No stock found for this shop.
