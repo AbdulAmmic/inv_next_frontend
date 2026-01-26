@@ -29,18 +29,14 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
 
-  // Load user + selected shop
+  
   useEffect(() => {
-    // ... (existing code, ensure it doesn't break)
     const savedUser = localStorage.getItem("user");
     const savedShop = localStorage.getItem("selected_shop_id");
 
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
       setRole(parsed.role);
-
-      // Don't auto-load stats for staff here if they can't access it, 
-      // but let's handle the error gracefully instead of blocking valid logic purely on frontend belief.
 
       if (parsed.role === "manager") {
         setSelectedShop(parsed.shop_id);

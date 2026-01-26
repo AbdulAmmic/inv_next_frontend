@@ -8,7 +8,7 @@ import {
   User, Users, CreditCard, Package, Calendar, Clock,
   ArrowUpDown, XCircle, CheckCircle
 } from "lucide-react";
-import { getSales, getSale } from "@/apiCalls";
+import { getSales, getSale, getUsers } from "@/apiCalls";
 import ReceiptComponent from "@/components/ReceiptComponent";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
@@ -40,6 +40,7 @@ interface FilterState {
 export default function SalesPage() {
   const router = useRouter();
   const [sales, setSales] = useState<Sale[]>([]);
+  const [staffList, setStaffList] = useState<string[]>([]);  // Store staff names for filter
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export default function SalesPage() {
 
   // Mock data for dropdowns (in real app, fetch from API)
   const customers = ["All Customers", "John Doe", "Jane Smith", "Mike Johnson", "Sarah Williams", "Walk-in"];
-  const staffMembers = ["All Staff", "Alex Turner", "Maria Garcia", "David Kim", "Lisa Wong"];
+  // staffMembers removed in favor of dynamic staffList
   const paymentMethods = ["All Methods", "Cash", "Card", "Transfer", "POS"];
   const statuses = ["All Status", "completed", "refunded", "pending"];
 
@@ -115,6 +116,19 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const res = await getUsers();
+      if (res.data && Array.isArray(res.data)) {
+        // Extract unique names
+        const names = Array.from(new Set(res.data.map((u: any) => u.full_name))).filter(Boolean) as string[];
+        setStaffList(names);
+      }
+    } catch (err) {
+      console.error("Failed to load staff list", err);
     }
   };
 
@@ -207,6 +221,8 @@ export default function SalesPage() {
   useEffect(() => {
     const shopId = localStorage.getItem("selected_shop_id");
     setSelectedShop(shopId);
+
+    fetchStaff(); // Fetch staff list on mount
 
     if (shopId) {
       fetchSales(shopId);
@@ -415,8 +431,10 @@ export default function SalesPage() {
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="all">All Staff</option>
-                      {staffMembers.filter(s => s !== "All Staff").map(staff => (
-                        <option key={staff} value={staff}>{staff}</option>
+                      {staffList.map((staff) => (
+                        <option key={staff} value={staff}>
+                          {staff}
+                        </option>
                       ))}
                     </select>
                   </div>

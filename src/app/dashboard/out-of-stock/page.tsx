@@ -37,11 +37,23 @@ export default function OutOfStockPage() {
     try {
       setLoading(true);
       const res = await getStocks(selectedShopId);
-      const allStocks: StockItem[] = res.data?.data || [];
+      const apiRows = Array.isArray(res.data?.data) ? res.data.data : [];
 
-      // Filter for strictly Out of Stock (quantity <= 0)
-      // Display ALL if they are out of stock
-      const outOfStockItems = allStocks.filter(item => item.currentStock <= 0);
+      // Map API response to StockItem interface, handling null/undefined values
+      const allStocks: StockItem[] = apiRows.map((item: any) => ({
+        id: item.id,
+        productName: item.productName || "Unknown Product",
+        sku: item.sku || "N/A",
+        category: item.category || "Uncategorized",
+        currentStock: item.currentStock ?? 0,
+        minStockLevel: item.minStockLevel ?? 0,
+        status: item.status || "active",
+        lastUpdated: item.lastUpdated || null,
+        demand_percentage: item.demand_percentage ?? 0,
+      }));
+
+      // Filter for strict Out of Stock (quantity <= 0)
+      const outOfStockItems = allStocks.filter((item) => item.currentStock <= 0);
       setProducts(outOfStockItems);
     } catch (err) {
       console.error(err);
