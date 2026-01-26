@@ -267,9 +267,7 @@ export default function StockPage() {
             </div>
           </div>
 
-          import Loader from "@/components/Loader";
 
-          // ... (inside component)
 
           {loading ? (
             <Loader text="Loading stock data..." />

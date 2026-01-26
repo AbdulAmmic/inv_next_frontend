@@ -151,9 +151,7 @@ export default function OutOfStockPage() {
             </div>
           </div>
 
-          import Loader from "@/components/Loader";
 
-          // ...
 
           {loading ? (
             <Loader text="Loading stock data..." />
