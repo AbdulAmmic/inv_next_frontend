@@ -37,59 +37,73 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
 
     const handlePrint = () => {
         const printContent = receiptRef.current;
-        if (printContent) {
-            const originalContents = document.body.innerHTML;
-            const printContents = printContent.innerHTML;
+        if (!printContent) return;
 
-            // Create a print window
-            document.body.innerHTML = printContents;
+        // Create a hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
 
-            // Add specific print styles
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @media print {
-                    body { 
-                        font-family: 'Courier New', Courier, monospace; 
-                        margin: 0;
-                        padding: 20px;
-                        color: black;
-                        display: flex; /* Centering fix */
-                        justify-content: center; /* Centering fix */
-                        align-items: flex-start; /* Centering fix */
-                    }
-                    .no-print { display: none !important; }
-                    .print-only { display: block !important; }
-                    
-                    /* Reset defaults */
-                    * { box-sizing: border-box; }
-                    
-                    /* Helper overrides for print readability */
-                    .text-center { text-align: center; }
-                    .text-right { text-align: right; }
-                    .font-bold { font-weight: bold; }
-                    .text-sm { font-size: 12px; }
-                    .text-xs { font-size: 10px; }
-                    .border-b { border-bottom: 1px dashed #000; }
-                    .border-t { border-top: 1px dashed #000; }
-                    .mb-2 { margin-bottom: 0.5rem; }
-                    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        const iframeDoc = iframe.contentWindow?.document;
+        if (!iframeDoc) return;
 
-                    /* Ensure container width is respected */
-                    div[style*="max-width: 80mm"] {
-                        max-width: 80mm !important;
-                        width: 80mm !important;
-                        margin: 0 auto; /* Centering fix */
-                    }
+        // Gather all styles from the main document to ensure Tailwind classes work
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+            .map(node => node.cloneNode(true));
+
+        // Create the print-specific style
+        const printStyle = document.createElement('style');
+        printStyle.innerHTML = `
+            @media print {
+                body { 
+                    font-family: 'Courier New', Courier, monospace; 
+                    margin: 0;
+                    padding: 20px;
+                    color: black;
                 }
-            `;
-            document.head.appendChild(style);
+                
+                /* Reset defaults */
+                * { box-sizing: border-box; }
+                
+                /* Ensure container width is respected */
+                .receipt-container {
+                    max-width: 80mm !important;
+                    width: 100% !important;
+                    margin: 0 auto;
+                }
+                
+                /* Helper overrides for print readability if Tailwind fails to load in time */
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: bold; }
+                .text-sm { font-size: 12px; }
+                .text-xs { font-size: 10px; }
+                .border-b { border-bottom: 1px dashed #000; }
+                .border-t { border-top: 1px dashed #000; }
+                .break-words { word-wrap: break-word; }
+            }
+        `;
 
-            window.print();
+        // Assemble the iframe content
+        iframeDoc.head.append(...styles);
+        iframeDoc.head.appendChild(printStyle);
 
-            // Restore original state
-            document.body.innerHTML = originalContents;
-            window.location.reload(); // Simplest way to restore React state cleanly after body nuke
-        }
+        // Wrap content in a container to enforce width
+        iframeDoc.body.innerHTML = `<div class="receipt-container">${printContent.innerHTML}</div>`;
+
+        // Wait for styles to load (especially external sheets) then print
+        // Using a small delay to ensure rendering happens
+        setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+
+            // Clean up the iframe after printing is done (or cancelled)
+            // Note: In some browsers, removing immediately might cancel print. 
+            // A slightly longer delay or listening for events is safer, but 1s is usually enough for the dialog to take control.
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+        }, 500);
     };
 
     const handleDownload = async () => {
