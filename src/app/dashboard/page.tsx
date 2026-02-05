@@ -54,12 +54,24 @@ export default function DashboardPage() {
   }, []);
 
   const loadShops = async () => {
-    // ...
     try {
       const res = await getShops();
       if (res.data.length > 0) {
         setShops(res.data);
-        if (!selectedShop) {
+
+        // Check local storage directly to avoid stale state issues
+        const currentSaved = localStorage.getItem("selected_shop_id");
+
+        // If we have a saved shop, check if it's valid (exists in the fetched list)
+        const savedShopExists = currentSaved && res.data.some((s: any) => s.id === currentSaved);
+
+        if (savedShopExists) {
+          // Ensure state matches valid local storage (if not already set)
+          if (selectedShop !== currentSaved) {
+            setSelectedShop(currentSaved!);
+          }
+        } else {
+          // No valid saved shop, default to first one
           const firstShop = res.data[0].id;
           setSelectedShop(firstShop);
           localStorage.setItem("selected_shop_id", firstShop);
