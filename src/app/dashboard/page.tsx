@@ -243,8 +243,8 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Financial Section - Only for Admin */}
-        {role === "admin" && (
+        {/* Financial Section - Only for Admin and Manager */}
+        {(role === "admin" || role === "manager") && (
           <section className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200 p-5 md:p-6">
             <div className="flex items-center justify-between mb-6">
               <div>

@@ -52,6 +52,7 @@ export default function SalesPage() {
   });
 
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
 
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -221,6 +222,11 @@ export default function SalesPage() {
 
   useEffect(() => {
     const shopId = localStorage.getItem("selected_shop_id");
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      setCurrentUserRole(parsed.role);
+    }
     setSelectedShop(shopId);
 
     fetchStaff(); // Fetch staff list on mount
@@ -415,25 +421,27 @@ export default function SalesPage() {
                     </select>
                   </div>
 
-                  {/* Staff Filter */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Users className="w-4 h-4 text-gray-500" />
-                      <label className="text-sm font-medium text-gray-700">Staff</label>
+                  {/* Staff Filter - Only for Admins/Managers */}
+                  {(currentUserRole === "admin" || currentUserRole === "manager") && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-gray-500" />
+                        <label className="text-sm font-medium text-gray-700">Staff</label>
+                      </div>
+                      <select
+                        value={filters.staff}
+                        onChange={(e) => setFilters({ ...filters, staff: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      >
+                        <option value="all">All Staff</option>
+                        {staffList.map((staff) => (
+                          <option key={staff} value={staff}>
+                            {staff}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <select
-                      value={filters.staff}
-                      onChange={(e) => setFilters({ ...filters, staff: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    >
-                      <option value="all">All Staff</option>
-                      {staffList.map((staff) => (
-                        <option key={staff} value={staff}>
-                          {staff}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  )}
 
                   {/* Payment Method */}
                   <div>
