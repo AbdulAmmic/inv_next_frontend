@@ -14,7 +14,8 @@ import {
   CreditCard,
   Package,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  QrCode
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -45,6 +46,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   const allMenu = [
     { icon: Home, label: "Dashboard", href: "/dashboard" },
     { icon: Package, label: "Products", href: "/dashboard/products" },
+    { icon: QrCode, label: "QR Labels", href: "/dashboard/products/labels" },
     { icon: DollarSign, label: "Stock", href: "/dashboard/stock" },
     { icon: Folder, label: "Categories", href: "/dashboard/categories" },
     { icon: Users, label: "Customers", href: "/dashboard/customers" },

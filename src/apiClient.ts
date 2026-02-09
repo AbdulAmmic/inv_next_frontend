@@ -2,11 +2,11 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "http://127.0.0.1:5001", 
+  baseURL: "https://invflask-connectorstech7925-12l4k6at.leapcell.dev",
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, 
+  withCredentials: true,
 });
 
 export default apiClient;
