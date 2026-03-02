@@ -337,6 +337,11 @@ export const getInventoryReport = (shop_id?: string) =>
 
 
 // #############################################################
+// 📊 AUDIT LOGS (ADMIN ONLY)
+// #############################################################
+export const getAuditLogs = () => api.get(`/audit-logs`);
+
+// #############################################################
 // ⚙ HEALTH
 // #############################################################
 export const healthCheck = () => api.get(`/health`);

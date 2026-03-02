@@ -15,7 +15,8 @@ import {
   Package,
   ShoppingCart,
   DollarSign,
-  QrCode
+  QrCode,
+  ClipboardList
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -56,6 +57,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     { icon: CreditCard, label: "Out of Stock", href: "/dashboard/out-of-stock" },
     { icon: DollarSign, label: "Purchases", href: "/dashboard/purchases" },
     { icon: DollarSign, label: "Expenses", href: "/dashboard/expenses", key: "expenses" },
+    { icon: ClipboardList, label: "Audit Logs", href: "/dashboard/audit-logs", key: "audit-logs" },
   ];
 
   const bottomMenu = [
@@ -92,6 +94,10 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   }
 
   // Admin sees everything — no filters
+  // But non-admins should NOT see Audit Logs
+  if (role !== "admin") {
+    allowedMenu = allowedMenu.filter(item => item.key !== "audit-logs");
+  }
 
   return (
     <>
