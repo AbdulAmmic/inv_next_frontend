@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   description: "Manage your kitchen inventory and sales with Tuhanas Kitchen POS system.",
 };
 
+import { Toaster } from "react-hot-toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,6 +32,7 @@ export default function RootLayout({
       <body
         className={`${nunito.className} antialiased text-black`}
       >
+        <Toaster position="top-right" />
         {children}
       </body>
     </html>

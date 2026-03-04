@@ -342,6 +342,12 @@ export const getInventoryReport = (shop_id?: string) =>
 export const getAuditLogs = () => api.get(`/audit-logs`);
 
 // #############################################################
+// 🔙 BACKUP (ADMIN ONLY)
+// #############################################################
+export const downloadBackup = (params?: { emails?: string[]; email_backup?: boolean }) =>
+  api.get(`/admin/backup`, { params });
+
+// #############################################################
 // ⚙ HEALTH
 // #############################################################
 export const healthCheck = () => api.get(`/health`);

@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import {
     ClipboardList, RefreshCw, Search, Filter,
     User, Activity, Database, Calendar, Clock,
-    ArrowUpDown, ShieldAlert, FileText, Info
+    ArrowUpDown, ShieldAlert, FileText, Info,
+    Download, Mail
 } from "lucide-react";
-import { getAuditLogs } from "@/apiCalls";
+import { getAuditLogs, downloadBackup } from "@/apiCalls";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import Loader from "@/components/Loader";
+import { toast } from "react-hot-toast";
 
 interface AuditLog {
     id: string;
@@ -86,6 +88,45 @@ export default function AuditLogsPage() {
     const handleRefresh = () => {
         setRefreshing(true);
         fetchLogs();
+    };
+
+    const handleDownloadBackup = async () => {
+        try {
+            toast.loading("Preparing backup...", { id: "backup-download" });
+            const res = await downloadBackup();
+
+            const dataStr = JSON.stringify(res.data, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = window.URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `tuhanas_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success("Backup downloaded!", { id: "backup-download" });
+        } catch (error) {
+            console.error("Backup download failed:", error);
+            toast.error("Failed to generate backup", { id: "backup-download" });
+        }
+    };
+
+    const handleEmailBackup = async () => {
+        try {
+            toast.loading("Sending backup to email...", { id: "backup-email" });
+            const res = await downloadBackup({ email_backup: true });
+            if (res.data.success) {
+                toast.success(res.data.message || "Backup sent to your email!", { id: "backup-email" });
+            } else {
+                toast.error("Failed to send email", { id: "backup-email" });
+            }
+        } catch (error) {
+            console.error("Backup email failed:", error);
+            toast.error("Error sending backup email", { id: "backup-email" });
+        }
     };
 
     const handleSort = (key: string) => {
@@ -187,6 +228,22 @@ export default function AuditLogsPage() {
                             </div>
 
                             <div className="flex flex-wrap gap-3">
+                                <button
+                                    onClick={handleDownloadBackup}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    Download Backup
+                                </button>
+
+                                <button
+                                    onClick={handleEmailBackup}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md active:scale-95"
+                                >
+                                    <Mail className="w-4 h-4" />
+                                    Email Me Backup
+                                </button>
+
                                 <button
                                     onClick={handleRefresh}
                                     disabled={refreshing}
@@ -383,9 +440,9 @@ export default function AuditLogsPage() {
                                                     </td>
                                                     <td className="p-4">
                                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${log.action.includes('delete') ? 'bg-red-50 text-red-700 border border-red-100' :
-                                                                log.action.includes('create') ? 'bg-green-50 text-green-700 border border-green-100' :
-                                                                    log.action.includes('update') ? 'bg-blue-50 text-blue-700 border border-blue-100' :
-                                                                        'bg-gray-50 text-gray-700 border border-gray-100'
+                                                            log.action.includes('create') ? 'bg-green-50 text-green-700 border border-green-100' :
+                                                                log.action.includes('update') ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                                                                    'bg-gray-50 text-gray-700 border border-gray-100'
                                                             }`}>
                                                             {log.action.replace(/_/g, ' ')}
                                                         </span>
