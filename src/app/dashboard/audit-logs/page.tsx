@@ -6,7 +6,7 @@ import {
     ClipboardList, RefreshCw, Search, Filter,
     User, Activity, Database, Calendar, Clock,
     ArrowUpDown, ShieldAlert, FileText, Info,
-    Download, Mail
+    Download, Mail, Cloud
 } from "lucide-react";
 import { getAuditLogs, downloadBackup } from "@/apiCalls";
 import Sidebar from "@/components/sidebar";
@@ -128,6 +128,20 @@ export default function AuditLogsPage() {
             toast.error("Error sending backup email", { id: "backup-email" });
         }
     };
+    const handleGDriveBackup = async () => {
+        try {
+            toast.loading("Uploading backup to Google Drive...", { id: "backup-gdrive" });
+            const res = await downloadBackup({ gdrive: true });
+            if (res.data.success) {
+                toast.success(res.data.message || "Backup uploaded to Google Drive!", { id: "backup-gdrive" });
+            } else {
+                toast.error("Failed to upload to Drive", { id: "backup-gdrive" });
+            }
+        } catch (error) {
+            console.error("GDrive backup failed:", error);
+            toast.error("Error uploading backup to Drive", { id: "backup-gdrive" });
+        }
+    };
 
     const handleSort = (key: string) => {
         setSortConfig(prev => ({
@@ -234,6 +248,14 @@ export default function AuditLogsPage() {
                                 >
                                     <Download className="w-4 h-4" />
                                     Download Backup
+                                </button>
+
+                                <button
+                                    onClick={handleGDriveBackup}
+                                    className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 text-sm font-medium"
+                                >
+                                    <Cloud size={16} />
+                                    <span>Backup to Drive</span>
                                 </button>
 
                                 <button
