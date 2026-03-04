@@ -6,7 +6,7 @@ import {
     ClipboardList, RefreshCw, Search, Filter,
     User, Activity, Database, Calendar, Clock,
     ArrowUpDown, ShieldAlert, FileText, Info,
-    Download, Mail, Cloud
+    Download, Mail
 } from "lucide-react";
 import { getAuditLogs, downloadBackup } from "@/apiCalls";
 import Sidebar from "@/components/sidebar";
@@ -128,21 +128,6 @@ export default function AuditLogsPage() {
             toast.error("Error sending backup email", { id: "backup-email" });
         }
     };
-    const handleGDriveBackup = async () => {
-        try {
-            toast.loading("Uploading backup to Google Drive...", { id: "backup-gdrive" });
-            const res = await downloadBackup({ gdrive: true });
-            if (res.data.success) {
-                toast.success(res.data.message || "Backup uploaded to Google Drive!", { id: "backup-gdrive" });
-            } else {
-                toast.error("Failed to upload to Drive", { id: "backup-gdrive" });
-            }
-        } catch (error) {
-            console.error("GDrive backup failed:", error);
-            toast.error("Error uploading backup to Drive", { id: "backup-gdrive" });
-        }
-    };
-
     const handleSort = (key: string) => {
         setSortConfig(prev => ({
             key,
@@ -233,9 +218,9 @@ export default function AuditLogsPage() {
                                         <ClipboardList className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
-                                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Audit Logs</h1>
+                                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Audit Logs & System Backup</h1>
                                         <p className="text-gray-600 mt-1">
-                                            Track all administrative and system activities.
+                                            Track system activity and manage full database backups.
                                         </p>
                                     </div>
                                 </div>
@@ -245,25 +230,19 @@ export default function AuditLogsPage() {
                                 <button
                                     onClick={handleDownloadBackup}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+                                    title="Download a complete JSON export of all system data (Products, Sales, Users, etc.)"
                                 >
                                     <Download className="w-4 h-4" />
-                                    Download Backup
-                                </button>
-
-                                <button
-                                    onClick={handleGDriveBackup}
-                                    className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 text-sm font-medium"
-                                >
-                                    <Cloud size={16} />
-                                    <span>Backup to Drive</span>
+                                    Download Full Backup
                                 </button>
 
                                 <button
                                     onClick={handleEmailBackup}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md active:scale-95"
+                                    title="Send a complete system backup to your registered email"
                                 >
                                     <Mail className="w-4 h-4" />
-                                    Email Me Backup
+                                    Email Full Backup
                                 </button>
 
                                 <button

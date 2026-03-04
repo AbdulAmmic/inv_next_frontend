@@ -344,7 +344,7 @@ export const getAuditLogs = () => api.get(`/audit-logs`);
 // #############################################################
 // 🔙 BACKUP (ADMIN ONLY)
 // #############################################################
-export const downloadBackup = (params?: { emails?: string[]; email_backup?: boolean; gdrive?: boolean }) =>
+export const downloadBackup = (params?: { emails?: string[]; email_backup?: boolean }) =>
   api.get(`/admin/backup`, { params });
 
 // #############################################################
