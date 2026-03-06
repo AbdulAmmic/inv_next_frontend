@@ -517,7 +517,14 @@ const RoleBadge = ({ role }: { role: string }) => {
   );
 };
 
-const InputField = ({ label, value, onChange, icon, placeholder, disabled }: any) => (
+const InputField = ({ label, value, onChange, icon, placeholder, disabled }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  icon: React.ReactNode;
+  placeholder?: string;
+  disabled?: boolean;
+}) => (
   <div className="space-y-1.5">
     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{label}</label>
     <div className="relative">
