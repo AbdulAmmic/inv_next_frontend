@@ -55,7 +55,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     { icon: FileText, label: "Suppliers", href: "/dashboard/suppliers" },
     { icon: ShoppingCart, label: "Sales", href: "/dashboard/sales" },
     { icon: CreditCard, label: "Out of Stock", href: "/dashboard/out-of-stock" },
-    { icon: DollarSign, label: "Purchases", href: "/dashboard/purchases" },
+    { icon: DollarSign, label: "Purchases", href: "/dashboard/purchases", key: "purchases" },
     { icon: DollarSign, label: "Expenses", href: "/dashboard/expenses", key: "expenses" },
     { icon: ClipboardList, label: "Audit Logs", href: "/dashboard/audit-logs", key: "audit-logs" },
   ];
@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
   if (role === "subadmin") {
     allowedMenu = allowedMenu.filter(
-      item => item.key !== "finances" && item.key !== "expenses"
+      item => item.key !== "finances" && item.key !== "expenses" && item.key !== "purchases"
     );
     allowedBottom = allowedBottom.filter(
       item => item.key !== "settings"
