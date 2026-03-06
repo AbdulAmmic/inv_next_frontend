@@ -201,7 +201,7 @@ export default function StockPage() {
     // Header
     doc.setFont("helvetica", "bold");
     doc.text("Product", 14, y);
-    doc.text("Barcode", 70, y);
+    doc.text("SKU", 70, y);
     doc.text("Category", 110, y);
     doc.text("Stock", 150, y);
     doc.text("Status", 175, y);
@@ -215,7 +215,7 @@ export default function StockPage() {
       }
       const name = item.productName.length > 25 ? item.productName.substring(0, 25) + "..." : item.productName;
       doc.text(name, 14, y);
-      doc.text(item.barcode || "N/A", 70, y);
+      doc.text(item.sku || "N/A", 70, y);
       doc.text(item.category, 110, y);
       doc.text(String(item.currentStock), 150, y);
       doc.text(item.status, 175, y);
