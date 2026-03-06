@@ -49,6 +49,7 @@ export default function PurchaseDetailsPage() {
     container_number: "",
     vat_percent: 7.5,
     other_charges: 0,
+    amount_paid: 0,
     note: "",
   });
 
@@ -81,6 +82,7 @@ export default function PurchaseDetailsPage() {
         container_number: pRes.data.container_number || "",
         vat_percent: pRes.data.vat_percent ?? 7.5,
         other_charges: pRes.data.other_charges ?? 0,
+        amount_paid: pRes.data.amount_paid ?? 0,
         note: pRes.data.note || "",
       });
 
@@ -90,6 +92,8 @@ export default function PurchaseDetailsPage() {
           product_name: i.product_name,
           ordered_quantity: i.ordered_quantity,
           received_quantity: i.received_quantity,
+          batch_number: i.batch_number || "",
+          expiry_date: i.expiry_date || "",
           is_cancelled: i.is_cancelled,
           cancel_reason: i.cancel_reason || "",
         }))
@@ -111,6 +115,7 @@ export default function PurchaseDetailsPage() {
         container_number: editInfo.container_number,
         vat_percent: Number(editInfo.vat_percent),
         other_charges: Number(editInfo.other_charges),
+        amount_paid: Number(editInfo.amount_paid),
         note: editInfo.note,
       });
 
@@ -142,9 +147,21 @@ export default function PurchaseDetailsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
+      case 'received':
       case 'completed': return 'bg-emerald-100 text-emerald-800';
+      case 'ordered':
       case 'pending': return 'bg-amber-100 text-amber-800';
+      case 'partial': return 'bg-blue-100 text-blue-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'paid': return 'bg-emerald-100 text-emerald-800';
+      case 'partial': return 'bg-blue-100 text-blue-800';
+      case 'unpaid': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -177,16 +194,16 @@ export default function PurchaseDetailsPage() {
               onClick={() => router.push("/dashboard/purchases")}
               className="flex items-center gap-3 text-slate-600 hover:text-slate-800 hover:bg-white px-4 py-2 rounded-xl transition-all duration-200 group"
             >
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> 
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               Back to Purchases
             </button>
-            
+
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mt-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-800">Purchase Details</h1>
                 <p className="text-slate-500 mt-2">Manage and track your purchase order</p>
               </div>
-              
+
               <div className="flex items-center gap-4 mt-4 lg:mt-0">
                 <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(purchase?.status)}`}>
                   {purchase?.status || 'Unknown'}
@@ -202,11 +219,10 @@ export default function PurchaseDetailsPage() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 rounded-xl font-medium capitalize transition-all duration-200 ${
-                    activeTab === tab
+                  className={`px-6 py-3 rounded-xl font-medium capitalize transition-all duration-200 ${activeTab === tab
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-slate-600 hover:text-slate-800'
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -216,10 +232,10 @@ export default function PurchaseDetailsPage() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            
+
             {/* Left Column - Information Cards */}
             <div className="xl:col-span-2 space-y-6">
-              
+
               {/* Purchase Information Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-6 border-b border-slate-100">
@@ -303,6 +319,22 @@ export default function PurchaseDetailsPage() {
                         min="0"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        Amount Paid
+                      </label>
+                      <input
+                        type="number"
+                        value={editInfo.amount_paid}
+                        onChange={(e) =>
+                          setEditInfo({ ...editInfo, amount_paid: Number(e.target.value) })
+                        }
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        min="0"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -346,6 +378,8 @@ export default function PurchaseDetailsPage() {
                         <th className="text-left p-6 font-semibold text-slate-700">Product</th>
                         <th className="text-left p-6 font-semibold text-slate-700">Ordered</th>
                         <th className="text-left p-6 font-semibold text-slate-700">Received</th>
+                        <th className="text-left p-6 font-semibold text-slate-700">Batch No</th>
+                        <th className="text-left p-6 font-semibold text-slate-700">Expiry</th>
                         <th className="text-left p-6 font-semibold text-slate-700">Cancel</th>
                         <th className="text-left p-6 font-semibold text-slate-700">Reason</th>
                       </tr>
@@ -372,6 +406,31 @@ export default function PurchaseDetailsPage() {
                               }}
                               className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                               min="0"
+                            />
+                          </td>
+                          <td className="p-6">
+                            <input
+                              type="text"
+                              value={item.batch_number}
+                              onChange={(e) => {
+                                const updated = [...receiveItems];
+                                updated[idx].batch_number = e.target.value;
+                                setReceiveItems(updated);
+                              }}
+                              placeholder="Batch"
+                              className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                            />
+                          </td>
+                          <td className="p-6">
+                            <input
+                              type="date"
+                              value={item.expiry_date}
+                              onChange={(e) => {
+                                const updated = [...receiveItems];
+                                updated[idx].expiry_date = e.target.value;
+                                setReceiveItems(updated);
+                              }}
+                              className="w-32 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                             />
                           </td>
                           <td className="p-6">
@@ -413,7 +472,7 @@ export default function PurchaseDetailsPage() {
 
             {/* Right Column - Summary & Actions */}
             <div className="space-y-6">
-              
+
               {/* Summary Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-6 border-b border-slate-100">
@@ -430,26 +489,40 @@ export default function PurchaseDetailsPage() {
                     <span className="text-slate-600">Supplier</span>
                     <span className="font-medium text-slate-800">{purchase?.supplier?.name}</span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
                     <span className="text-slate-600">Shop</span>
                     <span className="font-medium text-slate-800">{purchase?.shop?.name}</span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
                     <span className="text-slate-600">Status</span>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(purchase?.status)}`}>
                       {purchase?.status}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
                     <span className="text-slate-600">Total Cost</span>
                     <span className="font-bold text-lg text-slate-800">
                       ₦{purchase?.total_amount?.toLocaleString()}
                     </span>
                   </div>
-                  
+
+                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                    <span className="text-slate-600">Amount Paid</span>
+                    <span className="font-bold text-lg text-emerald-600">
+                      ₦{purchase?.amount_paid?.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                    <span className="text-slate-600">Payment Status</span>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPaymentStatusColor(purchase?.payment_status)}`}>
+                      {purchase?.payment_status}
+                    </span>
+                  </div>
+
                   <div className="flex justify-between items-center py-3">
                     <span className="text-slate-600">Loss Amount</span>
                     <span className="font-bold text-lg text-red-600">
@@ -466,7 +539,7 @@ export default function PurchaseDetailsPage() {
                     <Truck className="w-5 h-5" />
                     Quick Actions
                   </h2>
-                  
+
                   <div className="space-y-4">
                     <button
                       onClick={saveReceive}
@@ -475,7 +548,7 @@ export default function PurchaseDetailsPage() {
                       <Truck className="w-5 h-5" />
                       Receive Purchase
                     </button>
-                    
+
                     <button className="w-full px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200 border border-white/20">
                       <CheckCircle2 className="w-5 h-5" />
                       Mark Complete
@@ -489,20 +562,20 @@ export default function PurchaseDetailsPage() {
                 <div className="p-6 border-b border-slate-100">
                   <h2 className="text-lg font-semibold text-slate-800">Order Statistics</h2>
                 </div>
-                
+
                 <div className="p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Total Items</span>
                     <span className="font-bold text-slate-800">{receiveItems.length}</span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Items Received</span>
                     <span className="font-bold text-emerald-600">
                       {receiveItems.filter(item => item.received_quantity > 0).length}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Cancelled Items</span>
                     <span className="font-bold text-red-600">
