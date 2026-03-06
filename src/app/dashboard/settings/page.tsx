@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
-import { getUsers, registerUser, getShops, updateUserById, deleteUserById, getBackupEmails, addBackupEmail, deleteBackupEmail } from "@/apiCalls";
-import { toast } from "react-toastify";
+import { getUsers, registerUser, getShops, updateUserById, deleteUserById, getBackupEmails, addBackupEmail, deleteBackupEmail, downloadBackup } from "@/apiCalls";
+import { toast } from "react-hot-toast";
 import {
   Plus,
   Trash,
@@ -14,6 +14,7 @@ import {
   Store,
   Shield,
   Edit,
+  Send,
 } from "lucide-react";
 
 export default function UsersPage() {
@@ -200,6 +201,21 @@ export default function UsersPage() {
     }
   };
 
+  const handleTriggerBackup = async () => {
+    try {
+      toast.loading("Sending backup to all recipients...", { id: "manual-backup" });
+      const res = await downloadBackup({ email_backup: true });
+      if (res.data.success) {
+        toast.success(res.data.message || "Backup sent successfully!", { id: "manual-backup" });
+      } else {
+        toast.error("Failed to send backup", { id: "manual-backup" });
+      }
+    } catch (error) {
+      console.error("Manual backup trigger failed:", error);
+      toast.error("Error triggering backup email", { id: "manual-backup" });
+    }
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -301,8 +317,20 @@ export default function UsersPage() {
 
           {/* BACKUP EMAILS SECTION */}
           <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4">Backup Recipients</h2>
-            <p className="text-gray-600 mb-4">Manage email addresses that receive automated database backups.</p>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-bold">Backup Recipients</h2>
+                <p className="text-gray-600">Manage email addresses that receive automated database backups.</p>
+              </div>
+              <button
+                onClick={handleTriggerBackup}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                title="Send a backup now to all recipients"
+              >
+                <Send className="w-4 h-4" />
+                Send Backup Now
+              </button>
+            </div>
 
             <div className="bg-white p-6 rounded-xl border max-w-2xl">
               <div className="flex gap-2 mb-6">
