@@ -29,6 +29,7 @@ interface SidebarProps {
   isMobile: boolean;
   toggleSidebar: () => void;
 }
+// subadmin can see purchases
 
 export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProps) {
   const [role, setRole] = useState<string>("");
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
   if (role === "subadmin") {
     allowedMenu = allowedMenu.filter(
-      item => item.key !== "finances" && item.key !== "expenses" && item.key !== "purchases"
+      item => item.key !== "finances" && item.key !== "expenses"
     );
     allowedBottom = allowedBottom.filter(
       item => item.key !== "settings"
