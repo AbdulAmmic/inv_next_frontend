@@ -51,6 +51,20 @@ export default function StockPage() {
       ? localStorage.getItem("selected_shop_id") || ""
       : "";
 
+  const [userRole, setUserRole] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userRaw = localStorage.getItem("user");
+      if (userRaw) {
+        try {
+          const user = JSON.parse(userRaw);
+          if (user.role) setUserRole(user.role);
+        } catch { }
+      }
+    }
+  }, []);
+
   // --------------------------------------------------
   // FETCH STOCK
   // --------------------------------------------------
@@ -361,6 +375,10 @@ export default function StockPage() {
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">SKU / Barcode</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Category</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-center">Quantity</th>
+                    {userRole === "admin" || userRole === "subadmin" ? (
+                      <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Cost</th>
+                    ) : null}
+                    <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Price</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Status</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>
                   </tr>
@@ -396,6 +414,18 @@ export default function StockPage() {
                             {row.currentStock}
                           </span>
                           <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase">{row.unit}</span>
+                        </td>
+
+                        {userRole === "admin" || userRole === "subadmin" ? (
+                          <td className="px-6 py-4">
+                            <div className="text-slate-500 font-medium text-xs italic">Cost</div>
+                            <div className="font-bold text-slate-900">₦{Number(row.costPrice).toLocaleString()}</div>
+                          </td>
+                        ) : null}
+
+                        <td className="px-6 py-4">
+                          <div className="text-slate-500 font-medium text-xs italic">Price</div>
+                          <div className="font-black text-blue-600">₦{Number(row.sellingPrice).toLocaleString()}</div>
                         </td>
 
                         <td className="px-6 py-4">

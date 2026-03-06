@@ -21,6 +21,7 @@ interface Shop {
 export default function ProductsPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("");
 
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -70,6 +71,9 @@ export default function ProductsPage() {
           } else if (userRaw) {
             try {
               const user = JSON.parse(userRaw);
+              if (user.role) {
+                setUserRole(user.role);
+              }
               if (user.role !== "admin" && user.shop_id) {
                 initialShopId = user.shop_id;
               }
@@ -382,6 +386,7 @@ export default function ProductsPage() {
               setShowDeleteModal(true);
             }}
             onBulkDelete={handleBulkDelete}
+            userRole={userRole}
           />
         </motion.div>
       </main>

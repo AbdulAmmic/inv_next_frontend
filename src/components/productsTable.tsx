@@ -11,6 +11,7 @@ interface ProductsTableProps {
   onEditProduct: (product: any) => void;
   onDeleteProduct: (product: any) => void;
   onBulkDelete: () => void;
+  userRole?: string;
 }
 
 export default function ProductsTable({
@@ -20,6 +21,7 @@ export default function ProductsTable({
   onEditProduct,
   onDeleteProduct,
   onBulkDelete,
+  userRole,
 }: ProductsTableProps) {
   const [sortField, setSortField] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -127,7 +129,9 @@ export default function ProductsTable({
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer text-center" onClick={() => toggleSort("stockQuantity")}>
               <div className="flex items-center justify-center gap-2">Inventory {sortIcon("stockQuantity")}</div>
             </th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Unit Cost</th>
+            {userRole === "admin" || userRole === "subadmin" ? (
+              <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Unit Cost</th>
+            ) : null}
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Sale Price</th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right">Actions</th>
@@ -173,10 +177,12 @@ export default function ProductsTable({
                     <div className="text-[10px] text-slate-400 font-bold uppercase">Units</div>
                   </td>
 
-                  <td className="px-6 py-4">
-                    <div className="text-slate-500 font-medium text-xs italic">Cost</div>
-                    <div className="font-bold text-slate-900">₦{Number(product.costPrice).toLocaleString()}</div>
-                  </td>
+                  {userRole === "admin" || userRole === "subadmin" ? (
+                    <td className="px-6 py-4">
+                      <div className="text-slate-500 font-medium text-xs italic">Cost</div>
+                      <div className="font-bold text-slate-900">₦{Number(product.costPrice).toLocaleString()}</div>
+                    </td>
+                  ) : null}
 
                   <td className="px-6 py-4">
                     <div className="text-slate-500 font-medium text-xs italic">Price</div>
