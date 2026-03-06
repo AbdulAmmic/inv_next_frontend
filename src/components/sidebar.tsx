@@ -71,8 +71,10 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   let allowedBottom = [...bottomMenu];
 
   if (role === "staff") {
-    allowedMenu = []; // staff sees NOTHING
-    allowedBottom = [];
+    allowedMenu = allMenu.filter(item =>
+      ["Dashboard", "Products", "Stock", "Sales"].includes(item.label)
+    );
+    allowedBottom = bottomMenu.filter(item => item.label === "Logout");
   }
 
   if (role === "subadmin") {

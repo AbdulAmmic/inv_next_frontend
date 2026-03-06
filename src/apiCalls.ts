@@ -347,6 +347,14 @@ export const getAuditLogs = () => api.get(`/audit-logs`);
 export const downloadBackup = (params?: { emails?: string[]; email_backup?: boolean }) =>
   api.get(`/admin/backup`, { params });
 
+export const getBackupEmails = () => api.get(`/admin/backup-emails`);
+
+export const addBackupEmail = (email: string) =>
+  api.post(`/admin/backup-emails`, { email });
+
+export const deleteBackupEmail = (id: string) =>
+  api.delete(`/admin/backup-emails/${id}`);
+
 // #############################################################
 // ⚙ HEALTH
 // #############################################################

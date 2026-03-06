@@ -17,6 +17,7 @@ interface StockRow {
   product_id: string;
   productName: string;
   sku: string;
+  barcode: string;
   category: string;
   currentStock: number;
   minStockLevel: number;
@@ -71,6 +72,7 @@ export default function StockPage() {
         product_id: item.product_id,
         productName: item.productName,
         sku: item.sku,
+        barcode: item.barcode ?? "",
         category: item.category ?? "Uncategorized",
         currentStock: item.currentStock ?? 0,
         minStockLevel: item.minStockLevel ?? 0,
@@ -202,9 +204,10 @@ export default function StockPage() {
     // Header
     doc.setFont("helvetica", "bold");
     doc.text("Product", 14, y);
-    doc.text("Category", 80, y);
-    doc.text("Stock", 130, y);
-    doc.text("Status", 160, y);
+    doc.text("Barcode", 70, y);
+    doc.text("Category", 110, y);
+    doc.text("Stock", 150, y);
+    doc.text("Status", 175, y);
     y += 10;
     doc.setFont("helvetica", "normal");
 
@@ -213,11 +216,12 @@ export default function StockPage() {
         doc.addPage();
         y = 20;
       }
-      const name = item.productName.length > 30 ? item.productName.substring(0, 30) + "..." : item.productName;
+      const name = item.productName.length > 25 ? item.productName.substring(0, 25) + "..." : item.productName;
       doc.text(name, 14, y);
-      doc.text(item.category, 80, y);
-      doc.text(String(item.currentStock), 130, y);
-      doc.text(item.status, 160, y);
+      doc.text(item.barcode || "N/A", 70, y);
+      doc.text(item.category, 110, y);
+      doc.text(String(item.currentStock), 150, y);
+      doc.text(item.status, 175, y);
       y += 8;
     });
 
@@ -282,6 +286,7 @@ export default function StockPage() {
                   <tr>
                     <th className="p-3 text-left">Product</th>
                     <th className="p-3 text-left">SKU</th>
+                    <th className="p-3 text-left">Barcode</th>
                     <th className="p-3 text-left">Category</th>
                     <th className="p-3 text-left">Qty</th>
                     <th className="p-3 text-left">Status</th>
@@ -294,6 +299,7 @@ export default function StockPage() {
                     <tr key={row.product_id} className="border-b">
                       <td className="p-3">{row.productName}</td>
                       <td className="p-3">{row.sku}</td>
+                      <td className="p-3">{row.barcode || "N/A"}</td>
                       <td className="p-3">{row.category}</td>
                       <td className="p-3 font-semibold">{row.currentStock}</td>
 

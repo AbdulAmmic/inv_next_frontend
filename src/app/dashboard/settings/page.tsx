@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
-import { getUsers, registerUser, getShops, updateUserById } from "@/apiCalls";
+import { getUsers, registerUser, getShops, updateUserById, deleteUserById, getBackupEmails, addBackupEmail, deleteBackupEmail } from "@/apiCalls";
 import { toast } from "react-toastify";
 import {
   Plus,
@@ -34,16 +34,21 @@ export default function UsersPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const [backupEmails, setBackupEmails] = useState<any[]>([]);
+  const [newBackupEmail, setNewBackupEmail] = useState("");
+  const [loadingBackupEmails, setLoadingBackupEmails] = useState(false);
+
   // ============================
   // LOAD USERS + SHOPS
   // ============================
   const loadData = async () => {
     try {
-      const [u, s] = await Promise.all([getUsers(), getShops()]);
+      const [u, s, b] = await Promise.all([getUsers(), getShops(), getBackupEmails()]);
       setUsers(u.data);
       setShops(s.data);
+      setBackupEmails(b.data);
     } catch (err) {
-      toast.error("Failed to load users");
+      toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -136,20 +141,42 @@ export default function UsersPage() {
     setShowModal(true);
   };
 
-  // ============================
-  // DELETE USER
-  // ============================
-  //   const deleteUserHandler = async (id: string) => {
-  //     if (!confirm("Are you sure you want to delete this user?")) return;
+  const deleteUserHandler = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
 
-  //     try {
-  //       await deleteUser(id);
-  //       setUsers((prev) => prev.filter((u) => u.id !== id));
-  //       toast.success("User deleted");
-  //     } catch (err: any) {
-  //       toast.error(err.response?.data?.error || "Failed to delete");
-  //     }
-  //   };
+    try {
+      await deleteUserById(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      toast.success("User deleted");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to delete");
+    }
+  };
+
+  const handleAddBackupEmail = async () => {
+    if (!newBackupEmail) return;
+    setLoadingBackupEmails(true);
+    try {
+      const res = await addBackupEmail(newBackupEmail);
+      setBackupEmails(prev => [...prev, res.data]);
+      setNewBackupEmail("");
+      toast.success("Backup email added");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to add email");
+    } finally {
+      setLoadingBackupEmails(false);
+    }
+  };
+
+  const handleDeleteBackupEmail = async (id: string) => {
+    try {
+      await deleteBackupEmail(id);
+      setBackupEmails(prev => prev.filter(e => e.id !== id));
+      toast.success("Backup email removed");
+    } catch (err) {
+      toast.error("Failed to remove email");
+    }
+  };
 
   if (loading)
     return (
@@ -230,7 +257,7 @@ export default function UsersPage() {
 
                     <td className="p-3">
                       <button
-                        // onClick={() => deleteUserHandler(u.id)}
+                        onClick={() => deleteUserHandler(u.id)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <Trash className="w-4" />
@@ -248,6 +275,52 @@ export default function UsersPage() {
               </tbody>
 
             </table>
+          </div>
+
+          {/* BACKUP EMAILS SECTION */}
+          <div className="mt-8">
+            <h2 className="text-xl font-bold mb-4">Backup Recipients</h2>
+            <p className="text-gray-600 mb-4">Manage email addresses that receive automated database backups.</p>
+
+            <div className="bg-white p-6 rounded-xl border max-w-2xl">
+              <div className="flex gap-2 mb-6">
+                <div className="flex-1 flex items-center bg-gray-50 border rounded-lg p-2">
+                  <Mail className="w-4 text-gray-400 mr-2" />
+                  <input
+                    type="email"
+                    placeholder="Enter recipient email"
+                    value={newBackupEmail}
+                    onChange={(e) => setNewBackupEmail(e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-sm"
+                  />
+                </div>
+                <button
+                  onClick={handleAddBackupEmail}
+                  disabled={loadingBackupEmails || !newBackupEmail}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {loadingBackupEmails ? "Adding..." : "Add Email"}
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {backupEmails.length === 0 ? (
+                  <p className="text-gray-400 text-sm italic">No backup emails configured.</p>
+                ) : (
+                  backupEmails.map((email) => (
+                    <div key={email.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                      <span className="text-sm font-medium">{email.email}</span>
+                      <button
+                        onClick={() => handleDeleteBackupEmail(email.id)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash className="w-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </main>
       </div>
