@@ -29,6 +29,8 @@ export default function QRLabelsPage() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [queue, setQueue] = useState<{ product: Product; quantity: number }[]>([]);
+    const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
+    const [selectedShopId, setSelectedShopId] = useState("");
     const [shopName, setShopName] = useState("Loading...");
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -39,7 +41,9 @@ export default function QRLabelsPage() {
             try {
                 const res = await getShops();
                 if (res.data && res.data.length > 0) {
+                    setShops(res.data);
                     const shop = res.data[0];
+                    setSelectedShopId(shop.id);
                     setShopName(shop.name);
                     fetchProducts(shop.id);
                 }
@@ -152,9 +156,29 @@ export default function QRLabelsPage() {
                                 <QrCode className="w-5 h-5 text-purple-600" />
                                 Generator Controls
                             </h2>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Shop: <span className="font-medium text-gray-700">{shopName}</span>
-                            </p>
+                            <div className="mt-3">
+                                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Select Shop</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer"
+                                    value={selectedShopId}
+                                    onChange={(e) => {
+                                        const shopId = e.target.value;
+                                        const shop = shops.find(s => s.id === shopId);
+                                        if (shop) {
+                                            setSelectedShopId(shopId);
+                                            setShopName(shop.name);
+                                            fetchProducts(shopId);
+                                            // Optional: Clear queue when shop changes? 
+                                            // usually better to prevent mixups
+                                            setQueue([]);
+                                        }
+                                    }}
+                                >
+                                    {shops.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="p-5 flex-1 overflow-y-auto space-y-5">
