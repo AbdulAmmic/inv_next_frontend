@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboardLayout";
 import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-hot-toast";
-import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown } from "lucide-react";
+import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import Loader from "@/components/Loader";
 import { motion, AnimatePresence } from "framer-motion";
@@ -530,9 +530,19 @@ function AdjustModal({
 }: {
   row: StockRow;
   onClose: () => void;
-  onAdjust: (qty: number) => void;
+  onAdjust: (qty: number) => Promise<void> | void;
 }) {
   const [qty, setQty] = useState(0);
+  const [isAdjusting, setIsAdjusting] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsAdjusting(true);
+    try {
+      await onAdjust(qty);
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -579,10 +589,12 @@ function AdjustModal({
               Cancel
             </button>
             <button
-              className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
-              onClick={() => onAdjust(qty)}
+              className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              onClick={handleSubmit}
+              disabled={isAdjusting}
             >
-              Update Stock
+              {isAdjusting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              {isAdjusting ? "Updating..." : "Update Stock"}
             </button>
           </div>
         </div>
