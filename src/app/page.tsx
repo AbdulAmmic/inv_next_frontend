@@ -2,14 +2,15 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles } from "lucide-react";
 import { loginUser } from "@/apiCalls";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: "", password: "" });
@@ -17,9 +18,6 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  // ------------------------------------------------------------
-  // VALIDATION
-  // ------------------------------------------------------------
   const validateForm = () => {
     let valid = true;
     const newErrors = { email: "", password: "" };
@@ -41,227 +39,238 @@ export default function LoginPage() {
     return valid;
   };
 
-  // ------------------------------------------------------------
-  // HANDLE INPUT
-  // ------------------------------------------------------------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  // ------------------------------------------------------------
-  // LOGIN
-  // ------------------------------------------------------------
   const handleLogin = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    const toastId = toast.loading("Authenticating...");
     try {
       const response = await loginUser(formData.email, formData.password);
       const data = response.data;
 
       if (data?.access_token) {
-        // Save tokens
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("refresh_token", data.refresh_token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        toast.success("Login successful!");
+        toast.success("Welcome back!", { id: toastId });
 
-        // Smooth redirect
         setTimeout(() => {
           router.replace("/dashboard");
-        }, 500);
+        }, 800);
       } else {
-        toast.error("Login failed. Try again.");
+        toast.error("Login failed. Please check your credentials.", { id: toastId });
       }
     } catch (err: any) {
       toast.error(
         err.response?.data?.error ||
-          err.message ||
-          "Incorrect email or password"
+        err.message ||
+        "Incorrect email or password",
+        { id: toastId }
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // ------------------------------------------------------------
-  // FORGOT PASSWORD (Mocked)
-  // ------------------------------------------------------------
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.info("Password reset link sent to your email");
+    if (!forgotEmail) {
+      toast.error("Please enter your email address.");
+      return;
+    }
+    toast.success("If an account exists, a reset link has been sent.");
+    setForgotEmail("");
     setShowForgot(false);
   };
 
-  // ------------------------------------------------------------
-  // UI
-  // ------------------------------------------------------------
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 p-4">
-      <ToastContainer position="top-right" autoClose={2500} />
+    <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center font-nunito bg-stone-50">
+      {/* Background orbs — warm brand palette */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-200/40 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-100/50 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-amber-100/40 rounded-full blur-[80px]" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 25 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="w-full max-w-md"
-      >
-        {/* Header */}
-        <div className="rounded-t-xl bg-gradient-to-r from-purple-700 to-indigo-700 px-6 py-8 text-center shadow-xl">
-          <h1 className="text-3xl font-bold text-white">Tuhana's Inventory</h1>
-          <p className="text-purple-200 mt-2 text-sm">
-            {showForgot
-              ? "Reset your password"
-              : "Smart multi-shop inventory system"}
-          </p>
-        </div>
-
-        {/* FORM CONTAINER */}
+      <main className="relative z-10 w-full max-w-[440px] px-6">
+        {/* Brand/Logo Section */}
         <motion.div
-          initial={{ scale: 0.97 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.4 }}
-          className="bg-white rounded-b-xl px-6 py-8 shadow-xl"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
+        >
+          <div className="inline-flex flex-col items-center justify-center mb-4">
+            <div className="relative w-48 h-16">
+              <Image src="/logo_tuhanas.png" alt="Tuhanas Kitchen and Scents" fill className="object-contain" priority />
+            </div>
+          </div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-amber-900">
+            Inventory Management
+          </h1>
+          <p className="text-amber-700/70 mt-1 text-sm font-medium">
+            Smart Multi-Shop Control System
+          </p>
+        </motion.div>
+
+        {/* Login Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", duration: 0.5 }}
+          className="glass-card rounded-[2rem] p-8 md:p-10"
         >
           <AnimatePresence mode="wait">
-            {/* LOGIN SCREEN */}
             {!showForgot ? (
               <motion.div
-                key="login"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
+                key="login-form"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
               >
-                <div
-                  className="space-y-6"
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                >
-                  {/* Email */}
-                  <div>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-slate-800">Welcome Back</h2>
+                  <p className="text-slate-500 text-sm mt-1">Please enter your details to sign in</p>
+                </div>
+
+                <div className="space-y-5" onKeyDown={(e) => e.key === "Enter" && handleLogin()}>
+                  {/* Email Field */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
                       <input
                         type="email"
                         name="email"
-                        placeholder="Email address"
+                        placeholder="name@company.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 border transition-all focus:outline-none ${
-                          errors.email
-                            ? "border-red-500 focus:ring-2 focus:ring-red-500"
-                            : "border-purple-300 focus:ring-2 focus:ring-purple-500"
-                        }`}
+                        className={`w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none ${errors.email
+                          ? "border-red-500 ring-red-100 ring-4"
+                          : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                          }`}
                       />
                     </div>
-                    {errors.email && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.email}
-                      </p>
-                    )}
+                    {errors.email && <p className="text-red-500 text-xs ml-1 mt-1">{errors.email}</p>}
                   </div>
 
-                  {/* Password */}
-                  <div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
+                  {/* Password Field */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-sm font-semibold text-slate-700">Password</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgot(true)}
+                        className="text-xs font-bold text-amber-600 hover:text-amber-800 transition-colors"
+                      >
+                        Forgot?
+                      </button>
+                    </div>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
                       <input
                         type={showPassword ? "text" : "password"}
                         name="password"
-                        placeholder="Password"
+                        placeholder="••••••••"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`w-full pl-10 pr-10 py-3 rounded-lg bg-gray-50 text-gray-800 border transition-all focus:outline-none ${
-                          errors.password
-                            ? "border-red-500 focus:ring-2 focus:ring-red-500"
-                            : "border-purple-300 focus:ring-2 focus:ring-purple-500"
-                        }`}
+                        className={`w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none ${errors.password
+                          ? "border-red-500 ring-red-100 ring-4"
+                          : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                          }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-600 transition-colors"
                       >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
-                    {errors.password && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.password}
-                      </p>
-                    )}
+                    {errors.password && <p className="text-red-500 text-xs ml-1 mt-1">{errors.password}</p>}
                   </div>
 
-                  {/* Forgot Password */}
-                  <button
-                    type="button"
-                    onClick={() => setShowForgot(true)}
-                    className="text-xs text-purple-600 hover:text-purple-800 block text-right"
-                  >
-                    Forgot password?
-                  </button>
-
-                  {/* Login Button */}
+                  {/* Sign In Button */}
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    type="button"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleLogin}
                     disabled={loading}
-                    className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-95 transition disabled:opacity-60"
+                    className="w-full mt-4 py-4 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    {loading ? "Signing in..." : "Sign In"}
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <Sparkles className="w-4 h-4 text-amber-100 group-hover:rotate-12 transition-transform" />
+                      </>
+                    )}
                   </motion.button>
                 </div>
               </motion.div>
             ) : (
-              /* FORGOT PASSWORD SCREEN */
               <motion.div
-                key="forgot-screen"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
+                key="forgot-form"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
               >
-                <form onSubmit={handleForgotPassword} className="space-y-6">
-                  <p className="text-gray-600 text-sm text-center">
-                    Enter your email to receive a reset link.
-                  </p>
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-slate-800">Reset Password</h2>
+                  <p className="text-slate-500 text-sm mt-1">We'll send you a link to recover your account</p>
+                </div>
 
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500 h-5 w-5" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="Email address"
-                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-50 text-gray-800 border border-purple-300 focus:ring-2 focus:ring-purple-500"
-                    />
+                <form onSubmit={handleForgotPassword} className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@company.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all outline-none"
+                      />
+                    </div>
                   </div>
 
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="w-full py-3 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-center gap-2 hover:opacity-90"
+                    className="w-full py-4 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
                   >
                     <Send size={18} />
-                    Send Reset Link
+                    <span>Send Reset Link</span>
                   </motion.button>
                 </form>
 
                 <button
                   onClick={() => setShowForgot(false)}
-                  className="mt-4 text-sm text-purple-600 hover:text-purple-800 flex items-center justify-center gap-1"
+                  className="mt-6 w-full text-sm font-bold text-slate-500 hover:text-amber-700 flex items-center justify-center gap-2 transition-colors"
                 >
-                  <ArrowLeft size={16} /> Back to Login
+                  <ArrowLeft size={16} />
+                  Back to Login
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
-      </motion.div>
+
+        {/* Footer Info */}
+        <p className="mt-8 text-center text-slate-400 text-xs font-medium">
+          Protected by industry standard encryption. <br />
+          © 2026 Tuhanas Inventory. v2.0
+        </p>
+      </main>
     </div>
   );
 }

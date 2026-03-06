@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
+import DashboardLayout from "@/components/dashboardLayout";
 import ProductsStats from "@/components/productsStats";
 import ProductsTable from "@/components/productsTable";
 import ProductFormModal from "@/components/productsModal";
 import DeleteProductModal from "@/components/deleteProductsModal";
-import { Plus, RefreshCw, Filter, AlertCircle } from "lucide-react";
-import { getProducts, deleteProduct, getShops } from "@/apiCalls";
+import { getProducts, updateProduct, deleteProduct, getShops, getSuppliers, createProduct } from "@/apiCalls";
 import type { Product, StockStatus } from "@/app/types/products";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
+import { Plus, Search, Filter, MoreVertical, LayoutGrid, List as ListIcon, Download, RefreshCw, Package, ArrowUpRight, TrendingUp, AlertCircle, Trash2, Edit2, Image as ImageIcon, Camera, X, Loader2, Save, ShoppingCart, Truck, Store, BarChart3, ChevronDown } from "lucide-react";
+import Loader from "@/components/Loader";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Shop {
   id: string;
@@ -18,8 +19,6 @@ interface Shop {
 }
 
 export default function ProductsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
 
@@ -195,11 +194,10 @@ export default function ProductsPage() {
   // OUT OF STOCK BUTTON HANDLER
   // ------------------------------------------------
   const handleShowOutOfStock = () => {
-    // Filter products where stockQuantity is 0
     const outOfStockProducts = products.filter((p) => p.stockQuantity === 0);
     setFilteredProducts(outOfStockProducts);
-    setStockFilter("outOfStock"); // Set the dropdown to match
-    toast.info(`Showing ${outOfStockProducts.length} out-of-stock products`);
+    setStockFilter("outOfStock");
+    toast(`Showing ${outOfStockProducts.length} out-of-stock products`, { icon: '📦' });
   };
 
   // ------------------------------------------------
@@ -209,7 +207,7 @@ export default function ProductsPage() {
     setStockFilter("");
     setFilteredProducts(products);
     setSearch("");
-    toast.info("Filters cleared");
+    toast.success("Filters cleared");
   };
 
   // ------------------------------------------------
@@ -251,12 +249,11 @@ export default function ProductsPage() {
   // ------------------------------------------------
   if (loading && products.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
-          <p className="text-gray-600">Loading products...</p>
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader text="Initializing Catalog..." subText="Loading your global inventory" />
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -264,182 +261,162 @@ export default function ProductsPage() {
   // MAIN UI
   // ------------------------------------------------
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar
-        isOpen={sidebarOpen}
-        isMobile={false}
-        toggleSidebar={() => setSidebarOpen((v) => !v)}
-      />
-
-      <div className="flex flex-1 flex-col transition-all duration-300">
-        <Header />
-
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {/* Top bar */}
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
-                Products
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Manage your inventory and product catalog by shop
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm hover:shadow disabled:opacity-60"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${
-                    refreshing ? "animate-spin" : ""
-                  }`}
-                />
-                Refresh
-              </button>
-
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:from-blue-700 hover:to-blue-800 hover:shadow-lg"
-              >
-                <Plus className="h-4 w-4" />
-                Add Product
-              </button>
-            </div>
-          </div>
-
-          {/* Search + Filter Bar */}
-          <div className="mb-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search by name, SKU, or category..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Out of Stock Button */}
-                <button
-                  onClick={handleShowOutOfStock}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    stockFilter === "outOfStock"
-                      ? "bg-red-100 text-red-700 ring-2 ring-red-300"
-                      : "bg-white text-gray-700 hover:bg-red-50 hover:text-red-600"
-                  } border border-gray-200 shadow-sm`}
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  Show Out of Stock
-                </button>
-
-                {/* Stock Filter Dropdown */}
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-500" />
-                  <select
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value as any)}
-                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">All Products</option>
-                    <option value="inStock">In Stock</option>
-                    <option value="lowStock">Low Stock</option>
-                    <option value="outOfStock">Out of Stock</option>
-                  </select>
-                </div>
-
-                {/* Clear Filters Button */}
-                {(stockFilter || search) && (
-                  <button
-                    onClick={handleClearFilters}
-                    className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+    <DashboardLayout>
+      <main className="p-6 lg:p-10 space-y-8">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                Catalog
               </div>
             </div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+              Products
+            </h1>
+            <p className="text-slate-500 font-medium mt-1">Manage physical inventory and digital catalog</p>
+          </motion.div>
 
-            {/* Active Filters Indicator */}
-            {stockFilter && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Showing:</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                  {stockFilter === "outOfStock" && "Out of Stock Products"}
-                  {stockFilter === "lowStock" && "Low Stock Products"}
-                  {stockFilter === "inStock" && "In Stock Products"}
-                  <button
-                    onClick={handleClearFilters}
-                    className="ml-1 rounded-full p-0.5 hover:bg-blue-200"
-                  >
-                    ×
-                  </button>
-                </span>
-                <span className="text-sm text-gray-500">
-                  ({filteredProducts.length} products)
-                </span>
-              </div>
-            )}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-3"
+          >
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
 
-          {/* Stats */}
-          <div className="mb-4">
-            <ProductsStats products={filteredProducts} />
-          </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl px-6 py-2.5 text-sm font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-200 group"
+            >
+              <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
+              Add Product
+            </button>
+          </motion.div>
+        </div>
 
-          {/* Table */}
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <ProductsTable
-              products={filteredProducts}
-              selectedProducts={selectedProducts}
-              onSelectProduct={setSelectedProducts}
-              onEditProduct={(p: Product) => {
-                setSelectedProduct(p);
-                setShowEditModal(true);
-              }}
-              onDeleteProduct={(p: Product) => {
-                setSelectedProduct(p);
-                setShowDeleteModal(true);
-              }}
-              onBulkDelete={handleBulkDelete}
+        {/* Filters & Search */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card p-4 rounded-[1.5rem] flex flex-col md:flex-row gap-4 shadow-xl shadow-slate-200/50"
+        >
+          <div className="flex-1 relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search products by name, SKU, or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-slate-50/50 border border-slate-100 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all font-medium text-slate-700 placeholder:text-slate-400"
             />
           </div>
-        </main>
-      </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleShowOutOfStock}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${stockFilter === "outOfStock"
+                ? "bg-rose-50 border-rose-200 text-rose-600 ring-4 ring-rose-50"
+                : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50 border-slate-200 shadow-sm"
+                }`}
+            >
+              <AlertCircle className="w-4 h-4" />
+              Out of Stock
+            </button>
+
+            <div className="relative group/select">
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value as any)}
+                className="appearance-none bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all shadow-sm cursor-pointer"
+              >
+                <option value="">All Status</option>
+                <option value="inStock">In Stock</option>
+                <option value="lowStock">Low Stock</option>
+                <option value="outOfStock">Out of Stock</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none group-focus-within/select:rotate-180 transition-transform" />
+            </div>
+
+            {(stockFilter || search) && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Stats Section */}
+        <ProductsStats products={filteredProducts} />
+
+        {/* Main Content Table Area */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+        >
+          <ProductsTable
+            products={filteredProducts}
+            selectedProducts={selectedProducts}
+            onSelectProduct={setSelectedProducts}
+            onEditProduct={(p: Product) => {
+              setSelectedProduct(p);
+              setShowEditModal(true);
+            }}
+            onDeleteProduct={(p: Product) => {
+              setSelectedProduct(p);
+              setShowDeleteModal(true);
+            }}
+            onBulkDelete={handleBulkDelete}
+          />
+        </motion.div>
+      </main>
 
       {/* MODALS */}
-      {showAddModal && (
-        <ProductFormModal
-          onClose={() => setShowAddModal(false)}
-          onSave={handleProductSaved}
-        />
-      )}
+      <AnimatePresence>
+        {showAddModal && (
+          <ProductFormModal
+            onClose={() => setShowAddModal(false)}
+            onSave={handleProductSaved}
+          />
+        )}
 
-      {showEditModal && selectedProduct && (
-        <ProductFormModal
-          product={selectedProduct}
-          onClose={() => {
-            setShowEditModal(false);
-            setSelectedProduct(null);
-          }}
-          onSave={handleProductSaved}
-        />
-      )}
+        {showEditModal && selectedProduct && (
+          <ProductFormModal
+            product={selectedProduct}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedProduct(null);
+            }}
+            onSave={handleProductSaved}
+          />
+        )}
 
-      {showDeleteModal && selectedProduct && (
-        <DeleteProductModal
-          product={selectedProduct}
-          onClose={() => {
-            setShowDeleteModal(false);
-            setSelectedProduct(null);
-          }}
-          onDelete={(id) => handleDeleteSingle(id)}
-        />
-      )}
-    </div>
+        {showDeleteModal && selectedProduct && (
+          <DeleteProductModal
+            product={selectedProduct}
+            onClose={() => {
+              setShowDeleteModal(false);
+              setSelectedProduct(null);
+            }}
+            onDelete={(id) => handleDeleteSingle(id)}
+          />
+        )}
+      </AnimatePresence>
+    </DashboardLayout>
   );
 }

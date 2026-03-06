@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Package, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface ProductStatsProps {
   products: any[];
@@ -13,42 +14,32 @@ export default function ProductsStats({ products }: ProductStatsProps) {
   const lowStock = products.filter((p) => p.status === "lowStock").length;
   const outOfStock = products.filter((p) => p.status === "outOfStock").length;
 
-  const cardStyle =
-    "flex items-center gap-4 p-4 rounded-xl bg-white shadow-sm border border-gray-200 hover:shadow-md transition-all";
+  const stats = [
+    { label: "Total Products", value: total, icon: Package, color: "blue", delay: 0 },
+    { label: "In Stock", value: inStock, icon: CheckCircle, color: "emerald", delay: 0.1 },
+    { label: "Low Stock", value: lowStock, icon: AlertTriangle, color: "amber", delay: 0.2 },
+    { label: "Out of Stock", value: outOfStock, icon: XCircle, color: "rose", delay: 0.3 },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <div className={cardStyle}>
-        <Package className="text-blue-600 w-8 h-8" />
-        <div>
-          <p className="text-sm text-gray-500">Total Products</p>
-          <p className="text-xl font-semibold">{total}</p>
-        </div>
-      </div>
-
-      <div className={cardStyle}>
-        <CheckCircle className="text-green-600 w-8 h-8" />
-        <div>
-          <p className="text-sm text-gray-500">In Stock</p>
-          <p className="text-xl font-semibold">{inStock}</p>
-        </div>
-      </div>
-
-      <div className={cardStyle}>
-        <AlertTriangle className="text-amber-600 w-8 h-8" />
-        <div>
-          <p className="text-sm text-gray-500">Low Stock</p>
-          <p className="text-xl font-semibold">{lowStock}</p>
-        </div>
-      </div>
-
-      <div className={cardStyle}>
-        <XCircle className="text-red-600 w-8 h-8" />
-        <div>
-          <p className="text-sm text-gray-500">Out of Stock</p>
-          <p className="text-xl font-semibold">{outOfStock}</p>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {stats.map((stat, i) => (
+        <motion.div
+          key={stat.label}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: stat.delay }}
+          className="glass-card p-5 md:p-6 rounded-[1.5rem] flex items-center gap-4 border border-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
+        >
+          <div className={`p-3 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
+            <stat.icon className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+            <p className="text-xl md:text-2xl font-black text-slate-900 mt-0.5">{stat.value}</p>
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }
