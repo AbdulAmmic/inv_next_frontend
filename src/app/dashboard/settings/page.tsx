@@ -42,13 +42,35 @@ export default function UsersPage() {
   // LOAD USERS + SHOPS
   // ============================
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [u, s, b] = await Promise.all([getUsers(), getShops(), getBackupEmails()]);
-      setUsers(u.data);
-      setShops(s.data);
-      setBackupEmails(b.data);
+      // Fetch users
+      try {
+        const u = await getUsers();
+        setUsers(u.data);
+      } catch (err) {
+        console.error("Failed to load users:", err);
+        toast.error("Failed to load users");
+      }
+
+      // Fetch shops
+      try {
+        const s = await getShops();
+        setShops(s.data);
+      } catch (err) {
+        console.error("Failed to load shops:", err);
+      }
+
+      // Fetch backup emails (Admin only)
+      try {
+        const b = await getBackupEmails();
+        setBackupEmails(b.data);
+      } catch (err) {
+        console.error("Failed to load backup emails:", err);
+        // Silently fail or log, don't block the whole page
+      }
     } catch (err) {
-      toast.error("Failed to load data");
+      toast.error("An unexpected error occurred while loading data");
     } finally {
       setLoading(false);
     }
