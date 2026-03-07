@@ -385,6 +385,7 @@ export default function PurchasesPage() {
                 <tr className="bg-slate-50/50 border-b border-slate-100 italic">
                   <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Registry Info</th>
                   <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Stakeholders</th>
+                  <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Products</th>
                   <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Capital Allocation</th>
                   <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Current Status</th>
                   <th className="px-8 py-6 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right">Actions</th>
@@ -434,6 +435,23 @@ export default function PurchasesPage() {
                               </div>
                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.shop_name}</span>
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                            {p.items?.slice(0, 2).map((item, i) => (
+                              <span key={i} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-[10px] font-bold truncate max-w-[150px]" title={item.product_name}>
+                                {item.product_name || 'Unknown'} (x{item.ordered_quantity})
+                              </span>
+                            ))}
+                            {(p.items?.length || 0) > 2 && (
+                              <span className="px-2 py-1 bg-slate-50 text-slate-500 border border-slate-200 rounded-lg text-[10px] font-bold">
+                                +{(p.items?.length || 0) - 2} more
+                              </span>
+                            )}
+                            {(!p.items || p.items.length === 0) && (
+                              <span className="text-[10px] text-slate-400 italic">No items</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-8 py-6 text-sm">
