@@ -88,6 +88,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     );
   }
 
+ 
   if (role === "manager") {
     allowedMenu = allowedMenu.filter(item => item.key !== "finances");
     allowedBottom = allowedBottom.filter(item => item.key !== "settings");
