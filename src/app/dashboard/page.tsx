@@ -204,7 +204,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Financial Overview - Clean & Professional */}
-        {(role === "admin" || role === "manager") && (
+        {role === "admin" && (
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Financial Performance</h2>

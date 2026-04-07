@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Wallet,
   ArrowDownCircle,
@@ -71,6 +72,9 @@ interface StockAlertCardProps {
 }
 
 export default function FinancesPage() {
+  const router = useRouter();
+  const [userRole, setUserRole] = useState<string>("");
+  const [roleChecked, setRoleChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Preparing Dashboard..."); // New State
@@ -105,6 +109,21 @@ export default function FinancesPage() {
   ];
 
   useEffect(() => {
+    // Role Guard: managers cannot access finances
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const role = parsed.role || "";
+        setUserRole(role);
+        if (role === "manager") {
+          toast.error("Access denied: Managers cannot view Finances.");
+          router.replace("/dashboard");
+          return;
+        }
+      }
+    } catch {}
+    setRoleChecked(true);
     loadShops();
     // Set default dates
     const today = new Date();
@@ -327,6 +346,16 @@ export default function FinancesPage() {
     if (n >= 1000) return `₦${(n / 1000).toFixed(1)}K`;
     return formatNaira(n);
   };
+
+  if (!roleChecked) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader text="Checking permissions..." />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (loading && !stats) {
     return (

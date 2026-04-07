@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://invflask-connectorstech7925-12l4k6at.leapcell.dev",
+  baseURL: "https://invflask-ammicsystems4174-ryzs6dmm.leapcell.dev",
   headers: {
     "Content-Type": "application/json",
   },
