@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://invflask-ammicsystems4174-ryzs6dmm.leapcell.dev";
+  process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
 
 // -------------------------------------------------------------
 // 🔧 AXIOS INSTANCE
