@@ -107,7 +107,19 @@ export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
 // #############################################################
 export const getShops = async () => {
   await waitForSync();
-  const shops = await db.shops.toArray();
+  let shops = await db.shops.toArray();
+
+  // Fallback: if Dexie is empty (pull failed / first load), fetch from API directly
+  if (shops.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/shops');
+      shops = res.data || [];
+      if (shops.length > 0) await db.shops.bulkPut(shops);
+    } catch (e) {
+      console.warn('getShops API fallback failed:', e);
+    }
+  }
+
   return { data: shops };
 };
 export const createShop = async (data: { name: string; location?: string }) => {
@@ -127,7 +139,18 @@ export const getProducts = async (params?: {
   shop_id?: string;
 }) => {
   await waitForSync();
-  const products = await db.products.toArray();
+  let products = await db.products.toArray();
+
+  // Fallback: if Dexie is empty, fetch from API directly
+  if (products.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/products', { params: { include_stock: params?.include_stock, shop_id: params?.shop_id } });
+      products = res.data || [];
+      if (products.length > 0) await db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() })));
+    } catch (e) {
+      console.warn('getProducts API fallback failed:', e);
+    }
+  }
 
   if (params?.include_stock) {
     const stocks = await db.stocks.toArray();
@@ -175,16 +198,28 @@ export const deleteProduct = async (id: string) => {
 // #############################################################
 export const getStocks = async (shop_id?: string) => {
   await waitForSync();
-  const stocks = shop_id
+  let stocks = shop_id
     ? await db.stocks.where('shop_id').equals(shop_id).toArray()
     : await db.stocks.toArray();
+
+  // Fallback: if Dexie is empty, fetch from API directly
+  if (stocks.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
+      const allStocks = res.data || [];
+      if (allStocks.length > 0) await db.stocks.bulkPut(allStocks);
+      stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
+    } catch (e) {
+      console.warn('getStocks API fallback failed:', e);
+    }
+  }
 
   const enrichedStocks = await Promise.all(stocks.map(async (s) => {
     const product = await db.products.get(s.product_id);
     return {
       ...s,
-      productName: product?.name || 'Unknown Product',
-      sku: product?.sku || '',
+      productName: product?.name || s.productName || 'Unknown Product',
+      sku: product?.sku || s.sku || '',
       sellingPrice: s.shop_price || product?.price || 0,
       currentStock: s.quantity || 0,
     };
