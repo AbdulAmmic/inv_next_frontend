@@ -1,0 +1,69 @@
+{
+  "name": "tuhanas_fe",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main/main.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-build": "next build && electron-builder",
+    "dist": "npm run electron-build"
+  },
+  "build": {
+    "appId": "com.tuhanas.inventory",
+    "productName": "Tuhanas Inventory",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main/**/*",
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/logo.png"
+    }
+  },
+  "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
+    "@headlessui/react": "^2.2.7",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/qrcode.react": "^1.0.5",
+    "axios": "^1.12.2",
+    "dexie": "^4.4.2",
+    "dexie-react-hooks": "^4.4.0",
+    "framer-motion": "^12.23.12",
+    "html-to-image": "^1.11.13",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0",
+    "lucide-react": "^0.542.0",
+    "next": "16.0.7",
+    "qrcode.react": "^4.2.0",
+    "react": "19.1.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "19.1.0",
+    "react-hot-toast": "^2.6.0",
+    "react-qr-reader": "^3.0.0-beta-1",
+    "react-toastify": "^11.0.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "baseline-browser-mapping": "^2.10.25",
+    "concurrently": "^9.2.1",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.5.6",
+    "postcss-import": "^16.1.1",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5",
+    "wait-on": "^9.0.6"
+  }
+}
