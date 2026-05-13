@@ -309,9 +309,17 @@ export const createSale = async (data: any) => {
 
 export const getSales = async (shop_id?: string) => {
   await waitForSync();
-  const sales = shop_id
+  let sales = shop_id
     ? await db.sales.where('shop_id').equals(shop_id).toArray()
     : await db.sales.toArray();
+  if (sales.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
+      const all = res.data || [];
+      if (all.length > 0) await db.sales.bulkPut(all);
+      sales = shop_id ? all.filter((s: any) => s.shop_id === shop_id) : all;
+    } catch (e) { console.warn('getSales API fallback failed:', e); }
+  }
   return { data: sales };
 };
 
@@ -353,7 +361,14 @@ export const refundSale = async (id: string) => {
 // #############################################################
 export const getCustomers = async () => {
   await waitForSync();
-  const customers = await db.customers.toArray();
+  let customers = await db.customers.toArray();
+  if (customers.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/customers');
+      customers = res.data || [];
+      if (customers.length > 0) await db.customers.bulkPut(customers);
+    } catch (e) { console.warn('getCustomers API fallback failed:', e); }
+  }
   return { data: customers };
 };
 
@@ -371,7 +386,14 @@ export const createCustomer = async (data: any) => {
 // #############################################################
 export const getSuppliers = async () => {
   await waitForSync();
-  const suppliers = await db.suppliers.toArray();
+  let suppliers = await db.suppliers.toArray();
+  if (suppliers.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/suppliers');
+      suppliers = res.data || [];
+      if (suppliers.length > 0) await db.suppliers.bulkPut(suppliers);
+    } catch (e) { console.warn('getSuppliers API fallback failed:', e); }
+  }
   return { data: suppliers };
 };
 
@@ -413,7 +435,15 @@ export const createTransfer = async (data: any) => {
 };
 
 export const getTransfers = async () => {
-  const transfers = await db.transfers.toArray();
+  await waitForSync();
+  let transfers = await db.transfers.toArray();
+  if (transfers.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/transfers');
+      transfers = res.data || [];
+      if (transfers.length > 0) await db.transfers.bulkPut(transfers);
+    } catch (e) { console.warn('getTransfers API fallback failed:', e); }
+  }
   return { data: transfers };
 };
 
@@ -478,9 +508,18 @@ export const createAdjustment = async (data: {
 };
 
 export const getAdjustments = async (shop_id?: string) => {
-  const adjustments = shop_id 
+  await waitForSync();
+  let adjustments = shop_id
     ? await db.adjustments.where('shop_id').equals(shop_id).toArray()
     : await db.adjustments.toArray();
+  if (adjustments.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/adjustments', { params: shop_id ? { shop_id } : {} });
+      const all = res.data || [];
+      if (all.length > 0) await db.adjustments.bulkPut(all);
+      adjustments = shop_id ? all.filter((a: any) => a.shop_id === shop_id) : all;
+    } catch (e) { console.warn('getAdjustments API fallback failed:', e); }
+  }
   return { data: adjustments };
 };
 
@@ -503,9 +542,18 @@ export const createPurchase = async (data: any) => {
 };
 
 export const getPurchases = async (shop_id?: string) => {
-  const purchases = shop_id 
+  await waitForSync();
+  let purchases = shop_id
     ? await db.purchases.where('shop_id').equals(shop_id).toArray()
     : await db.purchases.toArray();
+  if (purchases.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/purchases', { params: shop_id ? { shop_id } : {} });
+      const all = res.data || [];
+      if (all.length > 0) await db.purchases.bulkPut(all);
+      purchases = shop_id ? all.filter((p: any) => p.shop_id === shop_id) : all;
+    } catch (e) { console.warn('getPurchases API fallback failed:', e); }
+  }
   return { data: purchases };
 };
 
@@ -592,7 +640,15 @@ export const receivePurchase = async (id: string, payload: any) => {
 // 💸 EXPENSES
 // #############################################################
 export const getExpenseCategories = async () => {
-  const cats = await db.expense_categories.toArray();
+  await waitForSync();
+  let cats = await db.expense_categories.toArray();
+  if (cats.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/expenses/categories');  // correct endpoint
+      cats = res.data || [];
+      if (cats.length > 0) await db.expense_categories.bulkPut(cats);
+    } catch (e) { console.warn('getExpenseCategories API fallback failed:', e); }
+  }
   return { data: cats };
 };
 
@@ -606,9 +662,18 @@ export const createExpenseCategory = async (data: { name: string }) => {
 };
 
 export const getExpenses = async (shop_id?: string) => {
-  const expenses = shop_id 
+  await waitForSync();
+  let expenses = shop_id
     ? await db.expenses.where('shop_id').equals(shop_id).toArray()
     : await db.expenses.toArray();
+  if (expenses.length === 0 && typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await api.get('/expenses', { params: shop_id ? { shop_id } : {} });
+      const all = res.data || [];
+      if (all.length > 0) await db.expenses.bulkPut(all);
+      expenses = shop_id ? all.filter((e: any) => e.shop_id === shop_id) : all;
+    } catch (e) { console.warn('getExpenses API fallback failed:', e); }
+  }
   return { data: expenses };
 };
 

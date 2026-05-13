@@ -116,21 +116,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Background sync — refreshes Dexie silently without blocking UI
+    // Background sync — push pending + pull fresh data without blocking UI
     const backgroundSync = async () => {
         try {
             const token = localStorage.getItem("access_token");
             if (!navigator.onLine || !token) return;
-            const awake = await wakeServer(60000);
-            if (!awake) return;
-            await pullUpdates();
-            // Signal pages that fresh data is available
+
+            // Push any queued local changes first
+            const { pushChanges, pullUpdates: pull } = await import("@/syncEngine");
+            const queueCount = await import("@/db").then(m => m.db.sync_queue.where("status").anyOf(["pending", "failed"]).count());
+            if (queueCount > 0) {
+                await pushChanges();
+                window.dispatchEvent(new Event("tuhanas:push-complete"));
+            }
+
+            // Then pull fresh data (skip wakeServer — server already awake from login)
+            await pull();
             window.dispatchEvent(new Event("tuhanas:bg-sync-complete"));
             console.log("✅ Background sync complete");
         } catch (e) {
             console.warn("⚠️ Background sync failed:", e);
         }
     };
+
+    // Auto-push when device comes back online
+    useEffect(() => {
+        const handleOnline = () => { backgroundSync(); };
+        window.addEventListener("online", handleOnline);
+        return () => window.removeEventListener("online", handleOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Handle Resize
     useEffect(() => {
