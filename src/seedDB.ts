@@ -33,8 +33,16 @@ export async function seedDatabaseFromSQL(
 
   console.log('🌱 Seeding database from SQL dump...');
 
-  // Dynamic import to keep bundle size reasonable
-  const seedData = await import('./seed-data.json').then(m => m.default) as Record<string, any[]>;
+  // Dynamic import — seed-data.json is optional (gitignored).
+  // On new devices it won't exist; pullUpdates() will populate Dexie from server instead.
+  let seedData: Record<string, any[]>;
+  try {
+    seedData = await import('./seed-data.json').then(m => m.default) as Record<string, any[]>;
+  } catch {
+    console.warn('⚠️ seed-data.json not found — skipping local seed. Server pull will populate data.');
+    localStorage.setItem(SEED_FLAG, 'true'); // mark as "seeded" so we don't retry on every load
+    return;
+  }
 
   const tables: Array<{ key: string; table: any }> = [
     { key: 'shops',              table: db.shops },

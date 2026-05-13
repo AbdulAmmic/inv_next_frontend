@@ -50,9 +50,9 @@ export default function StoresPage() {
           id: s.id,
           name: s.name,
           location: s.location || "—",
-          manager: s.meta?.manager || "—",
-          phone: s.meta?.phone || "—",
-          status: s.meta?.status || "Active",
+          manager: (s as any).meta?.manager || "—",
+          phone: (s as any).meta?.phone || "—",
+          status: (s as any).meta?.status || "Active",
         }));
 
         setStores(mapped);
@@ -100,9 +100,9 @@ export default function StoresPage() {
           id: newStore.id,
           name: newStore.name,
           location: newStore.location || "—",
-          manager: newStore.meta?.manager || "—",
-          phone: newStore.meta?.phone || "—",
-          status: newStore.meta?.status || "Active",
+          manager: (newStore as any).meta?.manager || "—",
+          phone: (newStore as any).meta?.phone || "—",
+          status: (newStore as any).meta?.status || "Active",
         },
       ]);
 
