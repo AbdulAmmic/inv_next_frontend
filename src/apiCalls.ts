@@ -2,6 +2,7 @@
 import axios from "axios";
 import { db } from "./db";
 import { queueChange, pushChanges, pullUpdates } from "./syncEngine";
+import { waitForSync } from "./syncGate";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
@@ -105,7 +106,7 @@ export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
 // 🏪 SHOPS
 // #############################################################
 export const getShops = async () => {
-  // Always read from local Dexie — shops are seeded from SQL dump
+  await waitForSync();
   const shops = await db.shops.toArray();
   return { data: shops };
 };
@@ -125,10 +126,9 @@ export const getProducts = async (params?: {
   include_stock?: boolean;
   shop_id?: string;
 }) => {
-  // Read from local DB
+  await waitForSync();
   const products = await db.products.toArray();
-  
-  // If include_stock, we need to attach stock levels
+
   if (params?.include_stock) {
     const stocks = await db.stocks.toArray();
     const mapped = products.map(p => ({
@@ -174,11 +174,11 @@ export const deleteProduct = async (id: string) => {
 // 📊 STOCK MANAGEMENT (PER SHOP)
 // #############################################################
 export const getStocks = async (shop_id?: string) => {
-  const stocks = shop_id 
+  await waitForSync();
+  const stocks = shop_id
     ? await db.stocks.where('shop_id').equals(shop_id).toArray()
     : await db.stocks.toArray();
 
-  // Join with products to get names and SKUs
   const enrichedStocks = await Promise.all(stocks.map(async (s) => {
     const product = await db.products.get(s.product_id);
     return {
@@ -273,7 +273,8 @@ export const createSale = async (data: any) => {
 };
 
 export const getSales = async (shop_id?: string) => {
-  const sales = shop_id 
+  await waitForSync();
+  const sales = shop_id
     ? await db.sales.where('shop_id').equals(shop_id).toArray()
     : await db.sales.toArray();
   return { data: sales };
@@ -316,6 +317,7 @@ export const refundSale = async (id: string) => {
 // 🧍 CUSTOMERS
 // #############################################################
 export const getCustomers = async () => {
+  await waitForSync();
   const customers = await db.customers.toArray();
   return { data: customers };
 };
@@ -333,6 +335,7 @@ export const createCustomer = async (data: any) => {
 // 🧑‍💼 SUPPLIERS
 // #############################################################
 export const getSuppliers = async () => {
+  await waitForSync();
   const suppliers = await db.suppliers.toArray();
   return { data: suppliers };
 };
