@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles, WifiOff } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles, WifiOff, RefreshCw } from "lucide-react";
 import { loginUser } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [serverWaking, setServerWaking] = useState(false);
 
   const router = useRouter();
 
@@ -51,24 +52,45 @@ export default function LoginPage() {
     setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
+  // Wake server with /health pings, then retry login
+  const wakeAndRetry = async (toastId: string): Promise<boolean> => {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
+    setServerWaking(true);
+    toast.loading("Server is starting up — please wait (up to 60s)...", { id: toastId });
 
-    setLoading(true);
-    const toastId = toast.loading("Authenticating...");
+    const maxWait = 90000;
+    const start = Date.now();
+    let attempt = 0;
 
+    while (Date.now() - start < maxWait) {
+      attempt++;
+      try {
+        await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(8000) });
+        // Server is awake — retry login
+        toast.loading(`Server ready, signing in...`, { id: toastId });
+        setServerWaking(false);
+        return true;
+      } catch {
+        toast.loading(`Connecting to server (attempt ${attempt})...`, { id: toastId });
+        await new Promise(r => setTimeout(r, 4000));
+      }
+    }
+
+    setServerWaking(false);
+    return false;
+  };
+
+  const doLogin = async (toastId: string): Promise<"success" | "auth_error" | "network_error"> => {
     try {
-      // ── Step 1: Try online login ──
       const response = await loginUser(formData.email, formData.password);
       const data = response.data;
 
       if (data?.access_token) {
-        // Store session
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("refresh_token", data.refresh_token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.removeItem("offline_session");
 
-        // Cache credentials for offline use
         await cacheLoginCredentials(
           formData.email,
           formData.password,
@@ -80,16 +102,51 @@ export default function LoginPage() {
         setIsOfflineMode(false);
         toast.success("Welcome back!", { id: toastId });
         setTimeout(() => router.replace("/dashboard"), 800);
-      } else {
-        toast.error("Login failed. Please check your credentials.", { id: toastId });
+        return "success";
       }
 
+      return "auth_error";
     } catch (err: any) {
+      // Real auth error (401 = wrong credentials)
+      if (err?.response?.status === 401) {
+        return "auth_error";
+      }
+      // Network / timeout (server sleeping)
+      if (isNetworkError(err) || err?.code === "ECONNABORTED" || err?.code === "ERR_NETWORK") {
+        return "network_error";
+      }
+      return "auth_error";
+    }
+  };
 
-      // ── Step 2: If network is down, try offline cache ──
-      if (isNetworkError(err)) {
+  const handleLogin = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    const toastId = toast.loading("Signing in...");
+
+    try {
+      // ── Step 1: Try online login ──
+      let result = await doLogin(toastId);
+
+      if (result === "success") return;
+
+      if (result === "network_error") {
+        // ── Step 2: Server might be sleeping — wake it up and retry ──
+        const awake = await wakeAndRetry(toastId);
+
+        if (awake) {
+          result = await doLogin(toastId);
+          if (result === "success") return;
+
+          if (result === "auth_error") {
+            toast.error("Incorrect email or password.", { id: toastId });
+            return;
+          }
+        }
+
+        // ── Step 3: Server unreachable — try offline cache ──
         toast.loading("Server unreachable — checking offline credentials...", { id: toastId });
-
         const offlineResult = await verifyOfflineLogin(formData.email, formData.password);
 
         if (offlineResult.success) {
@@ -103,19 +160,20 @@ export default function LoginPage() {
           toast.success("✈️ Signed in offline — cached session restored.", { id: toastId });
           setTimeout(() => router.replace("/dashboard"), 800);
         } else {
-          const failure = offlineResult as { success: false; reason: string };
-          toast.error(`Offline login failed: ${failure.reason}`, { id: toastId });
+          toast.error(
+            "Cannot reach server. No offline session available.\nPlease connect to the internet and try again.",
+            { id: toastId, duration: 5000 }
+          );
         }
-
-      } else {
-        // Wrong password or server error
-        toast.error(
-          err.response?.data?.error || err.message || "Incorrect email or password",
-          { id: toastId }
-        );
+        return;
       }
+
+      // ── auth_error: wrong credentials ──
+      toast.error("Incorrect email or password.", { id: toastId });
+
     } finally {
       setLoading(false);
+      setServerWaking(false);
     }
   };
 
@@ -132,13 +190,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center font-nunito bg-stone-50">
-      {/* Background orbs — warm brand palette */}
+      {/* Background orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-200/40 rounded-full blur-[120px] animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-100/50 rounded-full blur-[120px] animate-pulse" />
       <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-amber-100/40 rounded-full blur-[80px]" />
 
       <main className="relative z-10 w-full max-w-[440px] px-6">
-        {/* Brand/Logo Section */}
+        {/* Brand/Logo */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -156,7 +214,6 @@ export default function LoginPage() {
             Smart Multi-Shop Control System
           </p>
 
-          {/* Offline mode badge */}
           {isOfflineMode && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
@@ -190,8 +247,8 @@ export default function LoginPage() {
                   <p className="text-slate-500 text-sm mt-1">Please enter your details to sign in</p>
                 </div>
 
-                <div className="space-y-5" onKeyDown={(e) => e.key === "Enter" && handleLogin()}>
-                  {/* Email Field */}
+                <div className="space-y-5" onKeyDown={(e) => e.key === "Enter" && !loading && handleLogin()}>
+                  {/* Email */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
                     <div className="relative group">
@@ -202,16 +259,18 @@ export default function LoginPage() {
                         placeholder="name@company.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none ${errors.email
-                          ? "border-red-500 ring-red-100 ring-4"
-                          : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                          }`}
+                        disabled={loading}
+                        className={`w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none disabled:opacity-60 ${
+                          errors.email
+                            ? "border-red-500 ring-red-100 ring-4"
+                            : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                        }`}
                       />
                     </div>
                     {errors.email && <p className="text-red-500 text-xs ml-1 mt-1">{errors.email}</p>}
                   </div>
 
-                  {/* Password Field */}
+                  {/* Password */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center ml-1">
                       <label className="text-sm font-semibold text-slate-700">Password</label>
@@ -231,10 +290,12 @@ export default function LoginPage() {
                         placeholder="••••••••"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none ${errors.password
-                          ? "border-red-500 ring-red-100 ring-4"
-                          : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                          }`}
+                        disabled={loading}
+                        className={`w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none disabled:opacity-60 ${
+                          errors.password
+                            ? "border-red-500 ring-red-100 ring-4"
+                            : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
+                        }`}
                       />
                       <button
                         type="button"
@@ -247,10 +308,22 @@ export default function LoginPage() {
                     {errors.password && <p className="text-red-500 text-xs ml-1 mt-1">{errors.password}</p>}
                   </div>
 
+                  {/* Server waking indicator */}
+                  {serverWaking && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2 text-amber-700 text-xs font-medium bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
+                    >
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Server is waking up — this takes up to 60 seconds on first load
+                    </motion.div>
+                  )}
+
                   {/* Sign In Button */}
                   <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: loading ? 1 : 1.01 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
                     onClick={handleLogin}
                     disabled={loading}
                     className="w-full mt-4 py-4 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
@@ -318,7 +391,6 @@ export default function LoginPage() {
           </AnimatePresence>
         </motion.div>
 
-        {/* Footer Info */}
         <p className="mt-8 text-center text-slate-400 text-xs font-medium">
           Protected by industry standard encryption. <br />
           © 2026 Tuhanas Inventory. v2.0
