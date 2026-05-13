@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
 import "./globals.css";
+
 export const metadata: Metadata = {
   title: "Tuhanas Inventory",
   description: "Offline-first multi-shop inventory management for Tuhanas Kitchen & Scents.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/logo_tuhanas.png", type: "image/png" },
+    ],
+    apple: "/logo_tuhanas.png",
+    shortcut: "/favicon.png",
+  },
   appleWebApp: { capable: true, title: "Tuhanas Inventory", statusBarStyle: "default" },
   other: { "theme-color": "#d4940a", "mobile-web-app-capable": "yes" },
 };
