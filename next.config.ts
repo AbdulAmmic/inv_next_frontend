@@ -1,13 +1,23 @@
 import type { NextConfig } from "next";
 
+// ELECTRON_BUILD=true → static export (for Electron's file:// loading)
+// Default (Vercel/web) → normal Next.js server mode
+const isElectronBuild = process.env.ELECTRON_BUILD === "true";
+
 const nextConfig: NextConfig = {
-  output: 'export',
-  // trailingSlash: true → /dashboard/products → /dashboard/products/index.html
-  // Required so Electron's loadFile() can find pages without a server
-  trailingSlash: true,
+  ...(isElectronBuild
+    ? {
+        output: "export",
+        trailingSlash: true, // Electron needs /dashboard/index.html
+      }
+    : {}),
+
   images: {
-    unoptimized: true,
+    unoptimized: true, // Required for static export; fine for Vercel too
   },
+
+  // Silence the multiple lockfiles workspace root warning
+  outputFileTracingRoot: process.cwd(),
 };
 
 export default nextConfig;

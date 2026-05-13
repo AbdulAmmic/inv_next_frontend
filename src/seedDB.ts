@@ -33,14 +33,17 @@ export async function seedDatabaseFromSQL(
 
   console.log('🌱 Seeding database from SQL dump...');
 
-  // Dynamic import — seed-data.json is optional (gitignored).
-  // On new devices it won't exist; pullUpdates() will populate Dexie from server instead.
+  // Load seed data via fetch from /public — TypeScript never validates fetch() paths
+  // at compile time, so missing file won't cause a build error.
+  // On new devices without seed-data.json, fetch returns 404 → we skip and use server pull.
   let seedData: Record<string, any[]>;
   try {
-    seedData = await import('./seed-data.json').then(m => m.default) as Record<string, any[]>;
+    const res = await fetch('/seed-data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    seedData = await res.json();
   } catch {
-    console.warn('⚠️ seed-data.json not found — skipping local seed. Server pull will populate data.');
-    localStorage.setItem(SEED_FLAG, 'true'); // mark as "seeded" so we don't retry on every load
+    console.warn('⚠️ seed-data.json not available — skipping local seed. Server pull will populate data.');
+    localStorage.setItem(SEED_FLAG, 'true');
     return;
   }
 
