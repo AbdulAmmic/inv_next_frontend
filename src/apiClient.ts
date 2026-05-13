@@ -6,7 +6,7 @@ const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
+  // No withCredentials — we use JWT Bearer tokens, not cookies
 });
 
 export default apiClient;
