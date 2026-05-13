@@ -7,8 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:electron": "cross-env ELECTRON_BUILD=true next build",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-build": "next build && electron-builder",
+    "electron-build": "npm run build:electron && electron-builder",
     "dist": "npm run electron-build"
   },
   "build": {
@@ -58,6 +59,7 @@
     "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.10.25",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^42.0.1",
     "electron-builder": "^26.8.1",
     "postcss": "^8.5.6",
