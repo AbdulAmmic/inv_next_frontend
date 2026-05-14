@@ -79,7 +79,16 @@ export async function pullUpdates(): Promise<{ total: number }> {
     ? localStorage.getItem(LAST_SYNC_KEY) || ''
     : '';
 
-  const response = await syncApi.get('/sync/pull', { params: { lastSync } });
+  let response;
+  try {
+    response = await syncApi.get('/sync/pull', { params: { lastSync } });
+  } catch (err: any) {
+    if (err.response?.status === 400 && err.response?.data?.error === "invalid_lastSync_format") {
+      console.warn("Resetting invalid sync timestamp");
+      localStorage.removeItem(LAST_SYNC_KEY);
+    }
+    throw err;
+  }
   const { updates, timestamp } = response.data;
 
   if (!updates) return { total: 0 };
