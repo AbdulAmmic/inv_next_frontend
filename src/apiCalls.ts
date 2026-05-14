@@ -124,13 +124,13 @@ export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
 // 🏪 SHOPS
 // #############################################################
 export const getShops = async () => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/shops');
-      const shops = extractArr(res.data);
-      if (shops.length > 0) await db.shops.bulkPut(shops).catch(() => {});
-      return { data: shops };
-    } catch (e) { console.warn('getShops API failed, using cache:', e); }
+  try {
+    const res = await api.get('/shops');
+    const shops = extractArr(res.data);
+    if (shops.length > 0) db.shops.bulkPut(shops).catch(() => {});
+    return { data: shops };
+  } catch (e) {
+    console.warn('getShops API failed, falling back to cache:', e);
   }
   return { data: await db.shops.toArray() };
 };
@@ -150,33 +150,39 @@ export const getProducts = async (params?: {
   include_stock?: boolean;
   shop_id?: string;
 }) => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/products', { params: params?.shop_id ? { shop_id: params.shop_id } : {} });
-      const products = extractArr(res.data);
-      if (products.length > 0)
-        await db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() }))).catch(() => {});
-
+  // Always try API first
+  try {
+    const res = await api.get('/products', { 
+      params: { 
+        shop_id: params?.shop_id || undefined,
+        include_stock: params?.include_stock || false
+      } 
+    });
+    const products = extractArr(res.data);
+    
+    if (products.length > 0) {
+      // Background cache update
+      db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() }))).catch(() => {});
+      
+      // If the backend already included stock, we might want to cache those too
       if (params?.include_stock) {
-        // Fetch stocks from API too
-        try {
-          const sRes = await api.get('/stocks', { params: params.shop_id ? { shop_id: params.shop_id } : {} });
-          const stocks = extractArr(sRes.data);
-          if (stocks.length > 0) await db.stocks.bulkPut(stocks).catch(() => {});
-          return { data: products.map(p => ({
-            ...p,
-            stock: stocks.find((s: any) => s.product_id === p.id && (!params.shop_id || s.shop_id === params.shop_id))
-          })) };
-        } catch { /* use products without stock */ }
+        const stocks = products.map(p => p.stock).filter(Boolean);
+        if (stocks.length > 0) db.stocks.bulkPut(stocks).catch(() => {});
       }
-      return { data: products };
-    } catch (e) { console.warn('getProducts API failed, using cache:', e); }
+    }
+    return { data: products };
+  } catch (e) {
+    console.warn('getProducts API failed, falling back to cache:', e);
   }
+
   // Offline fallback
   const products = await db.products.toArray();
   if (params?.include_stock) {
     const stocks = await db.stocks.toArray();
-    return { data: products.map(p => ({ ...p, stock: stocks.find(s => s.product_id === p.id && (!params.shop_id || s.shop_id === params.shop_id)) })) };
+    return { data: products.map(p => ({ 
+      ...p, 
+      stock: stocks.find(s => s.product_id === p.id && (!params.shop_id || s.shop_id === params.shop_id)) 
+    })) };
   }
   return { data: products };
 };
@@ -214,21 +220,22 @@ export const deleteProduct = async (id: string) => {
 // 📊 STOCK MANAGEMENT (PER SHOP)
 // #############################################################
 export const getStocks = async (shop_id?: string) => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
-      const allStocks = extractArr(res.data);
-      if (allStocks.length > 0) await db.stocks.bulkPut(allStocks).catch(() => {});
-      const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
-      // Enrich with product info if missing
-      const enriched = await Promise.all(stocks.map(async (s: any) => {
-        if (s.productName) return { ...s, currentStock: s.quantity || s.currentStock || 0 };
-        const product = await db.products.get(s.product_id);
-        return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity || 0 };
-      }));
-      return { data: enriched };
-    } catch (e) { console.warn('getStocks API failed, using cache:', e); }
+  try {
+    const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
+    const allStocks = extractArr(res.data);
+    if (allStocks.length > 0) db.stocks.bulkPut(allStocks).catch(() => {});
+    const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
+    // Enrich with product info
+    const enriched = await Promise.all(stocks.map(async (s: any) => {
+      if (s.productName) return { ...s, currentStock: s.quantity || s.currentStock || 0 };
+      const product = await db.products.get(s.product_id);
+      return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity || 0 };
+    }));
+    return { data: enriched };
+  } catch (e) {
+    console.warn('getStocks API failed, falling back to cache:', e);
   }
+
   // Offline fallback
   const stocks = shop_id ? await db.stocks.where('shop_id').equals(shop_id).toArray() : await db.stocks.toArray();
   const enriched = await Promise.all(stocks.map(async (s) => {
@@ -318,13 +325,13 @@ export const createSale = async (data: any) => {
 };
 
 export const getSales = async (shop_id?: string) => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
-      const all = extractArr(res.data);
-      if (all.length > 0) await db.sales.bulkPut(all).catch(() => {});
-      return { data: shop_id ? all.filter((s: any) => s.shop_id === shop_id) : all };
-    } catch (e) { console.warn('getSales API failed, using cache:', e); }
+  try {
+    const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
+    const all = extractArr(res.data);
+    if (all.length > 0) db.sales.bulkPut(all).catch(() => {});
+    return { data: shop_id ? all.filter((s: any) => s.shop_id === shop_id) : all };
+  } catch (e) {
+    console.warn('getSales API failed, falling back to cache:', e);
   }
   const sales = shop_id ? await db.sales.where('shop_id').equals(shop_id).toArray() : await db.sales.toArray();
   return { data: sales };
@@ -367,13 +374,13 @@ export const refundSale = async (id: string) => {
 // 🧍 CUSTOMERS
 // #############################################################
 export const getCustomers = async () => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/customers');
-      const customers = extractArr(res.data);
-      if (customers.length > 0) await db.customers.bulkPut(customers).catch(() => {});
-      return { data: customers };
-    } catch (e) { console.warn('getCustomers API failed, using cache:', e); }
+  try {
+    const res = await api.get('/customers');
+    const customers = extractArr(res.data);
+    if (customers.length > 0) db.customers.bulkPut(customers).catch(() => {});
+    return { data: customers };
+  } catch (e) {
+    console.warn('getCustomers API failed, falling back to cache:', e);
   }
   return { data: await db.customers.toArray() };
 };
@@ -391,13 +398,13 @@ export const createCustomer = async (data: any) => {
 // 🧑‍💼 SUPPLIERS
 // #############################################################
 export const getSuppliers = async () => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/suppliers');
-      const suppliers = extractArr(res.data);
-      if (suppliers.length > 0) await db.suppliers.bulkPut(suppliers).catch(() => {});
-      return { data: suppliers };
-    } catch (e) { console.warn('getSuppliers API failed, using cache:', e); }
+  try {
+    const res = await api.get('/suppliers');
+    const suppliers = extractArr(res.data);
+    if (suppliers.length > 0) db.suppliers.bulkPut(suppliers).catch(() => {});
+    return { data: suppliers };
+  } catch (e) {
+    console.warn('getSuppliers API failed, falling back to cache:', e);
   }
   return { data: await db.suppliers.toArray() };
 };
@@ -633,13 +640,13 @@ export const receivePurchase = async (id: string, payload: any) => {
 // 💸 EXPENSES
 // #############################################################
 export const getExpenseCategories = async () => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/expenses/categories');
-      const cats = extractArr(res.data);
-      if (cats.length > 0) await db.expense_categories.bulkPut(cats).catch(() => {});
-      return { data: cats };
-    } catch (e) { console.warn('getExpenseCategories API failed, using cache:', e); }
+  try {
+    const res = await api.get('/expenses/categories');
+    const cats = extractArr(res.data);
+    if (cats.length > 0) db.expense_categories.bulkPut(cats).catch(() => {});
+    return { data: cats };
+  } catch (e) {
+    console.warn('getExpenseCategories API failed, falling back to cache:', e);
   }
   return { data: await db.expense_categories.toArray() };
 };
@@ -654,13 +661,13 @@ export const createExpenseCategory = async (data: { name: string }) => {
 };
 
 export const getExpenses = async (shop_id?: string) => {
-  if (isOnline()) {
-    try {
-      const res = await api.get('/expenses', { params: shop_id ? { shop_id } : {} });
-      const all = extractArr(res.data);
-      if (all.length > 0) await db.expenses.bulkPut(all).catch(() => {});
-      return { data: shop_id ? all.filter((e: any) => e.shop_id === shop_id) : all };
-    } catch (e) { console.warn('getExpenses API failed, using cache:', e); }
+  try {
+    const res = await api.get('/expenses', { params: shop_id ? { shop_id } : {} });
+    const all = extractArr(res.data);
+    if (all.length > 0) db.expenses.bulkPut(all).catch(() => {});
+    return { data: shop_id ? all.filter((e: any) => e.shop_id === shop_id) : all };
+  } catch (e) {
+    console.warn('getExpenses API failed, falling back to cache:', e);
   }
   const expenses = shop_id ? await db.expenses.where('shop_id').equals(shop_id).toArray() : await db.expenses.toArray();
   return { data: expenses };
