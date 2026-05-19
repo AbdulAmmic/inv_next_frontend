@@ -292,9 +292,18 @@ export const adjustStock = async (data: {
 export const createSale = async (data: any) => {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const saleNumber = `SL-${id.substring(0, 8).toUpperCase()}`;
+  
+  // Calculate total, subtotal, discount
+  const subtotal = (data.items || []).reduce((acc: number, item: any) => acc + (item.quantity * item.unit_price), 0);
+  const discount = data.discount_amount || 0;
+  const total = subtotal - discount + (data.other_charges || 0);
+  
   const sale = { 
     ...data, 
     id, 
+    sale_number: saleNumber,
+    total_amount: total,
     created_at: now, 
     updated_at: now, 
     status: 'completed' 
@@ -302,12 +311,57 @@ export const createSale = async (data: any) => {
   
   await db.sales.add(sale);
   
+  // Fetch Shop Info from local Dexie database
+  let shopName = "Tuhanas Shop";
+  let shopAddress = "";
+  let shopPhone = "";
+  if (data.shop_id) {
+    const shop = await db.shops.get(data.shop_id);
+    if (shop) {
+      shopName = shop.name || shopName;
+      shopAddress = shop.address || "";
+      shopPhone = shop.phone || "";
+    }
+  }
+  
+  // Fetch Staff Info from localStorage user profile
+  let staffName = "Staff Member";
+  try {
+    const localUserStr = localStorage.getItem('user');
+    if (localUserStr) {
+      const localUser = JSON.parse(localUserStr);
+      staffName = localUser.full_name || localUser.name || staffName;
+    }
+  } catch {}
+  
+  // Fetch Customer Info from local Dexie database
+  let customerName = "Walk-in Customer";
+  if (data.customer_id) {
+    const customer = await db.customers.get(data.customer_id);
+    if (customer) {
+      customerName = customer.name || customerName;
+    }
+  }
+  
+  const itemsList = [];
+  
   // Also add items and update stock
   if (data.items) {
     for (const item of data.items) {
       const itemId = crypto.randomUUID();
       const saleItem = { ...item, id: itemId, sale_id: id };
       await db.sale_items.add(saleItem);
+
+      // Fetch Product Info for receipt
+      const product = await db.products.get(item.product_id);
+      const productName = product ? product.name : "Product Item";
+
+      itemsList.push({
+        product_name: productName,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.quantity * item.unit_price
+      });
 
       // DECREMENT STOCK
       const stock = await db.stocks.where({ 
@@ -324,7 +378,23 @@ export const createSale = async (data: any) => {
   }
   
   await queueChange('sales', id, 'CREATE', sale);
-  return { data: sale };
+  
+  const responseData = {
+    sale: {
+      ...sale,
+      shop_name: shopName,
+      shop_address: shopAddress,
+      shop_phone: shopPhone,
+      staff_name: staffName,
+      customer_name: customerName,
+      subtotal,
+      discount,
+      total,
+    },
+    items: itemsList
+  };
+  
+  return { data: responseData };
 };
 
 export const getSales = async (shop_id?: string) => {

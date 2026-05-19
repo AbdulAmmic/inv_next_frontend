@@ -48,15 +48,22 @@ export async function cacheLoginCredentials(
   refresh_token: string
 ): Promise<void> {
   try {
-    const passwordHash = await sha256(email.toLowerCase().trim() + ':' + password);
+    const cleanEmail = email.toLowerCase().trim();
+    const passwordHash = await sha256(cleanEmail + ':' + password);
     const cred: CachedCredential = {
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       passwordHash,
       user,
       access_token,
       refresh_token,
       cachedAt: new Date().toISOString(),
     };
+    
+    // Cache under a user-specific key so multiple accounts can log in offline on the same machine
+    const userKey = `${OFFLINE_CRED_KEY}_${cleanEmail}`;
+    localStorage.setItem(userKey, JSON.stringify(cred));
+    
+    // Also save to default key as fallback
     localStorage.setItem(OFFLINE_CRED_KEY, JSON.stringify(cred));
     console.log('🔐 Offline credentials cached.');
   } catch (e) {
@@ -71,9 +78,25 @@ export async function verifyOfflineLogin(
   email: string,
   password: string
 ): Promise<{ success: true; data: CachedCredential } | { success: false; reason: string }> {
-  const raw = localStorage.getItem(OFFLINE_CRED_KEY);
+  const cleanEmail = email.toLowerCase().trim();
+  const userKey = `${OFFLINE_CRED_KEY}_${cleanEmail}`;
+  let raw = localStorage.getItem(userKey);
+  
   if (!raw) {
-    return { success: false, reason: 'No offline credentials saved. Please login online first.' };
+    // Fallback to legacy single key if it matches the email
+    const legacyRaw = localStorage.getItem(OFFLINE_CRED_KEY);
+    if (legacyRaw) {
+      try {
+        const legacyCred = JSON.parse(legacyRaw);
+        if (legacyCred.email === cleanEmail) {
+          raw = legacyRaw;
+        }
+      } catch {}
+    }
+  }
+
+  if (!raw) {
+    return { success: false, reason: 'No offline record for this email. Please login online first.' };
   }
 
   let cred: CachedCredential;
@@ -83,11 +106,11 @@ export async function verifyOfflineLogin(
     return { success: false, reason: 'Corrupted offline data. Please login online.' };
   }
 
-  if (cred.email !== email.toLowerCase().trim()) {
+  if (cred.email !== cleanEmail) {
     return { success: false, reason: 'No offline record for this email.' };
   }
 
-  const enteredHash = await sha256(email.toLowerCase().trim() + ':' + password);
+  const enteredHash = await sha256(cleanEmail + ':' + password);
   if (enteredHash !== cred.passwordHash) {
     return { success: false, reason: 'Incorrect password.' };
   }
