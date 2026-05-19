@@ -9,7 +9,6 @@ import {
 } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import ReceiptComponent from "@/components/ReceiptComponent";
-import DashboardLayout from "@/components/dashboardLayout";
 
 import {
   ShoppingCart,
@@ -234,6 +233,7 @@ export default function POSPage() {
     try {
       const payload = {
         shop_id: shopId,
+        staff_id: user?.id || "",
         customer_id: customerId,
         payment_method: paymentMethod,
         discount_amount: discountAmount,
@@ -265,7 +265,7 @@ export default function POSPage() {
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   return (
-    <DashboardLayout>
+    <>
       <main className="h-[calc(100vh-64px)] overflow-hidden flex flex-col xl:flex-row bg-slate-50 relative">
 
         {/* Products Area */}
@@ -607,7 +607,7 @@ export default function POSPage() {
           )}
         </AnimatePresence>
       </main>
-    </DashboardLayout>
+    </>
   );
 }
 
@@ -694,3 +694,4 @@ const CustomerCombobox = ({ customers, selectedId, onChange, query, setQuery }: 
     </Combobox>
   );
 };
+

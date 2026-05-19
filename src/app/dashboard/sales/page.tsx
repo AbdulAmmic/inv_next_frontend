@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { getSales, getSale, getUsers } from "@/apiCalls";
 import ReceiptComponent from "@/components/ReceiptComponent";
-import DashboardLayout from "@/components/dashboardLayout";
 import Loader from "@/components/Loader";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -187,16 +186,16 @@ export default function SalesPage() {
 
   if (loading && !sales.length) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader text="Loading transaction history..." />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-8">
 
         {/* Header */}
@@ -462,7 +461,7 @@ export default function SalesPage() {
           />
         )}
       </AnimatePresence>
-    </DashboardLayout>
+    </>
   );
 }
 

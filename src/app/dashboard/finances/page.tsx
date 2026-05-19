@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Loader2
 } from "lucide-react";
-import DashboardLayout from "@/components/dashboardLayout";
 import { getShops, api } from "@/apiCalls";
 import { motion, AnimatePresence } from "framer-motion";
 import Loader from "@/components/Loader";
@@ -349,26 +348,26 @@ export default function FinancesPage() {
 
   if (!roleChecked) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader text="Checking permissions..." />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (loading && !stats) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader text={loadingMessage} subText="Crunching the financial numbers for you..." />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       {refreshing && (
         <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-[100] flex items-center justify-center">
           <motion.div
@@ -712,7 +711,7 @@ export default function FinancesPage() {
           </div>
         </div>
       </main>
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import ProductsStats from "@/components/productsStats";
 import ProductsTable from "@/components/productsTable";
 import ProductFormModal from "@/components/productsModal";
@@ -253,11 +252,9 @@ export default function ProductsPage() {
   // ------------------------------------------------
   if (loading && products.length === 0) {
     return (
-      <DashboardLayout>
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <Loader text="Initializing Catalog..." subText="Loading your global inventory" />
-        </div>
-      </DashboardLayout>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader text="Initializing Catalog..." subText="Loading your global inventory" />
+      </div>
     );
   }
 
@@ -265,7 +262,7 @@ export default function ProductsPage() {
   // MAIN UI
   // ------------------------------------------------
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 space-y-8">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -422,6 +419,6 @@ export default function ProductsPage() {
           />
         )}
       </AnimatePresence>
-    </DashboardLayout>
+    </>
   );
 }

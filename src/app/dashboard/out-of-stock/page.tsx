@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import {
   Package,
   AlertTriangle,
@@ -135,16 +134,16 @@ export default function OutOfStockPage() {
 
   if (loading && products.length === 0) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader text="Auditing Inventory..." subText="Scanning for out-of-stock items" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 space-y-8">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -366,6 +365,6 @@ export default function OutOfStockPage() {
           </motion.div>
         )}
       </main>
-    </DashboardLayout>
+    </>
   );
 }

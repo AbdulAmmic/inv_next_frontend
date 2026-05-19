@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown, Loader2 } from "lucide-react";
@@ -264,7 +263,7 @@ export default function StockPage() {
   // PAGE UI
   // --------------------------------------------------
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 space-y-8">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -557,7 +556,7 @@ export default function StockPage() {
           />
         )}
       </AnimatePresence>
-    </DashboardLayout>
+    </>
   );
 }
 
@@ -998,3 +997,4 @@ function GrievanceModal({
     </motion.div>
   );
 }
+

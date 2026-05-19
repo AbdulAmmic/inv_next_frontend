@@ -32,7 +32,6 @@ import {
   MoreVertical,
   Key
 } from "lucide-react";
-import DashboardLayout from "@/components/dashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SettingsPage() {
@@ -197,7 +196,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 max-w-[1400px] mx-auto space-y-8">
 
         {/* Header */}
@@ -488,7 +487,7 @@ export default function SettingsPage() {
           )}
         </AnimatePresence>
       </main>
-    </DashboardLayout>
+    </>
   );
 }
 
@@ -540,3 +539,4 @@ const InputField = ({ label, value, onChange, icon, placeholder, disabled }: {
     </div>
   </div>
 );
+

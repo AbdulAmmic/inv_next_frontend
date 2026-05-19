@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import {
   Plus,
   RefreshCw,
@@ -230,16 +229,14 @@ export default function PurchasesPage() {
 
   if (loading && purchases.length === 0) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader text="Loading Supply Chain..." subText="Synchronizing your procurement logs" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader text="Loading Supply Chain..." subText="Synchronizing your procurement logs" />
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 space-y-8">
         {/* Connection Alert */}
         <AnimatePresence>
@@ -525,6 +522,6 @@ export default function PurchasesPage() {
         shops={shops}
         products={products}
       />
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import {
   getExpenses,
   createExpense,
@@ -236,7 +235,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-4 lg:p-8">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -569,7 +568,8 @@ export default function ExpensesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
+
 

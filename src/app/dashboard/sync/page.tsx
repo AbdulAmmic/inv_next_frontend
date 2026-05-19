@@ -2,7 +2,6 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
-import DashboardLayout from "@/components/dashboardLayout";
 import { RefreshCw, CheckCircle2, AlertCircle, Database, ArrowRight, History } from "lucide-react";
 import { motion } from "framer-motion";
 import { pushChanges } from "@/syncEngine";
@@ -33,7 +32,7 @@ export default function SyncPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
@@ -169,6 +168,7 @@ export default function SyncPage() {
           </div>
         </div>
       </main>
-    </DashboardLayout>
+    </>
   );
 }
+

@@ -12,7 +12,7 @@ const API_BASE_URL =
 // -------------------------------------------------------------
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 15000, // Faster fallback to local cache
 });
 
 // -------------------------------------------------------------
@@ -124,13 +124,15 @@ export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
 // 🏪 SHOPS
 // #############################################################
 export const getShops = async () => {
-  try {
-    const res = await api.get('/shops');
-    const shops = extractArr(res.data);
-    if (shops.length > 0) db.shops.bulkPut(shops).catch(() => {});
-    return { data: shops };
-  } catch (e) {
-    console.warn('getShops API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/shops');
+      const shops = extractArr(res.data);
+      if (shops.length > 0) db.shops.bulkPut(shops).catch(() => {});
+      return { data: shops };
+    } catch (e) {
+      console.warn('getShops API failed, falling back to cache:', e);
+    }
   }
   return { data: await db.shops.toArray() };
 };
@@ -150,29 +152,30 @@ export const getProducts = async (params?: {
   include_stock?: boolean;
   shop_id?: string;
 }) => {
-  // Always try API first
-  try {
-    const res = await api.get('/products', { 
-      params: { 
-        shop_id: params?.shop_id || undefined,
-        include_stock: params?.include_stock || false
-      } 
-    });
-    const products = extractArr(res.data);
-    
-    if (products.length > 0) {
-      // Background cache update
-      db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() }))).catch(() => {});
+  if (isOnline()) {
+    try {
+      const res = await api.get('/products', { 
+        params: { 
+          shop_id: params?.shop_id || undefined,
+          include_stock: params?.include_stock || false
+        } 
+      });
+      const products = extractArr(res.data);
       
-      // If the backend already included stock, we might want to cache those too
-      if (params?.include_stock) {
-        const stocks = products.map(p => p.stock).filter(Boolean);
-        if (stocks.length > 0) db.stocks.bulkPut(stocks).catch(() => {});
+      if (products.length > 0) {
+        // Background cache update
+        db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() }))).catch(() => {});
+        
+        // If the backend already included stock, we might want to cache those too
+        if (params?.include_stock) {
+          const stocks = products.map(p => p.stock).filter(Boolean);
+          if (stocks.length > 0) db.stocks.bulkPut(stocks).catch(() => {});
+        }
       }
+      return { data: products };
+    } catch (e) {
+      console.warn('getProducts API failed, falling back to cache:', e);
     }
-    return { data: products };
-  } catch (e) {
-    console.warn('getProducts API failed, falling back to cache:', e);
   }
 
   // Offline fallback
@@ -325,13 +328,26 @@ export const createSale = async (data: any) => {
 };
 
 export const getSales = async (shop_id?: string) => {
-  try {
-    const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
-    const all = extractArr(res.data);
-    if (all.length > 0) db.sales.bulkPut(all).catch(() => {});
-    return { data: shop_id ? all.filter((s: any) => s.shop_id === shop_id) : all };
-  } catch (e) {
-    console.warn('getSales API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
+      const all = extractArr(res.data);
+      if (all.length > 0) {
+        // Save sales
+        await db.sales.bulkPut(all).catch(() => {});
+        // Extract and save items from all sales
+        const allItems: any[] = [];
+        for (const sale of all) {
+          if (sale.items) {
+            allItems.push(...sale.items.map((i: any) => ({ ...i, sale_id: sale.id })));
+          }
+        }
+        if (allItems.length > 0) await db.sale_items.bulkPut(allItems).catch(() => {});
+      }
+      return { data: shop_id ? all.filter((s: any) => s.shop_id === shop_id) : all };
+    } catch (e) {
+      console.warn('getSales API failed, falling back to cache:', e);
+    }
   }
   const sales = shop_id ? await db.sales.where('shop_id').equals(shop_id).toArray() : await db.sales.toArray();
   return { data: sales };
@@ -374,13 +390,15 @@ export const refundSale = async (id: string) => {
 // 🧍 CUSTOMERS
 // #############################################################
 export const getCustomers = async () => {
-  try {
-    const res = await api.get('/customers');
-    const customers = extractArr(res.data);
-    if (customers.length > 0) db.customers.bulkPut(customers).catch(() => {});
-    return { data: customers };
-  } catch (e) {
-    console.warn('getCustomers API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/customers');
+      const customers = extractArr(res.data);
+      if (customers.length > 0) db.customers.bulkPut(customers).catch(() => {});
+      return { data: customers };
+    } catch (e) {
+      console.warn('getCustomers API failed, falling back to cache:', e);
+    }
   }
   return { data: await db.customers.toArray() };
 };
@@ -398,13 +416,15 @@ export const createCustomer = async (data: any) => {
 // 🧑‍💼 SUPPLIERS
 // #############################################################
 export const getSuppliers = async () => {
-  try {
-    const res = await api.get('/suppliers');
-    const suppliers = extractArr(res.data);
-    if (suppliers.length > 0) db.suppliers.bulkPut(suppliers).catch(() => {});
-    return { data: suppliers };
-  } catch (e) {
-    console.warn('getSuppliers API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/suppliers');
+      const suppliers = extractArr(res.data);
+      if (suppliers.length > 0) db.suppliers.bulkPut(suppliers).catch(() => {});
+      return { data: suppliers };
+    } catch (e) {
+      console.warn('getSuppliers API failed, falling back to cache:', e);
+    }
   }
   return { data: await db.suppliers.toArray() };
 };
@@ -549,9 +569,22 @@ export const getPurchases = async (shop_id?: string) => {
     try {
       const res = await api.get('/purchases', { params: shop_id ? { shop_id } : {} });
       const all = extractArr(res.data);
-      if (all.length > 0) await db.purchases.bulkPut(all).catch(() => {});
+      if (all.length > 0) {
+        // Save purchases
+        await db.purchases.bulkPut(all).catch(() => {});
+        // Extract and save items from all purchases
+        const allItems: any[] = [];
+        for (const p of all) {
+          if (p.items) {
+            allItems.push(...p.items.map((i: any) => ({ ...i, purchase_id: p.id })));
+          }
+        }
+        if (allItems.length > 0) await db.purchase_items.bulkPut(allItems).catch(() => {});
+      }
       return { data: shop_id ? all.filter((p: any) => p.shop_id === shop_id) : all };
-    } catch (e) { console.warn('getPurchases API failed, using cache:', e); }
+    } catch (e) {
+      console.warn('getPurchases API failed, falling back to cache:', e);
+    }
   }
   const purchases = shop_id ? await db.purchases.where('shop_id').equals(shop_id).toArray() : await db.purchases.toArray();
   return { data: purchases };
@@ -640,13 +673,15 @@ export const receivePurchase = async (id: string, payload: any) => {
 // 💸 EXPENSES
 // #############################################################
 export const getExpenseCategories = async () => {
-  try {
-    const res = await api.get('/expenses/categories');
-    const cats = extractArr(res.data);
-    if (cats.length > 0) db.expense_categories.bulkPut(cats).catch(() => {});
-    return { data: cats };
-  } catch (e) {
-    console.warn('getExpenseCategories API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/expenses/categories');
+      const cats = extractArr(res.data);
+      if (cats.length > 0) db.expense_categories.bulkPut(cats).catch(() => {});
+      return { data: cats };
+    } catch (e) {
+      console.warn('getExpenseCategories API failed, falling back to cache:', e);
+    }
   }
   return { data: await db.expense_categories.toArray() };
 };
@@ -661,13 +696,15 @@ export const createExpenseCategory = async (data: { name: string }) => {
 };
 
 export const getExpenses = async (shop_id?: string) => {
-  try {
-    const res = await api.get('/expenses', { params: shop_id ? { shop_id } : {} });
-    const all = extractArr(res.data);
-    if (all.length > 0) db.expenses.bulkPut(all).catch(() => {});
-    return { data: shop_id ? all.filter((e: any) => e.shop_id === shop_id) : all };
-  } catch (e) {
-    console.warn('getExpenses API failed, falling back to cache:', e);
+  if (isOnline()) {
+    try {
+      const res = await api.get('/expenses', { params: shop_id ? { shop_id } : {} });
+      const all = extractArr(res.data);
+      if (all.length > 0) db.expenses.bulkPut(all).catch(() => {});
+      return { data: shop_id ? all.filter((e: any) => e.shop_id === shop_id) : all };
+    } catch (e) {
+      console.warn('getExpenses API failed, falling back to cache:', e);
+    }
   }
   const expenses = shop_id ? await db.expenses.where('shop_id').equals(shop_id).toArray() : await db.expenses.toArray();
   return { data: expenses };

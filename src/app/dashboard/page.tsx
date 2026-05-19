@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DashboardLayout from "@/components/dashboardLayout";
 import Loader from "@/components/Loader";
 import { api, getShops } from "@/apiCalls";
 import {
@@ -105,29 +104,9 @@ export default function DashboardPage() {
 
   if (loading && !stats && !error) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader text="Loading dashboard data..." />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="p-12 flex flex-col items-center justify-center text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-bold text-slate-900">Access Denied / Error</h2>
-          <p className="text-slate-500 mt-2">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 px-6 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-all"
-          >
-            Reload
-          </button>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader text="Loading dashboard data..." />
+      </div>
     );
   }
 
@@ -142,7 +121,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <main className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8">
         {/* Simple Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -180,6 +159,13 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Professional Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -266,7 +252,7 @@ export default function DashboardPage() {
           Last updated: {new Date().toLocaleTimeString()}
         </div>
       </main>
-    </DashboardLayout>
+    </>
   );
 }
 
