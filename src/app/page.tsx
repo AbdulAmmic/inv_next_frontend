@@ -120,6 +120,10 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
+    const cleanEmail = formData.email.trim().toLowerCase();
+    setFormData((prev) => ({ ...prev, email: cleanEmail }));
+    formData.email = cleanEmail;
+
     if (!validateForm()) return;
 
     setLoading(true);
