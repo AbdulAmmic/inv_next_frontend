@@ -191,6 +191,22 @@ export const getProducts = async (params?: {
 };
 
 export const getProduct = async (id: string) => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/products/${id}`);
+      const product = res.data;
+      if (product) {
+        await db.products.put({ ...product, updated_at: product.updated_at || new Date().toISOString() });
+      }
+      return { data: product };
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        throw new Error('Product not found');
+      }
+      console.warn('getProduct API failed, falling back to cache:', e);
+    }
+  }
+
   const p = await db.products.get(id);
   return { data: p };
 };
@@ -424,9 +440,52 @@ export const getSales = async (shop_id?: string) => {
 };
 
 export const getSale = async (id: string) => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/sales/${id}`);
+      const sale = res.data.sale;
+      const items = Array.isArray(res.data.items) ? res.data.items : [];
+
+      if (sale) {
+        await db.sales.put({ ...sale, updated_at: sale.updated_at || new Date().toISOString() });
+      }
+      if (items.length > 0) {
+        await db.sale_items.bulkPut(items.map((item: any) => ({
+          ...item,
+          sale_id: id,
+          updated_at: item.updated_at || new Date().toISOString(),
+        }))).catch(() => {});
+      }
+
+      const enrichedItems = await Promise.all(items.map(async (item: any) => {
+        if (item.product_name) return item;
+        const product = await db.products.get(item.product_id);
+        return {
+          ...item,
+          product_name: item.product_name || product?.name || item.product_id,
+        };
+      }));
+
+      return { data: { sale, items: enrichedItems } };
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        throw new Error('Sale not found');
+      }
+      console.warn('getSale API failed, falling back to cache:', e);
+    }
+  }
+
   const sale = await db.sales.get(id);
   const items = await db.sale_items.where('sale_id').equals(id).toArray();
-  return { data: { sale, items } };
+  const enrichedItems = await Promise.all(items.map(async (item: any) => {
+    const product = await db.products.get(item.product_id);
+    return {
+      ...item,
+      product_name: item.product_name || product?.name || item.product_id,
+    };
+  }));
+
+  return { data: { sale, items: enrichedItems } };
 };
 
 export const refundSale = async (id: string) => {

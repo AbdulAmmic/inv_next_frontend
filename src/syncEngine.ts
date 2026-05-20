@@ -17,6 +17,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://inv-flask-api.onren
 // Own axios instance — NO import from apiCalls.ts (breaks circular dep)
 const syncApi = axios.create({ baseURL: API_BASE, timeout: 120000 });
 
+const MAX_SYNC_RETRIES = 3;
+const RETRY_BASE_MS = 1000;
+
+const isOnline = () => typeof window !== 'undefined' && navigator.onLine;
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const isNetworkError = (error: any) => {
+  return !error?.response || error.code === 'ECONNABORTED' || String(error.message).includes('Network Error') || String(error.message).includes('timeout');
+};
+
 // Attach Bearer token on every request
 syncApi.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
@@ -36,107 +45,153 @@ export async function pushChanges(): Promise<{ pushed: number; failed: number; c
     .toArray();
 
   if (pendingChanges.length === 0) return { pushed: 0, failed: 0, conflicts: 0 };
+  if (!isOnline()) {
+    console.warn('⚠️ Offline — pushChanges skipped');
+    return { pushed: 0, failed: 0, conflicts: 0 };
+  }
 
-  try {
-    const mappedChanges = pendingChanges.map(c => {
-      const change: any = {
-        entity: c.entity,
-        entityId: c.entityId,
-        operation: c.operation,
-        payload: c.payload,
-        timestamp: c.timestamp
-      };
-      // Include updated_at for conflict detection
-      if (c.payload && c.payload.updated_at) {
-        change.payload.updated_at = c.payload.updated_at;
-      }
-      return change;
-    });
-
-    const response = await syncApi.post('/sync/push', {
-      changes: mappedChanges
-    });
-
-    if (response.data.success) {
-      const processed = response.data.changes || [];
-      const conflicts = (response.data.errors || []).filter((e: any) => e.reason === 'conflict_detected');
-      
-      // Mark successfully processed changes as synced
-      if (processed.length > 0) {
-        const syncedIds = processed.map((p: any) => 
-          pendingChanges.find(c => c.entityId === p.id && c.entity === p.entity)?.id
-        ).filter(Boolean);
-        
-        if (syncedIds.length > 0) {
-          await db.sync_queue
-            .bulkUpdate(syncedIds.map(id => ({ key: id, changes: { status: 'synced' } })));
-        }
-      }
-      
-      // Mark conflicts with special status for user review
-      if (conflicts.length > 0) {
-        const conflictIds = conflicts.map((e: any) => 
-          pendingChanges.find(c => c.entityId === e.id && c.entity === e.entity)?.id
-        ).filter(Boolean);
-        
-        if (conflictIds.length > 0) {
-          await db.sync_queue
-            .bulkUpdate(conflictIds.map(id => ({ key: id, changes: { status: 'conflict_detected' } })));
-        }
-        
-        console.warn(`⚠️ ${conflicts.length} conflicts detected - server has newer versions`);
-      }
-
-      // Cleanup synced entries older than 48h
-      const cutoff = Date.now() - 48 * 60 * 60 * 1000;
-      await db.sync_queue
-        .where('timestamp').below(cutoff)
-        .and(item => item.status === 'synced')
-        .delete();
-
-      return { 
-        pushed: processed.length, 
-        failed: (response.data.errors || []).length - conflicts.length,
-        conflicts: conflicts.length
-      };
+  const mappedChanges = pendingChanges.map(c => {
+    const change: any = {
+      entity: c.entity,
+      entityId: c.entityId,
+      operation: c.operation,
+      payload: c.payload,
+      timestamp: c.timestamp
+    };
+    // Include updated_at for conflict detection
+    if (c.payload && c.payload.updated_at) {
+      change.payload.updated_at = c.payload.updated_at;
     }
-    return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
-  } catch (error: any) {
-    // Handle rate limiting
-    if (error.response?.status === 429) {
-      console.warn('⚠️ Rate limited - backing off sync');
+    return change;
+  });
+
+  let attempt = 0;
+  while (attempt < MAX_SYNC_RETRIES) {
+    try {
+      const response = await syncApi.post('/sync/push', {
+        changes: mappedChanges
+      });
+
+      if (response.data.success) {
+        const processed = response.data.changes || [];
+        const conflicts = (response.data.errors || []).filter((e: any) => e.reason === 'conflict_detected');
+        
+        // Mark successfully processed changes as synced
+        if (processed.length > 0) {
+          const syncedIds = processed.map((p: any) => 
+            pendingChanges.find(c => c.entityId === p.id && c.entity === p.entity)?.id
+          ).filter(Boolean);
+          
+          if (syncedIds.length > 0) {
+            await db.sync_queue
+              .bulkUpdate(syncedIds.map(id => ({ key: id, changes: { status: 'synced' } })));
+          }
+        }
+        
+        // Mark conflicts with special status for user review
+        if (conflicts.length > 0) {
+          const conflictIds = conflicts.map((e: any) => 
+            pendingChanges.find(c => c.entityId === e.id && c.entity === e.entity)?.id
+          ).filter(Boolean);
+          
+          if (conflictIds.length > 0) {
+            await db.sync_queue
+              .bulkUpdate(conflictIds.map(id => ({ key: id, changes: { status: 'conflict_detected' } })));
+          }
+          
+          console.warn(`⚠️ ${conflicts.length} conflicts detected - server has newer versions`);
+        }
+
+        // Cleanup synced entries older than 48h
+        const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+        await db.sync_queue
+          .where('timestamp').below(cutoff)
+          .and(item => item.status === 'synced')
+          .delete();
+
+        return { 
+          pushed: processed.length, 
+          failed: (response.data.errors || []).length - conflicts.length,
+          conflicts: conflicts.length
+        };
+      }
+
+      return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
+    } catch (error: any) {
+      if (isNetworkError(error)) {
+        attempt += 1;
+        if (attempt < MAX_SYNC_RETRIES) {
+          console.warn(`⚠️ Network issue during push, retrying (${attempt}/${MAX_SYNC_RETRIES})`);
+          await delay(RETRY_BASE_MS * attempt);
+          continue;
+        }
+        console.warn('⚠️ Push skipped — network unavailable');
+        return { pushed: 0, failed: 0, conflicts: 0 };
+      }
+
+      // Handle rate limiting
+      if (error.response?.status === 429) {
+        console.warn('⚠️ Rate limited - backing off sync');
+        await db.sync_queue
+          .where('id').anyOf(pendingChanges.map(c => c.id!))
+          .modify({ status: 'rate_limited' });
+        return { pushed: 0, failed: 0, conflicts: 0 };
+      }
+
+      // Mark as failed with error message
       await db.sync_queue
         .where('id').anyOf(pendingChanges.map(c => c.id!))
-        .modify({ status: 'rate_limited' });
-      return { pushed: 0, failed: 0, conflicts: 0 };
+        .modify({ status: 'failed', error: error.message });
+      return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
     }
-
-    // Mark as failed with error message
-    await db.sync_queue
-      .where('id').anyOf(pendingChanges.map(c => c.id!))
-      .modify({ status: 'failed', error: error.message });
-    return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
   }
+
+  return { pushed: 0, failed: 0, conflicts: 0 };
 }
 
 // ─────────────────────────────────────────────
 // PULL: Fetch only records changed since last sync
 // ─────────────────────────────────────────────
 export async function pullUpdates(): Promise<{ total: number }> {
+  if (!isOnline()) {
+    console.warn('⚠️ Offline — pullUpdates skipped');
+    return { total: 0 };
+  }
+
   const lastSync = typeof window !== 'undefined'
     ? localStorage.getItem(LAST_SYNC_KEY) || ''
     : '';
 
-  let response;
-  try {
-    response = await syncApi.get('/sync/pull', { params: { lastSync } });
-  } catch (err: any) {
-    if (err.response?.status === 400 && err.response?.data?.error === "invalid_lastSync_format") {
-      console.warn("Resetting invalid sync timestamp");
-      localStorage.removeItem(LAST_SYNC_KEY);
+  let response: any;
+  let attempt = 0;
+
+  while (attempt < MAX_SYNC_RETRIES) {
+    try {
+      response = await syncApi.get('/sync/pull', { params: { lastSync } });
+      break;
+    } catch (err: any) {
+      if (err.response?.status === 400 && err.response?.data?.error === "invalid_lastSync_format") {
+        console.warn("Resetting invalid sync timestamp");
+        localStorage.removeItem(LAST_SYNC_KEY);
+        response = await syncApi.get('/sync/pull', { params: { lastSync: '' } });
+        break;
+      }
+
+      if (isNetworkError(err)) {
+        attempt += 1;
+        if (attempt < MAX_SYNC_RETRIES) {
+          console.warn(`⚠️ Network issue during pull, retrying (${attempt}/${MAX_SYNC_RETRIES})`);
+          await delay(RETRY_BASE_MS * attempt);
+          continue;
+        }
+        console.warn('⚠️ Pull skipped — network unavailable');
+        return { total: 0 };
+      }
+
+      throw err;
     }
-    throw err;
   }
+
   const { updates, timestamp } = response.data;
 
   if (!updates) return { total: 0 };

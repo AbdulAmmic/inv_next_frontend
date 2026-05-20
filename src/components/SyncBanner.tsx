@@ -106,6 +106,7 @@ export function useSyncStatus() {
         errorMsg: null,
         lastSyncedAt: nowISO,
       });
+      await refreshPendingCount();
 
     } catch (err: any) {
       setBanner(prev => ({
@@ -127,7 +128,7 @@ export function useSyncStatus() {
 // A persistent bar at the top of dashboard
 // ─────────────────────────────────────────────
 export default function SyncBanner() {
-  const { banner, pushToServer } = useSyncStatus();
+  const { banner, pushToServer, refreshPendingCount } = useSyncStatus();
   const [dismissed, setDismissed] = useState(false);
 
   // Auto-show again when state changes to unsynced/error

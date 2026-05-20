@@ -22,6 +22,7 @@ function SaleDetailContent() {
   const [sale, setSale] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /** ---------------------------
    *  FETCH SALE DETAILS
@@ -32,15 +33,22 @@ function SaleDetailContent() {
     const fetchSale = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         const res = await getSale(id as string);
+        const sale = res.data.sale;
+
+        if (!sale) {
+          throw new Error('Sale details not found');
+        }
 
         setSale({
-          ...res.data.sale,
-          items: res.data.items || [],
+          ...sale,
+          items: Array.isArray(res.data.items) ? res.data.items : [],
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        setError(err?.message || 'Failed to load sale details');
       } finally {
         setLoading(false);
       }
@@ -79,10 +87,34 @@ function SaleDetailContent() {
     );
   }
 
-  if (loading || !sale) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-600">Loading sale details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-xl w-full bg-white border border-red-200 rounded-xl p-8 text-center">
+          <p className="text-red-700 font-semibold mb-4">{error}</p>
+          <button
+            onClick={() => router.push('/dashboard/sales')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Back to Sales
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!sale) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Sale details could not be loaded.</p>
       </div>
     );
   }
