@@ -193,7 +193,7 @@ export interface SyncQueueEntry {
   operation: 'CREATE' | 'UPDATE' | 'DELETE';
   payload: any;
   timestamp: number;
-  status: 'pending' | 'synced' | 'failed';
+  status: 'pending' | 'synced' | 'failed' | 'conflict_detected' | 'rate_limited';
   error?: string;
 }
 

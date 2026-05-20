@@ -507,6 +507,11 @@ export const createSupplier = async (data: any) => {
   await queueChange('suppliers', id, 'CREATE', supplier);
   return { data: supplier };
 };
+export const deleteSupplier = async (id: string) => {
+  await db.suppliers.delete(id);
+  await queueChange('suppliers', id, 'DELETE', {});
+  return { data: { success: true } };
+};
 export const getSupplierTransactions = (id: string) => api.get(`/suppliers/${id}/transactions`);
 export const getSupplierSummary = (id: string) => api.get(`/suppliers/${id}/summary`);
 

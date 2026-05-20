@@ -29,29 +29,63 @@ syncApi.interceptors.request.use((config) => {
 // ─────────────────────────────────────────────
 // PUSH: Send only queued local changes to server
 // ─────────────────────────────────────────────
-export async function pushChanges(): Promise<{ pushed: number; failed: number }> {
+export async function pushChanges(): Promise<{ pushed: number; failed: number; conflicts: number }> {
   const pendingChanges = await db.sync_queue
     .where('status')
     .anyOf(['pending', 'failed'])
     .toArray();
 
-  if (pendingChanges.length === 0) return { pushed: 0, failed: 0 };
+  if (pendingChanges.length === 0) return { pushed: 0, failed: 0, conflicts: 0 };
 
   try {
-    const response = await syncApi.post('/sync/push', {
-      changes: pendingChanges.map(c => ({
+    const mappedChanges = pendingChanges.map(c => {
+      const change: any = {
         entity: c.entity,
         entityId: c.entityId,
         operation: c.operation,
         payload: c.payload,
         timestamp: c.timestamp
-      }))
+      };
+      // Include updated_at for conflict detection
+      if (c.payload && c.payload.updated_at) {
+        change.payload.updated_at = c.payload.updated_at;
+      }
+      return change;
+    });
+
+    const response = await syncApi.post('/sync/push', {
+      changes: mappedChanges
     });
 
     if (response.data.success) {
-      await db.sync_queue
-        .where('id').anyOf(pendingChanges.map(c => c.id!))
-        .modify({ status: 'synced' });
+      const processed = response.data.changes || [];
+      const conflicts = (response.data.errors || []).filter((e: any) => e.reason === 'conflict_detected');
+      
+      // Mark successfully processed changes as synced
+      if (processed.length > 0) {
+        const syncedIds = processed.map((p: any) => 
+          pendingChanges.find(c => c.entityId === p.id && c.entity === p.entity)?.id
+        ).filter(Boolean);
+        
+        if (syncedIds.length > 0) {
+          await db.sync_queue
+            .bulkUpdate(syncedIds.map(id => ({ key: id, changes: { status: 'synced' } })));
+        }
+      }
+      
+      // Mark conflicts with special status for user review
+      if (conflicts.length > 0) {
+        const conflictIds = conflicts.map((e: any) => 
+          pendingChanges.find(c => c.entityId === e.id && c.entity === e.entity)?.id
+        ).filter(Boolean);
+        
+        if (conflictIds.length > 0) {
+          await db.sync_queue
+            .bulkUpdate(conflictIds.map(id => ({ key: id, changes: { status: 'conflict_detected' } })));
+        }
+        
+        console.warn(`⚠️ ${conflicts.length} conflicts detected - server has newer versions`);
+      }
 
       // Cleanup synced entries older than 48h
       const cutoff = Date.now() - 48 * 60 * 60 * 1000;
@@ -60,14 +94,28 @@ export async function pushChanges(): Promise<{ pushed: number; failed: number }>
         .and(item => item.status === 'synced')
         .delete();
 
-      return { pushed: pendingChanges.length, failed: 0 };
+      return { 
+        pushed: processed.length, 
+        failed: (response.data.errors || []).length - conflicts.length,
+        conflicts: conflicts.length
+      };
     }
-    return { pushed: 0, failed: pendingChanges.length };
+    return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
   } catch (error: any) {
+    // Handle rate limiting
+    if (error.response?.status === 429) {
+      console.warn('⚠️ Rate limited - backing off sync');
+      await db.sync_queue
+        .where('id').anyOf(pendingChanges.map(c => c.id!))
+        .modify({ status: 'rate_limited' });
+      return { pushed: 0, failed: 0, conflicts: 0 };
+    }
+
+    // Mark as failed with error message
     await db.sync_queue
       .where('id').anyOf(pendingChanges.map(c => c.id!))
       .modify({ status: 'failed', error: error.message });
-    return { pushed: 0, failed: pendingChanges.length };
+    return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
   }
 }
 
@@ -170,12 +218,13 @@ export async function queueChange(
 // STATS for the SyncBanner UI
 // ─────────────────────────────────────────────
 export async function getQueueStats() {
-  const [pending, failed, synced] = await Promise.all([
+  const [pending, failed, synced, conflicts] = await Promise.all([
     db.sync_queue.where('status').equals('pending').count(),
     db.sync_queue.where('status').equals('failed').count(),
     db.sync_queue.where('status').equals('synced').count(),
+    db.sync_queue.where('status').equals('conflict_detected').count(),
   ]);
-  return { pending, failed, synced, total: pending + failed + synced };
+  return { pending, failed, synced, conflicts, total: pending + failed + synced + conflicts };
 }
 
 export { pullUpdates as pullFromServer, pushChanges as pushToServer };

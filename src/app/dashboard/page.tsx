@@ -29,50 +29,59 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedShop = localStorage.getItem("selected_shop_id");
-
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      setRole(parsed.role);
-      // Staff and Managers are pinned to their specific shop
-      if (parsed.role === "manager" || parsed.role === "staff") {
-        setSelectedShop(parsed.shop_id);
-        localStorage.setItem("selected_shop_id", parsed.shop_id);
-      }
-    }
-
-    // Admins and Subadmins use the saved selection or first shop
-    if (savedShop && (role === "admin" || role === "subadmin")) {
-      setSelectedShop(savedShop);
-    }
-    loadShops();
-  }, [role]);
-
-  const loadShops = async () => {
+  const loadShops = async (resolvedRole: string, userShopId?: string) => {
     try {
       const res = await getShops();
-      if (res.data.length > 0) {
-        setShops(res.data);
-        const currentSaved = localStorage.getItem("selected_shop_id");
-        if (role === "admin" || role === "subadmin") {
-          if (currentSaved && res.data.some((s: any) => s.id === currentSaved)) {
-            setSelectedShop(currentSaved);
-          } else {
-            const firstShop = res.data[0].id;
-            setSelectedShop(firstShop);
-            localStorage.setItem("selected_shop_id", firstShop);
-          }
-        }
+      const shopsData = Array.isArray(res.data) ? res.data : [];
+      setShops(shopsData);
+
+      if (shopsData.length === 0) {
+        setError("No shops available yet. Please create a shop first.");
+        setLoading(false);
+        return;
+      }
+
+      const currentSaved = localStorage.getItem("selected_shop_id");
+      const isPrivileged = resolvedRole === "admin" || resolvedRole === "subadmin";
+
+      // Staff and managers should stay on their assigned shop.
+      if (!isPrivileged) {
+        const preferredShop = userShopId || currentSaved || shopsData[0].id;
+        setSelectedShop(preferredShop);
+        localStorage.setItem("selected_shop_id", preferredShop);
+        return;
+      }
+
+      // Admin/subadmin can switch; default to saved or first valid shop.
+      if (currentSaved && shopsData.some((s: any) => s.id === currentSaved)) {
+        setSelectedShop(currentSaved);
+      } else {
+        const firstShop = shopsData[0].id;
+        setSelectedShop(firstShop);
+        localStorage.setItem("selected_shop_id", firstShop);
       }
     } catch (err) {
       console.error("Shop load failed", err);
+      setError("Failed to load shops.");
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (selectedShop) loadStats(selectedShop);
+    const savedUser = localStorage.getItem("user");
+    const parsed = savedUser ? JSON.parse(savedUser) : null;
+    const resolvedRole = (parsed?.role || "").toLowerCase();
+    const userShopId = parsed?.shop_id || "";
+    setRole(resolvedRole);
+    loadShops(resolvedRole, userShopId);
+  }, []);
+
+  useEffect(() => {
+    if (selectedShop) {
+      loadStats(selectedShop);
+    } else if (shops.length > 0) {
+      setLoading(false);
+    }
   }, [selectedShop]);
 
   const loadStats = async (shopId: string) => {

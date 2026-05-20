@@ -22,12 +22,13 @@ interface PurchaseModalProps {
   onClose: () => void;
   onSave: (data: any) => void;
   onProductAdded?: (product: any) => void;
+  onSupplierAdded?: (supplier: any) => Promise<any> | any;
   suppliers: any[];
   shops: any[];
   products: any[];
 }
 
-const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, suppliers, shops, products }: PurchaseModalProps) => {
+const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdded, suppliers, shops, products }: PurchaseModalProps) => {
   const [formData, setFormData] = useState({
     supplier_id: "",
     shop_id: "",
@@ -45,6 +46,14 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, suppliers, sho
   
   const [showProductModal, setShowProductModal] = useState(false);
   const [activeItemIndexForProduct, setActiveItemIndexForProduct] = useState<number | null>(null);
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [supplierForm, setSupplierForm] = useState({
+    name: "",
+    contact_person: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -186,6 +195,31 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, suppliers, sho
     setActiveItemIndexForProduct(null);
   };
 
+  const handleQuickAddSupplierSave = async () => {
+    if (!supplierForm.name.trim()) {
+      alert("Supplier name is required");
+      return;
+    }
+    if (!onSupplierAdded) return;
+    try {
+      const created = await onSupplierAdded({
+        name: supplierForm.name.trim(),
+        contact_person: supplierForm.contact_person,
+        phone: supplierForm.phone,
+        email: supplierForm.email,
+        address: supplierForm.address,
+      });
+      if (created?.id) {
+        setFormData((prev) => ({ ...prev, supplier_id: created.id }));
+      }
+      setShowSupplierModal(false);
+      setSupplierForm({ name: "", contact_person: "", phone: "", email: "", address: "" });
+    } catch (error) {
+      console.error("Failed to add supplier:", error);
+      alert("Failed to add supplier");
+    }
+  };
+
   const totalCost = formData.items.reduce((sum, item) => sum + item.cost_price * item.quantity, 0);
   const totalItems = formData.items.reduce((sum, item) => sum + item.quantity, 0);
   const potentialProfit = formData.items.reduce((sum, item) => {
@@ -230,6 +264,13 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, suppliers, sho
                 <Building className="w-4 h-4 text-blue-600" /> 
                 Supplier *
               </label>
+              <button
+                type="button"
+                onClick={() => setShowSupplierModal(true)}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800"
+              >
+                + Quick Add Supplier
+              </button>
               <select
                 value={formData.supplier_id}
                 onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
@@ -522,6 +563,53 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, suppliers, sho
           }}
           onSave={handleQuickAddProductSave}
         />
+      </div>
+    )}
+
+    {showSupplierModal && (
+      <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-lg rounded-xl p-5 space-y-4 shadow-2xl">
+          <h3 className="text-lg font-bold">Quick Add Supplier</h3>
+          <input
+            placeholder="Supplier Name *"
+            value={supplierForm.name}
+            onChange={(e) => setSupplierForm((p) => ({ ...p, name: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <input
+            placeholder="Contact Person"
+            value={supplierForm.contact_person}
+            onChange={(e) => setSupplierForm((p) => ({ ...p, contact_person: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <input
+            placeholder="Phone"
+            value={supplierForm.phone}
+            onChange={(e) => setSupplierForm((p) => ({ ...p, phone: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={supplierForm.email}
+            onChange={(e) => setSupplierForm((p) => ({ ...p, email: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <input
+            placeholder="Address"
+            value={supplierForm.address}
+            onChange={(e) => setSupplierForm((p) => ({ ...p, address: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2"
+          />
+          <div className="flex justify-end gap-2">
+            <button className="px-4 py-2 rounded bg-gray-200" onClick={() => setShowSupplierModal(false)}>
+              Cancel
+            </button>
+            <button className="px-4 py-2 rounded bg-blue-600 text-white" onClick={handleQuickAddSupplierSave}>
+              Add Supplier
+            </button>
+          </div>
+        </div>
       </div>
     )}
     </>

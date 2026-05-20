@@ -81,18 +81,27 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
       ["Overview", "Products", "Stock", "Sales"].includes(item.label)
     );
     allowedBottom = bottomMenu.filter(item => item.label === "Logout");
-  } else if (role === "subadmin" || role === "manager") {
+  } else if (role === "subadmin") {
     allowedMenu = allowedMenu.filter(
       item => !["finances", "expenses"].includes(item.key || "")
     );
     allowedBottom = allowedBottom.filter(
       item => item.key !== "settings"
     );
+  } else if (role === "manager") {
+    allowedMenu = allowedMenu.filter(
+      item => !["finances", "purchases"].includes(item.key || "")
+    );
+    allowedBottom = allowedBottom.filter(
+      item => item.key !== "settings"
+    );
   }
 
-  // Ensure strict check for finances/expenses: ONLY admin can see them
-  if (role !== "admin") {
+  // Ensure strict check for sensitive modules by role
+  if (!["admin", "manager"].includes(role)) {
     allowedMenu = allowedMenu.filter(item => !["finances", "expenses", "audit-logs"].includes(item.key || ""));
+  } else if (role === "manager") {
+    allowedMenu = allowedMenu.filter(item => !["finances", "audit-logs"].includes(item.key || ""));
   }
 
   const NavLink = ({ item }: { item: any }) => {

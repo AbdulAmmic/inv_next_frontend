@@ -68,7 +68,7 @@ export default function SalesPage() {
     try {
       if (!sales.length) setLoading(true);
       const res = await getSales(shopId);
-      const data = res.data || [];
+      const data = Array.isArray(res.data) ? res.data : [];
 
       const cleaned = data.map((s: any) => {
         const isReturned = s.status === "refunded";
@@ -112,12 +112,14 @@ export default function SalesPage() {
   useEffect(() => {
     const shopId = localStorage.getItem("selected_shop_id");
     const savedUser = localStorage.getItem("user");
+    let role = "";
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
-      setCurrentUserRole(parsed.role);
+      role = (parsed.role || "").toLowerCase();
+      setCurrentUserRole(role);
     }
     setSelectedShop(shopId);
-    fetchStaff();
+    if (role === "admin") fetchStaff();
     if (shopId) fetchSales(shopId);
     else setLoading(false);
   }, []);
@@ -147,16 +149,22 @@ export default function SalesPage() {
   };
 
   const filteredSales = sales.filter(sale => {
-    if (filters.search && !sale.sale_number.toLowerCase().includes(filters.search.toLowerCase()) &&
-      !sale.customer_name?.toLowerCase().includes(filters.search.toLowerCase())) return false;
+    if (
+      filters.search &&
+      !(sale.sale_number || "").toLowerCase().includes(filters.search.toLowerCase()) &&
+      !(sale.customer_name || "").toLowerCase().includes(filters.search.toLowerCase())
+    ) return false;
     if (filters.customer !== "all") {
       if (filters.customer === "walk_in") {
         if (sale.customer_name && sale.customer_name.toLowerCase() !== "walk-in") return false;
       } else if (sale.customer_name !== filters.customer) return false;
     }
     if (filters.staff !== "all" && sale.staff_name !== filters.staff) return false;
-    if (filters.payment_method !== "all" && sale.payment_method !== filters.payment_method) return false;
-    if (filters.status !== "all" && sale.status !== filters.status) return false;
+    if (
+      filters.payment_method !== "all" &&
+      (sale.payment_method || "").toLowerCase() !== filters.payment_method.toLowerCase()
+    ) return false;
+    if (filters.status !== "all" && (sale.status || "").toLowerCase() !== filters.status.toLowerCase()) return false;
     if (filters.startDate || filters.endDate) {
       const saleDate = new Date(sale.created_at);
       if (filters.startDate && saleDate < new Date(filters.startDate)) return false;

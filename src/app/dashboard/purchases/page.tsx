@@ -25,6 +25,7 @@ import PurchaseModal from "./purhcaseModal";
 import {
   getPurchases,
   createPurchase,
+  createSupplier,
   getSuppliers,
   getShops,
   getProducts,
@@ -201,6 +202,14 @@ export default function PurchasesPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to initiate purchase");
     }
+  };
+
+  const handleQuickAddSupplier = async (supplierData: any) => {
+    const res = await createSupplier(supplierData);
+    const created = res.data;
+    setSuppliers((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
+    toast.success("Supplier added");
+    return created;
   };
 
   const getStatusInfo = (status: string) => {
@@ -518,6 +527,7 @@ export default function PurchasesPage() {
         onClose={() => setShowCreateModal(false)}
         onSave={handleCreatePurchase}
         onProductAdded={(newProduct) => setProducts((prev) => [...prev, newProduct])}
+        onSupplierAdded={handleQuickAddSupplier}
         suppliers={suppliers}
         shops={shops}
         products={products}

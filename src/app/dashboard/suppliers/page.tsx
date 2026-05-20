@@ -7,6 +7,7 @@ import Header from "@/components/header";
 import {
   getSuppliers,
   createSupplier,
+  deleteSupplier,
   getSupplierSummary,
   getSupplierTransactions,
 } from "@/apiCalls";
@@ -19,6 +20,7 @@ import {
   Mail,
   MapPin,
   Receipt,
+  Trash2,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -123,6 +125,19 @@ export default function SuppliersPage() {
     }
   };
 
+  const handleDeleteSupplier = async (supplierId: string, supplierName: string) => {
+    const confirmed = confirm(`Delete supplier "${supplierName}"?`);
+    if (!confirmed) return;
+    try {
+      await deleteSupplier(supplierId);
+      setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
+      toast.success("Supplier deleted");
+      if (expanded === supplierId) setExpanded(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to delete supplier");
+    }
+  };
+
   if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -169,6 +184,7 @@ export default function SuppliersPage() {
                   <th className="p-3">Contact Person</th>
                   <th className="p-3">Phone</th>
                   <th className="p-3">Email</th>
+                  <th className="p-3">Actions</th>
                   <th className="p-3">Expand</th>
                 </tr>
               </thead>
@@ -176,15 +192,24 @@ export default function SuppliersPage() {
               <tbody>
                 {suppliers.map((s) => (
                   <>
-                    <tr
-                      key={s.id}
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => toggleExpand(s.id)}
-                    >
+                    <tr key={s.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => toggleExpand(s.id)}>
                       <td className="p-3 font-medium">{s.name}</td>
                       <td className="p-3">{s.contact_person || "—"}</td>
                       <td className="p-3">{s.phone || "—"}</td>
                       <td className="p-3">{s.email || "—"}</td>
+                      <td className="p-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSupplier(s.id, s.name);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded"
+                          title="Delete supplier"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </td>
                       <td className="p-3">
                         {expanded === s.id ? (
                           <ChevronUp className="w-5" />
@@ -197,7 +222,7 @@ export default function SuppliersPage() {
                     {/* EXPANDED SECTION */}
                     {expanded === s.id && (
                       <tr className="bg-gray-50">
-                        <td colSpan={5} className="p-4">
+                        <td colSpan={6} className="p-4">
                           <h3 className="font-semibold mb-2 flex items-center gap-2">
                             <Receipt className="w-4" />
                             Financial Summary
