@@ -146,6 +146,18 @@ export interface Supplier {
   [key: string]: any;
 }
 
+export interface SupplierTransaction {
+  id: string;
+  supplier_id: string;
+  type: string;
+  amount?: number;
+  note?: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted?: boolean;
+  [key: string]: any;
+}
+
 export interface Transfer {
   id: string;
   from_shop_id: string;
