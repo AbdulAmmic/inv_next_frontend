@@ -207,6 +207,7 @@ export async function pullUpdates(): Promise<{ total: number }> {
     expense_categories: 'expense_categories',
     customers: 'customers',
     suppliers: 'suppliers',
+    supplier_transactions: 'supplier_transactions',
     transfers: 'transfers',
     adjustments: 'adjustments',
     shops: 'shops',

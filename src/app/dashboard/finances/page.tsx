@@ -22,7 +22,7 @@ import {
   ChevronDown,
   Loader2
 } from "lucide-react";
-import { getShops, api } from "@/apiCalls";
+import { getShops, getFullStats } from "@/apiCalls";
 import { motion, AnimatePresence } from "framer-motion";
 import Loader from "@/components/Loader";
 import { toast } from "react-hot-toast";
@@ -175,7 +175,7 @@ export default function FinancesPage() {
         params.end_date = customDateRange.endDate;
       }
 
-      const res = await api.get("/reports/full-stats", { params });
+      const res = await getFullStats(params);
       setStats(res.data);
     } catch (err) {
       console.error("Failed loading stats", err);

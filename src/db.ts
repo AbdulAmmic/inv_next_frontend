@@ -213,6 +213,7 @@ export class TuhanasDB extends Dexie {
   expense_categories!: Table<ExpenseCategory>;
   customers!: Table<Customer>;
   suppliers!: Table<Supplier>;
+  supplier_transactions!: Table<SupplierTransaction>;
   transfers!: Table<Transfer>;
   adjustments!: Table<Adjustment>;
   audit_logs!: Table<AuditLog>;
@@ -232,6 +233,7 @@ export class TuhanasDB extends Dexie {
       expense_categories: 'id, name, updated_at, is_deleted',
       customers: 'id, name, phone, email, updated_at, is_deleted',
       suppliers: 'id, name, updated_at, is_deleted',
+      supplier_transactions: 'id, supplier_id, type, created_at, updated_at, is_deleted',
       transfers: 'id, from_shop_id, to_shop_id, product_id, status, updated_at, is_deleted',
       adjustments: 'id, product_id, shop_id, staff_id, adjustment_type, updated_at, is_deleted',
       audit_logs: 'id, user_id, action, resource, created_at, is_deleted',

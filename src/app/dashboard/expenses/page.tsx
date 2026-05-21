@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   getExpenses,
   createExpense,
@@ -41,7 +42,6 @@ interface Shop {
 }
 
 export default function ExpensesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -90,16 +90,18 @@ export default function ExpensesPage() {
     }
   };
 
+  const router = useRouter();
+
   useEffect(() => {
-    // Role Guard
+    // Role Guard: only staff should be blocked from expenses management here
     try {
       const stored = localStorage.getItem("user");
       if (stored) {
         const parsed = JSON.parse(stored);
         const role = parsed.role || "";
-        if (role === "manager" || role === "staff") {
+        if (role === "staff") {
           toast.error("Access denied: You cannot manage Expenses.");
-          window.location.href = "/dashboard";
+          router.replace("/dashboard");
           return;
         }
       }

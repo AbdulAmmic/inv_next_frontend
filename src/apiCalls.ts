@@ -571,8 +571,47 @@ export const deleteSupplier = async (id: string) => {
   await queueChange('suppliers', id, 'DELETE', {});
   return { data: { success: true } };
 };
-export const getSupplierTransactions = (id: string) => api.get(`/suppliers/${id}/transactions`);
-export const getSupplierSummary = (id: string) => api.get(`/suppliers/${id}/summary`);
+export const getSupplierTransactions = async (id: string) => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/suppliers/${id}/transactions`);
+      const txs = extractArr(res.data);
+      if (txs.length > 0) db.supplier_transactions.bulkPut(txs).catch(() => {});
+      return { data: txs };
+    } catch (e) {
+      console.warn('getSupplierTransactions API failed, falling back to cache:', e);
+    }
+  }
+  const cached = await db.supplier_transactions.where('supplier_id').equals(id).reverse().sortBy('created_at');
+  return { data: cached };
+};
+export const getSupplierSummary = async (id: string) => {
+  const cacheKey = `supplier_summary_${id}`;
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/suppliers/${id}/summary`);
+      const summary = res.data;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(cacheKey, JSON.stringify(summary));
+      }
+      return { data: summary };
+    } catch (e) {
+      console.warn('getSupplierSummary API failed, falling back to cache:', e);
+    }
+  }
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        return { data: JSON.parse(cached) };
+      } catch {}
+    }
+  }
+  const txs = await db.supplier_transactions.where('supplier_id').equals(id).toArray();
+  const total_credit = txs.filter((t: any) => t.type === 'credit').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const total_loss = txs.filter((t: any) => t.type === 'loss').reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  return { data: { supplier_id: id, total_credit, total_loss, net_position: total_credit - total_loss } };
+};
 
 // #############################################################
 // 🔁 TRANSFERS (Between Shops)
@@ -864,6 +903,47 @@ export const deleteExpense = async (id: string) => {
 // #############################################################
 export const getDailySales = (shop_id?: string) => api.get(`/reports/daily-sales`, { params: { shop_id } });
 export const getInventoryReport = (shop_id?: string) => api.get(`/reports/inventory`, { params: { shop_id } });
+
+export const getFullStats = async (params?: any) => {
+  const key = `full_stats_${params?.shop_id || 'global'}_${params?.start_date || 'none'}_${params?.end_date || 'none'}`;
+  if (isOnline()) {
+    try {
+      const res = await api.get('/reports/full-stats', { params });
+      const stats = res.data;
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(key, JSON.stringify(stats));
+        } catch {}
+      }
+      return { data: stats };
+    } catch (e) {
+      console.warn('getFullStats API failed, falling back to cache:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      try {
+        return { data: JSON.parse(cached) };
+      } catch {}
+    }
+  }
+
+  return { data: {
+    total_sales_amount: 0,
+    gross_profit: 0,
+    net_profit: 0,
+    total_expenses: 0,
+    total_purchase_amount: 0,
+    inventory_selling_value: 0,
+    products_count: 0,
+    customers_count: 0,
+    suppliers_count: 0,
+    low_stock_count: 0,
+    out_of_stock_count: 0,
+  } };
+};
 
 // #############################################################
 // 📊 AUDIT LOGS (ADMIN ONLY)

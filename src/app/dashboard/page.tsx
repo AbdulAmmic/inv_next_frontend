@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Loader from "@/components/Loader";
-import { api, getShops } from "@/apiCalls";
+import { getFullStats, getShops } from "@/apiCalls";
 import {
   Package,
   Users,
@@ -88,9 +88,7 @@ export default function DashboardPage() {
     try {
       if (!stats) setLoading(true);
       setError(null);
-      const res = await api.get("/reports/full-stats", {
-        params: { shop_id: shopId },
-      });
+      const res = await getFullStats({ shop_id: shopId });
       setStats(res.data);
     } catch (err: any) {
       console.error("Dashboard Stats Error:", err);

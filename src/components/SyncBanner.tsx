@@ -31,6 +31,7 @@ export function useSyncStatus() {
     errorMsg: null,
     lastSyncedAt: typeof window !== "undefined" ? localStorage.getItem("last_push_at") : null,
   });
+  const [online, setOnline] = useState<boolean>(typeof window !== "undefined" ? navigator.onLine : true);
 
   const refreshPendingCount = useCallback(async () => {
     try {
@@ -55,6 +56,17 @@ export function useSyncStatus() {
     const interval = setInterval(refreshPendingCount, 10000);
     return () => clearInterval(interval);
   }, [refreshPendingCount]);
+
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   /**
    * Trigger manual push to server with progress tracking
@@ -119,7 +131,7 @@ export function useSyncStatus() {
     }
   }, []);
 
-  return { banner, pushToServer, refreshPendingCount };
+  return { banner, pushToServer, refreshPendingCount, online };
 }
 
 
@@ -128,7 +140,7 @@ export function useSyncStatus() {
 // A persistent bar at the top of dashboard
 // ─────────────────────────────────────────────
 export default function SyncBanner() {
-  const { banner, pushToServer, refreshPendingCount } = useSyncStatus();
+  const { banner, pushToServer, refreshPendingCount, online } = useSyncStatus();
   const [dismissed, setDismissed] = useState(false);
 
   // Auto-show again when state changes to unsynced/error
@@ -175,6 +187,12 @@ export default function SyncBanner() {
   };
 
   const cfg = configs[banner.state];
+  const displayText = !online
+    ? banner.pendingCount > 0
+      ? `Offline — ${banner.pendingCount} change${banner.pendingCount !== 1 ? 's' : ''} saved locally`
+      : 'Offline — local data available'
+    : cfg.text;
+  const actionDisabled = !online && cfg.action === 'Push to Server';
 
   return (
     <AnimatePresence>
@@ -208,11 +226,11 @@ export default function SyncBanner() {
 
           {cfg.action && (
             <button
-              onClick={banner.state === "syncing" ? undefined : pushToServer}
-              disabled={banner.state === "syncing"}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all active:scale-95 flex-shrink-0 ${cfg.actionStyle}`}
+              onClick={banner.state === "syncing" || actionDisabled ? undefined : pushToServer}
+              disabled={banner.state === "syncing" || actionDisabled}
+              className={`px-3 py-1 rounded-lg text-xs font-black transition-all active:scale-95 flex-shrink-0 ${cfg.actionStyle} ${actionDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              {cfg.action}
+              {actionDisabled ? 'Waiting for connection' : cfg.action}
             </button>
           )}
 
