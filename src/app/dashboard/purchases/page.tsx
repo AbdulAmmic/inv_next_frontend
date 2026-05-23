@@ -216,10 +216,34 @@ export default function PurchasesPage() {
     switch (status) {
       case "ordered": return { color: "amber", label: "Ordered" };
       case "receiving": return { color: "blue", label: "Receiving" };
+      case "partial": return { color: "blue", label: "Partial" };
       case "received": return { color: "emerald", label: "Received" };
       case "cancelled": return { color: "rose", label: "Cancelled" };
       default: return { color: "slate", label: status };
     }
+  };
+
+  const statColorClasses: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    indigo: "bg-indigo-50 text-indigo-600",
+    purple: "bg-purple-50 text-purple-600",
+  };
+
+  const statusColorClasses: Record<string, string> = {
+    amber: "bg-amber-50 text-amber-600 ring-amber-100",
+    blue: "bg-blue-50 text-blue-600 ring-blue-100",
+    emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+    rose: "bg-rose-50 text-rose-600 ring-rose-100",
+    slate: "bg-slate-50 text-slate-600 ring-slate-100",
+  };
+
+  const statusDotClasses: Record<string, string> = {
+    amber: "bg-amber-500",
+    blue: "bg-blue-500",
+    emerald: "bg-emerald-500",
+    rose: "bg-rose-500",
+    slate: "bg-slate-500",
   };
 
   const filteredPurchases = purchases.filter((p) => {
@@ -246,7 +270,7 @@ export default function PurchasesPage() {
 
   return (
     <>
-      <main className="p-6 lg:p-10 space-y-8">
+      <main className="p-4 sm:p-6 lg:p-10 space-y-6 lg:space-y-8 max-w-[100vw] overflow-hidden">
         {/* Connection Alert */}
         <AnimatePresence>
           {connectionError && (
@@ -268,7 +292,7 @@ export default function PurchasesPage() {
                 </div>
                 <button
                   onClick={testConnection}
-                  className="px-4 py-2 bg-white text-rose-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-100 transition-all border border-rose-200"
+                  className="shrink-0 px-4 py-2 bg-white text-rose-600 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-100 transition-all border border-rose-200"
                 >
                   Reconnect Now
                 </button>
@@ -297,12 +321,12 @@ export default function PurchasesPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3"
+            className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto"
           >
             <button
               onClick={fetchData}
               disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -310,7 +334,7 @@ export default function PurchasesPage() {
 
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl px-6 py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 group"
+              className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl px-4 sm:px-6 py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 group w-full sm:w-auto"
             >
               <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
               New Purchase Order
@@ -319,7 +343,7 @@ export default function PurchasesPage() {
         </div>
 
         {/* Financial Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
           {[
             { label: "Total Orders", value: purchases.length, icon: ShoppingCart, color: "blue", delay: 0 },
             { label: "Procurement Mass", value: `₦${totalSpent.toLocaleString()}`, icon: Wallet, color: "emerald", delay: 0.1 },
@@ -331,13 +355,13 @@ export default function PurchasesPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: stat.delay }}
-              className="glass-card p-6 rounded-[2rem] flex items-center justify-between border-white group/stat hover:shadow-2xl hover:shadow-slate-200/50 transition-all cursor-default"
+              className="glass-card p-4 sm:p-6 rounded-2xl flex items-center justify-between border-white group/stat hover:shadow-2xl hover:shadow-slate-200/50 transition-all cursor-default min-w-0"
             >
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{stat.label}</p>
-                <p className="text-2xl font-black text-slate-900 mt-1">{stat.value}</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1 break-words">{stat.value}</p>
               </div>
-              <div className={`p-4 bg-${stat.color}-50 text-${stat.color}-600 rounded-[1.3rem] group-hover/stat:rotate-12 transition-transform`}>
+              <div className={`p-3 sm:p-4 ${statColorClasses[stat.color]} rounded-2xl group-hover/stat:rotate-12 transition-transform shrink-0`}>
                 <stat.icon className="w-6 h-6" />
               </div>
             </motion.div>
@@ -349,7 +373,7 @@ export default function PurchasesPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-4 rounded-[1.5rem] flex flex-col md:flex-row gap-4 shadow-xl shadow-slate-200/50 group"
+          className="glass-card p-4 rounded-2xl flex flex-col md:flex-row gap-4 shadow-xl shadow-slate-200/50 group"
         >
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors w-5 h-5" />
@@ -366,7 +390,7 @@ export default function PurchasesPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 rounded-xl pl-5 pr-12 py-3.5 text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all shadow-sm cursor-pointer min-w-[160px]"
+              className="appearance-none bg-white border border-slate-200 rounded-xl pl-5 pr-12 py-3.5 text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all shadow-sm cursor-pointer w-full md:min-w-[160px]"
             >
               <option value="all">Global Status</option>
               <option value="ordered">Ordered</option>
@@ -383,7 +407,7 @@ export default function PurchasesPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-2xl shadow-slate-200/50"
+          className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-2xl shadow-slate-200/50"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[1100px]">
@@ -467,8 +491,8 @@ export default function PurchasesPage() {
                           <p className="text-[10px] text-slate-300 font-bold uppercase tracking-tighter italic">Total Net Procurement</p>
                         </td>
                         <td className="px-8 py-6">
-                          <div className={`inline-flex items-center gap-2 px-3 py-1 bg-${status.color}-50 text-${status.color}-600 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 ring-${status.color}-100`}>
-                            <span className={`w-1.5 h-1.5 rounded-full bg-${status.color}-500 animate-pulse`} />
+                          <div className={`inline-flex items-center gap-2 px-3 py-1 ${statusColorClasses[status.color]} rounded-full text-[10px] font-black uppercase tracking-widest ring-1`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusDotClasses[status.color]} animate-pulse`} />
                             {status.label}
                           </div>
                         </td>
@@ -495,7 +519,7 @@ export default function PurchasesPage() {
 
                 {filteredPurchases.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-24 text-center">
+                    <td colSpan={6} className="p-8 sm:p-16 lg:p-24 text-center">
                       <div className="flex flex-col items-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6">
                           <Package className="w-10 h-10 text-slate-200" />

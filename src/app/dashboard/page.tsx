@@ -36,8 +36,12 @@ export default function DashboardPage() {
       setShops(shopsData);
 
       if (shopsData.length === 0) {
-        setError("No shops available yet. Please create a shop first.");
-        setLoading(false);
+        if (resolvedRole === "admin" || resolvedRole === "subadmin") {
+          await loadStats("");
+        } else {
+          setError("No shops available yet. Please create a shop first.");
+          setLoading(false);
+        }
         return;
       }
 
@@ -103,7 +107,7 @@ export default function DashboardPage() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadStats(selectedShop);
+    loadStats(selectedShop || "");
     toast.success("Dashboard updated");
   };
 

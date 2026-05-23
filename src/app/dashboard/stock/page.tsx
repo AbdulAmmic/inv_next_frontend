@@ -264,7 +264,7 @@ export default function StockPage() {
   // --------------------------------------------------
   return (
     <>
-      <main className="p-6 lg:p-10 space-y-8">
+      <main className="p-4 sm:p-6 lg:p-10 space-y-6 lg:space-y-8 max-w-[100vw] overflow-hidden">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <motion.div
@@ -284,9 +284,9 @@ export default function StockPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3"
+            className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto"
           >
-            <div className="relative group">
+            <div className="relative group w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors w-4 h-4" />
               <input
                 type="text"
@@ -299,7 +299,7 @@ export default function StockPage() {
 
             <button
               onClick={exportPDF}
-              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
             >
               <Download className="w-4 h-4 text-rose-500" />
               <span className="hidden sm:inline">Export</span>
@@ -308,7 +308,7 @@ export default function StockPage() {
             <button
               onClick={fetchData}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-slate-200"
+              className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-lg shadow-slate-200 w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -321,7 +321,7 @@ export default function StockPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
         >
           <div className="glass-card p-4 rounded-2xl flex items-center gap-4">
             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -387,7 +387,7 @@ export default function StockPage() {
             className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
           >
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full min-w-[980px] text-sm text-left">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Product</th>
@@ -596,7 +596,7 @@ function AdjustModal({
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl"
+        className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl"
       >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
@@ -622,7 +622,7 @@ function AdjustModal({
             />
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
             <button
               className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
               onClick={onClose}
@@ -673,7 +673,7 @@ function TransferModal({
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl"
+        className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto shadow-2xl"
       >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
@@ -720,7 +720,7 @@ function TransferModal({
             />
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
             <button
               className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
               onClick={onClose}
@@ -787,7 +787,7 @@ function EditStockModal({
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white p-8 rounded-[2rem] w-full max-w-xl shadow-2xl"
+        className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto shadow-2xl"
       >
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
@@ -801,7 +801,7 @@ function EditStockModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Min Stock Level</label>
             <input
@@ -847,7 +847,7 @@ function EditStockModal({
           </div>
         </div>
 
-        <div className="flex gap-4 mt-10">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 sm:mt-10">
           <button
             className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
             onClick={onClose}
@@ -914,7 +914,7 @@ function GrievanceModal({
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden relative"
+        className="bg-white p-5 sm:p-8 rounded-2xl w-full max-w-md max-h-[92vh] shadow-2xl overflow-y-auto relative"
       >
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -928,7 +928,7 @@ function GrievanceModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity Lost</label>
               <input
@@ -974,7 +974,7 @@ function GrievanceModal({
             />
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
             <button
               type="button"
               onClick={onClose}

@@ -231,17 +231,17 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[40] transition-all duration-300">
-      <div className="bg-white rounded-2xl w-full max-w-6xl overflow-hidden shadow-2xl animate-scaleIn">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[40] transition-all duration-300">
+      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[96vh] overflow-hidden shadow-2xl animate-scaleIn">
         {/* Enhanced Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-700 p-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-700 p-4 sm:p-6 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
                 <ShoppingCart className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">New Purchase Order</h2>
+                <h2 className="text-xl sm:text-2xl font-bold">New Purchase Order</h2>
                 <p className="text-blue-100 text-sm">Add products from suppliers to your inventory</p>
               </div>
             </div>
@@ -256,7 +256,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-8 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[calc(96vh-96px)] overflow-y-auto">
           {/* Supplier & Shop Selection */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
@@ -307,7 +307,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
 
           {/* Purchase Items Section */}
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
                 <p className="text-sm text-gray-600">Add products to your purchase order</p>
@@ -316,14 +316,14 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
                 type="button" 
                 onClick={addItem} 
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg shadow-green-500/25"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg shadow-green-500/25 w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" /> Add Item
               </button>
             </div>
 
             {formData.items.map((item, index) => (
-              <div key={index} className="p-6 border border-gray-200 rounded-2xl bg-gradient-to-br from-gray-50 to-white shadow-sm hover:shadow-md transition-all duration-300">
+              <div key={index} className="p-4 sm:p-6 border border-gray-200 rounded-2xl bg-gradient-to-br from-gray-50 to-white shadow-sm hover:shadow-md transition-all duration-300">
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
                   {/* Product Search & Selection */}
                   <div className="xl:col-span-4 space-y-3">
@@ -467,7 +467,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
 
                 {/* Item Summary */}
                 {item.product_id && item.quantity > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-3 gap-4 text-sm">
+                  <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
                     <div className="text-center p-2 bg-blue-50 rounded-lg">
                       <div className="text-gray-600">Item Total</div>
                       <div className="font-semibold text-blue-700">
@@ -526,7 +526,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}

@@ -204,7 +204,7 @@ export default function SalesPage() {
 
   return (
     <>
-      <main className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-8">
+      <main className="p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto space-y-6 lg:space-y-8 overflow-hidden">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -213,10 +213,10 @@ export default function SalesPage() {
             <p className="text-slate-500 text-sm font-medium">Monitoring transactions for {selectedShop || "all shops"}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-bold transition-all ${showFilters ? 'bg-slate-100 border-slate-300 text-slate-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-bold transition-all w-full sm:w-auto ${showFilters ? 'bg-slate-100 border-slate-300 text-slate-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
             >
               <Filter className="w-4 h-4" />
@@ -225,12 +225,12 @@ export default function SalesPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Sync
             </button>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all">
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all w-full sm:w-auto">
               <Download className="w-4 h-4" />
               Export
             </button>
@@ -238,7 +238,7 @@ export default function SalesPage() {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
           <StatCard
             title="Gross Revenue"
             value={`₦${totalSalesAmount.toLocaleString()}`}
@@ -268,7 +268,7 @@ export default function SalesPage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Advanced Filtering</h3>
                   <button
@@ -359,8 +359,8 @@ export default function SalesPage() {
 
         {/* Transactions Table */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full min-w-[940px] text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-16">#</th>
@@ -451,7 +451,79 @@ export default function SalesPage() {
             </table>
           </div>
 
-          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-400">
+          <div className="lg:hidden divide-y divide-slate-100">
+            {sortedSales.length > 0 ? (
+              sortedSales.map((sale) => (
+                <motion.div
+                  key={sale.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-4 space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 break-words">{sale.sale_number}</p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        <span>{sale.created_at_display}</span>
+                      </div>
+                    </div>
+                    <StatusBadge status={sale.status} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 p-3 min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer</p>
+                      <p className="font-semibold text-slate-700 truncate">{sale.customer_name || "Walk-in"}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3 min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff</p>
+                      <p className="font-semibold text-slate-700 truncate">{sale.staff_name || "Unknown"}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
+                      <p className={`font-black ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                        ₦{Math.abs(sale.amount).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</p>
+                      <p className="font-semibold text-slate-700 uppercase">{sale.payment_method || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewReceipt(sale.id)}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Receipt
+                    </button>
+                    <button
+                      onClick={() => router.push(`/dashboard/sales/details?id=${sale.id}`)}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Details
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="px-6 py-16 text-center">
+                <div className="flex flex-col items-center gap-3 grayscale opacity-40">
+                  <ShoppingBag className="w-12 h-12" />
+                  <div>
+                    <p className="font-bold text-slate-900">No transactions recorded</p>
+                    <p className="text-xs font-medium">Try adjusting your filters or sync with the server</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 sm:px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-bold text-slate-400">
             <span>SHOWING {filteredSales.length} OF {sales.length} RECORDS</span>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />

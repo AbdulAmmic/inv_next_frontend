@@ -12,8 +12,6 @@ import {
   getShops
 } from "@/apiCalls";
 
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
 import {
   ArrowLeft,
   Edit,
@@ -22,8 +20,6 @@ import {
   FileEdit,
   Truck,
   CheckCircle2,
-  XCircle,
-  Calendar,
   DollarSign,
   Hash
 } from "lucide-react";
@@ -36,7 +32,6 @@ function PurchaseDetailsContent() {
   const id = searchParams.get("id");
 
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
   const [purchase, setPurchase] = useState<any>(null);
@@ -188,35 +183,25 @@ function PurchaseDetailsContent() {
     );
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <Sidebar
-        isOpen={sidebarOpen}
-        toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        isMobile={false}
-      />
-
-      <div className="flex-1 flex flex-col transition-all duration-300">
-        <Header />
-
-        <main className="p-6 lg:p-8">
+    <main className="p-4 sm:p-6 lg:p-8 max-w-[100vw] overflow-hidden">
           {/* Header Section */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <button
               onClick={() => router.push("/dashboard/purchases")}
-              className="flex items-center gap-3 text-slate-600 hover:text-slate-800 hover:bg-white px-4 py-2 rounded-xl transition-all duration-200 group"
+              className="flex items-center gap-3 text-slate-600 hover:text-slate-800 hover:bg-white px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 group text-sm sm:text-base"
             >
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              Back to Purchases
+              <ArrowLeft className="w-4 sm:w-5 h-4 sm:h-5 group-hover:-translate-x-1 transition-transform" />
+              Back
             </button>
 
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 gap-3 sm:gap-0">
               <div>
-                <h1 className="text-3xl font-bold text-slate-800">Purchase Details</h1>
-                <p className="text-slate-500 mt-2">Manage and track your purchase order</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Purchase Details</h1>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 sm:mt-2">Manage and track your purchase order</p>
               </div>
 
-              <div className="flex items-center gap-4 mt-4 lg:mt-0">
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(purchase?.status)}`}>
+              <div className="flex items-center gap-2 sm:gap-4">
+                <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium ${getStatusColor(purchase?.status)}`}>
                   {purchase?.status || 'Unknown'}
                 </span>
               </div>
@@ -224,13 +209,13 @@ function PurchaseDetailsContent() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-8">
-            <div className="flex space-x-1 bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 border border-slate-200 w-fit">
+          <div className="mb-6 sm:mb-8 overflow-x-auto">
+            <div className="flex space-x-1 bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 border border-slate-200 w-fit min-w-full sm:w-fit">
               {['overview', 'items', 'settings'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 rounded-xl font-medium capitalize transition-all duration-200 ${activeTab === tab
+                  className={`px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-medium capitalize transition-all duration-200 text-xs sm:text-base whitespace-nowrap ${activeTab === tab
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-slate-600 hover:text-slate-800'
                     }`}
@@ -242,26 +227,27 @@ function PurchaseDetailsContent() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
 
             {/* Left Column - Information Cards */}
-            <div className="xl:col-span-2 space-y-6">
+            <div className="xl:col-span-2 space-y-4 sm:space-y-6 min-w-0">
 
               {/* Purchase Information Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-6 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-3">
+                <div className="p-4 sm:p-6 border-b border-slate-100">
+                  <div className="flex items-center justify-between gap-2 sm:gap-0">
+                    <h2 className="text-base sm:text-xl font-semibold text-slate-800 flex items-center gap-2 sm:gap-3">
                       <div className="p-2 bg-blue-50 rounded-lg">
-                        <FileEdit className="w-5 h-5 text-blue-600" />
+                        <FileEdit className="w-4 sm:w-5 h-4 sm:h-5 text-blue-600" />
                       </div>
-                      Purchase Information
+                      <span className="hidden sm:inline">Purchase Information</span>
+                      <span className="sm:hidden">Purchase Info</span>
                     </h2>
-                    <Edit className="w-5 h-5 text-slate-400" />
+                    <Edit className="w-4 sm:w-5 h-4 sm:h-5 text-slate-400 flex-shrink-0" />
                   </div>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -373,8 +359,8 @@ function PurchaseDetailsContent() {
 
               {/* Items Table Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-6 border-b border-slate-100">
-                  <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-3">
+                <div className="p-4 md:p-6 border-b border-slate-100">
+                  <h2 className="text-lg md:text-xl font-semibold text-slate-800 flex items-center gap-3">
                     <div className="p-2 bg-emerald-50 rounded-lg">
                       <PackageOpen className="w-5 h-5 text-emerald-600" />
                     </div>
@@ -382,7 +368,8 @@ function PurchaseDetailsContent() {
                   </h2>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/50">
@@ -478,11 +465,110 @@ function PurchaseDetailsContent() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4 p-4">
+                  {receiveItems.map((item, idx) => (
+                    <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Product</p>
+                        <p className="text-sm font-medium text-slate-800 mt-1">{item.product_name}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ordered</p>
+                          <p className="text-sm font-medium text-slate-800 mt-1">{item.ordered_quantity}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Received</p>
+                          <input
+                            type="number"
+                            value={item.received_quantity}
+                            onChange={(e) => {
+                              const updated = [...receiveItems];
+                              updated[idx].received_quantity = Number(e.target.value);
+                              setReceiveItems(updated);
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm mt-1"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Batch No</p>
+                          <input
+                            type="text"
+                            value={item.batch_number}
+                            onChange={(e) => {
+                              const updated = [...receiveItems];
+                              updated[idx].batch_number = e.target.value;
+                              setReceiveItems(updated);
+                            }}
+                            placeholder="Batch"
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm mt-1"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Expiry</p>
+                          <input
+                            type="date"
+                            value={item.expiry_date}
+                            onChange={(e) => {
+                              const updated = [...receiveItems];
+                              updated[idx].expiry_date = e.target.value;
+                              setReceiveItems(updated);
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cancel Item</p>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={item.is_cancelled}
+                              onChange={(e) => {
+                                const updated = [...receiveItems];
+                                updated[idx].is_cancelled = e.target.checked;
+                                setReceiveItems(updated);
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {item.is_cancelled && (
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cancellation Reason</p>
+                          <input
+                            type="text"
+                            value={item.cancel_reason}
+                            onChange={(e) => {
+                              const updated = [...receiveItems];
+                              updated[idx].cancel_reason = e.target.value;
+                              setReceiveItems(updated);
+                            }}
+                            placeholder="Cancellation reason"
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm mt-1"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Right Column - Summary & Actions */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
 
               {/* Summary Card */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -495,15 +581,15 @@ function PurchaseDetailsContent() {
                   </h2>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
                     <span className="text-slate-600">Supplier</span>
-                    <span className="font-medium text-slate-800">{purchase?.supplier?.name}</span>
+                    <span className="font-medium text-slate-800 text-right break-words">{purchase?.supplier?.name || "Unknown"}</span>
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
                     <span className="text-slate-600">Shop</span>
-                    <span className="font-medium text-slate-800">{purchase?.shop?.name}</span>
+                    <span className="font-medium text-slate-800 text-right break-words">{purchase?.shop?.name || "Unknown"}</span>
                   </div>
 
                   <div className="flex justify-between items-center py-3 border-b border-slate-100">
@@ -545,7 +631,7 @@ function PurchaseDetailsContent() {
 
               {/* Actions Card */}
               <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-lg overflow-hidden">
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-3">
                     <Truck className="w-5 h-5" />
                     Quick Actions
@@ -574,7 +660,7 @@ function PurchaseDetailsContent() {
                   <h2 className="text-lg font-semibold text-slate-800">Order Statistics</h2>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Total Items</span>
                     <span className="font-bold text-slate-800">{receiveItems.length}</span>
@@ -597,9 +683,7 @@ function PurchaseDetailsContent() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </main>
   );
 }
 
@@ -610,4 +694,3 @@ export default function PurchaseDetailsPage() {
     </Suspense>
   );
 }
-

@@ -33,6 +33,9 @@ interface FinancialStats {
   net_profit: number;
   total_expenses: number;
   total_purchase_amount: number;
+  total_sales_count?: number;
+  total_purchases_count?: number;
+  total_expenses_count?: number;
   inventory_selling_value: number;
   products_count: number;
   customers_count: number;
@@ -114,7 +117,7 @@ export default function FinancesPage() {
       const stored = localStorage.getItem("user");
       if (stored) {
         const parsed = JSON.parse(stored);
-        const role = parsed.role || "";
+        const role = (parsed.role || "").toLowerCase();
         setUserRole(role);
         if (role === "manager" || role === "staff") {
           toast.error("Access denied: You cannot view Finances.");
@@ -145,14 +148,17 @@ export default function FinancesPage() {
     try {
       setLoadingMessage("Loading Shops...");
       const res = await getShops();
-      setShops(res.data);
-      if (res.data.length > 0) {
-        setSelectedShop(res.data[0].id);
+      const shopsData = Array.isArray(res.data) ? res.data : [];
+      setShops(shopsData);
+      if (shopsData.length > 0) {
+        const savedShop = localStorage.getItem("selected_shop_id");
+        setSelectedShop(savedShop && shopsData.some((s: Shop) => s.id === savedShop) ? savedShop : shopsData[0].id);
+      } else {
+        await fetchStats("");
       }
     } catch (err) {
       console.error("Failed to load shops", err);
-      setError("Unable to load shops. Please refresh the page.");
-      setLoading(false);
+      await fetchStats("");
     }
   };
 
@@ -194,9 +200,7 @@ export default function FinancesPage() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    if (selectedShop) {
-      fetchStats(selectedShop);
-    }
+    fetchStats(selectedShop || "");
   };
 
   const handleTimeRangeChange = (value: string) => {
@@ -380,7 +384,7 @@ export default function FinancesPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/90 backdrop-blur-md p-8 rounded-[2rem] shadow-2xl flex flex-col items-center border border-white/50"
+            className="bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-2xl shadow-2xl flex flex-col items-center border border-white/50 mx-4 text-center"
           >
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
             <p className="text-slate-900 font-black text-xl tracking-tight">{loadingMessage}</p>
@@ -389,7 +393,7 @@ export default function FinancesPage() {
         </div>
       )}
 
-      <main className="p-6 lg:p-10 space-y-8">
+      <main className="p-4 sm:p-6 lg:p-10 space-y-6 lg:space-y-8 max-w-[100vw] overflow-hidden">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <motion.div
@@ -410,13 +414,13 @@ export default function FinancesPage() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-wrap items-center gap-3"
+            className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto"
           >
             {/* Date Range Selector */}
             <div className="relative group/date">
               <button
                 onClick={() => setShowDatePicker(!showDatePicker)}
-                className="flex items-center gap-3 px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 min-w-[220px] justify-between group"
+                className="flex items-center gap-3 px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 w-full sm:min-w-[220px] justify-between group"
               >
                 <div className="flex items-center gap-3 text-slate-500 group-hover:text-indigo-600 transition-colors">
                   <Calendar className="w-4 h-4" />
@@ -431,12 +435,12 @@ export default function FinancesPage() {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-3 bg-white rounded-[2rem] shadow-2xl border border-slate-100 z-50 min-w-[340px] overflow-hidden"
+                    className="absolute top-full right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[calc(100vw-2rem)] sm:w-[340px] overflow-hidden"
                   >
                     <div className="p-6 space-y-6">
                       <div>
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Quick Select</h3>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {predefinedRanges.map((range) => (
                             <button
                               key={range.value}
@@ -455,7 +459,7 @@ export default function FinancesPage() {
                       <div className="border-t border-slate-50 pt-6">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Custom Range</h3>
                         <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <p className="text-[9px] font-bold text-slate-400 mb-1.5 px-1 uppercase tracking-tighter">Start Date</p>
                               <input
@@ -492,10 +496,14 @@ export default function FinancesPage() {
 
             <div className="relative group/select">
               <select
-                className="appearance-none px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 min-w-[180px] focus:outline-none cursor-pointer pr-10"
+                className="appearance-none px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 w-full sm:min-w-[180px] focus:outline-none cursor-pointer pr-10"
                 value={selectedShop}
-                onChange={(e) => setSelectedShop(e.target.value)}
+                onChange={(e) => {
+                  setSelectedShop(e.target.value);
+                  localStorage.setItem("selected_shop_id", e.target.value);
+                }}
               >
+                {shops.length === 0 && <option value="">All Shops</option>}
                 {shops.map((shop) => (
                   <option key={shop.id} value={shop.id}>
                     {shop.name}
@@ -508,7 +516,7 @@ export default function FinancesPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -541,7 +549,7 @@ export default function FinancesPage() {
           </motion.div>
 
           {/* Performance Indicators */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {[
               { label: "Profit Margin", value: stats && stats.total_sales_amount > 0 ? `${((stats.net_profit / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: TrendingUp, gradient: "from-emerald-400 to-emerald-600", delay: 0.1 },
               { label: "ROI", value: stats && stats.total_purchase_amount > 0 ? `${((stats.net_profit / stats.total_purchase_amount) * 100).toFixed(1)}%` : "0%", icon: BarChart3, gradient: "from-blue-400 to-blue-600", delay: 0.2 },
@@ -553,7 +561,7 @@ export default function FinancesPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: pi.delay }}
-                className={`bg-gradient-to-br ${pi.gradient} p-5 md:p-6 rounded-[2.5rem] text-white shadow-xl shadow-slate-200 group relative overflow-hidden`}
+                className={`bg-gradient-to-br ${pi.gradient} p-5 md:p-6 rounded-2xl text-white shadow-xl shadow-slate-200 group relative overflow-hidden min-w-0`}
               >
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex items-center justify-between mb-2">
@@ -632,7 +640,7 @@ export default function FinancesPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Overview</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MiniMetricCard
                   title="Products"
                   value={stats?.products_count || 0}
@@ -653,7 +661,7 @@ export default function FinancesPage() {
                 />
                 <MiniMetricCard
                   title="Total Transactions"
-                  value={((stats?.products_count || 0) + (stats?.customers_count || 0)) * 12}
+                  value={(stats?.total_sales_count || 0) + (stats?.total_purchases_count || 0) + (stats?.total_expenses_count || 0)}
                   icon={<BarChart3 className="w-5 h-5" />}
                   color="purple"
                 />

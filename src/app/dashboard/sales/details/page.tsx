@@ -2,8 +2,6 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
-import Header from "@/components/header";
 import { getSale, refundSale } from "@/apiCalls";
 import {
   ArrowLeft,
@@ -123,13 +121,7 @@ function SaleDetailContent() {
   const safeItems = Array.isArray(sale.items) ? sale.items : [];
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      <Sidebar isOpen={true} toggleSidebar={() => {}} isMobile={false} />
-
-      <div className="flex-1">
-        <Header />
-
-        <main className="p-6 space-y-6">
+    <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[100vw] overflow-hidden">
           {/* BACK BUTTON */}
           <button
             onClick={() => router.push("/dashboard/sales")}
@@ -139,8 +131,8 @@ function SaleDetailContent() {
           </button>
 
           {/* MAIN CARD */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 space-y-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">
               Sale #{safeId}
             </h1>
 
@@ -184,7 +176,8 @@ function SaleDetailContent() {
 
             {/* ITEMS TABLE */}
             <div className="border rounded-xl overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="p-4 text-left text-gray-700">Product</th>
@@ -211,13 +204,14 @@ function SaleDetailContent() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* ACTIONS */}
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
               <button
                 onClick={() => window.print()}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >
                 <Receipt className="w-4 h-4" />
                 Print Receipt
@@ -226,16 +220,14 @@ function SaleDetailContent() {
               <button
                 onClick={handleRefund}
                 disabled={refundLoading}
-                className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 disabled:opacity-50"
+                className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <RotateCcw className="w-4 h-4" />
                 {refundLoading ? "Processing..." : "Refund Sale"}
               </button>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </main>
   );
 }
 
@@ -249,11 +241,11 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="p-4 bg-gray-50 border rounded-lg flex items-center gap-3">
-      {icon}
-      <div>
+    <div className="p-4 bg-gray-50 border rounded-lg flex items-center gap-3 min-w-0">
+      <div className="shrink-0">{icon}</div>
+      <div className="min-w-0">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="font-medium text-gray-900">{value}</p>
+        <p className="font-medium text-gray-900 break-words">{value}</p>
       </div>
     </div>
   );
@@ -266,4 +258,3 @@ export default function SaleDetailPage() {
     </Suspense>
   );
 }
-

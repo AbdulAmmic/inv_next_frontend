@@ -56,6 +56,95 @@ const isNetworkError = (error: any) => {
   );
 };
 
+const normalizePurchaseItems = (items: any[] = []) =>
+  items.map((item) => {
+    const ordered_quantity = Number(item.ordered_quantity ?? item.quantity ?? 0);
+    const cost = Number(item.cost ?? item.cost_price ?? item.unit_price ?? 0);
+    const selling_price = item.selling_price === undefined || item.selling_price === null || item.selling_price === ""
+      ? undefined
+      : Number(item.selling_price);
+
+    return {
+      ...item,
+      product_id: item.product_id,
+      quantity: ordered_quantity,
+      ordered_quantity,
+      received_quantity: Number(item.received_quantity ?? 0),
+      cost,
+      cost_price: cost,
+      selling_price,
+      total_price: cost * ordered_quantity,
+    };
+  });
+
+const normalizePurchase = (purchase: any, items?: any[]) => {
+  const normalizedItems = normalizePurchaseItems(items ?? purchase?.items ?? []);
+  const total_amount = Number(
+    purchase?.total_amount ??
+    normalizedItems.reduce((sum, item) => sum + Number(item.cost || 0) * Number(item.ordered_quantity || 0), 0)
+  );
+
+  return {
+    ...purchase,
+    status: purchase?.status || "ordered",
+    total_amount,
+    items: normalizedItems,
+  };
+};
+
+const buildLocalStats = async (shop_id?: string) => {
+  const [products, customers, suppliers, stocks, sales, saleItems, purchases, expenses] = await Promise.all([
+    db.products.toArray(),
+    db.customers.toArray(),
+    db.suppliers.toArray(),
+    shop_id ? db.stocks.where('shop_id').equals(shop_id).toArray() : db.stocks.toArray(),
+    shop_id ? db.sales.where('shop_id').equals(shop_id).toArray() : db.sales.toArray(),
+    db.sale_items.toArray(),
+    shop_id ? db.purchases.where('shop_id').equals(shop_id).toArray() : db.purchases.toArray(),
+    shop_id ? db.expenses.where('shop_id').equals(shop_id).toArray() : db.expenses.toArray(),
+  ]);
+
+  const completedSales = sales.filter((sale: any) => (sale.status || 'completed') === 'completed');
+  const total_sales_amount = completedSales.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0);
+  const total_expenses = expenses.reduce((sum: number, expense: any) => sum + Number(expense.amount || 0), 0);
+  const total_purchase_amount = purchases.reduce((sum: number, purchase: any) => sum + Number(purchase.total_amount || 0), 0);
+  const completedSaleIds = new Set(completedSales.map((sale: any) => sale.id));
+  const total_cost_of_goods_sold = saleItems
+    .filter((item: any) => completedSaleIds.has(item.sale_id))
+    .reduce((sum: number, item: any) => {
+      const product = products.find((p: any) => p.id === item.product_id);
+      return sum + Number(item.quantity || 0) * Number(product?.cost_price || 0);
+    }, 0);
+  const inventory_cost_value = stocks.reduce((sum: number, stock: any) => {
+    const product = products.find((p: any) => p.id === stock.product_id);
+    return sum + Number(stock.quantity || 0) * Number(stock.shop_cost_price ?? stock.cost_price ?? product?.cost_price ?? 0);
+  }, 0);
+  const inventory_selling_value = stocks.reduce((sum: number, stock: any) => {
+    const product = products.find((p: any) => p.id === stock.product_id);
+    return sum + Number(stock.quantity || 0) * Number(stock.shop_price ?? stock.price ?? product?.price ?? 0);
+  }, 0);
+  const gross_profit = total_sales_amount - total_cost_of_goods_sold;
+
+  return {
+    shop_id,
+    total_sales_amount,
+    total_sales_count: completedSales.length,
+    total_purchase_amount,
+    total_purchases_count: purchases.length,
+    total_expenses,
+    total_expenses_count: expenses.length,
+    inventory_cost_value,
+    inventory_selling_value,
+    low_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= Number(s.min_quantity || 0)).length,
+    out_of_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= 0).length,
+    customers_count: customers.length,
+    suppliers_count: suppliers.length,
+    products_count: shop_id ? stocks.length : products.length,
+    gross_profit,
+    net_profit: gross_profit - total_expenses,
+  };
+};
+
 // -------------------------------------------------------------
 // 🔐 REQUEST INTERCEPTOR — Attach Token & Auto Refresh
 // -------------------------------------------------------------
@@ -286,6 +375,20 @@ export const createStock = async (data: any) => {
 };
 
 export const updateStock = async (id: string, data: any) => {
+  if (isOnline()) {
+    try {
+      const res = await api.put(`/stocks/${id}`, data);
+      const stock = res.data?.data || res.data;
+      if (stock?.id) {
+        await db.stocks.put({ ...stock, updated_at: stock.updated_at || new Date().toISOString() });
+      }
+      return { data: stock };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('updateStock API failed, queueing offline:', e);
+    }
+  }
+
   const now = new Date().toISOString();
   await db.stocks.update(id, { ...data, updated_at: now });
   await queueChange('stocks', id, 'UPDATE', data);
@@ -304,6 +407,20 @@ export const adjustStock = async (data: {
   quantity: number;
   reason?: string;
 }) => {
+  if (isOnline()) {
+    try {
+      const res = await api.patch('/stocks/adjust', data);
+      const stock = res.data?.data || res.data;
+      if (stock?.id) {
+        await db.stocks.put({ ...stock, updated_at: stock.updated_at || new Date().toISOString() });
+      }
+      return { data: stock };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('adjustStock API failed, queueing offline:', e);
+    }
+  }
+
   const stock = await db.stocks.where({ shop_id: data.shop_id, product_id: data.product_id }).first();
   const now = new Date().toISOString();
   if (stock) {
@@ -629,6 +746,20 @@ export const getSupplierSummary = async (id: string) => {
 // 🔁 TRANSFERS (Between Shops)
 // #############################################################
 export const createTransfer = async (data: any) => {
+  if (isOnline()) {
+    try {
+      const res = await api.post('/transfers', data);
+      const transfer = res.data;
+      if (transfer?.id) {
+        await db.transfers.put({ ...transfer, updated_at: transfer.updated_at || new Date().toISOString() });
+      }
+      return { data: transfer };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('createTransfer API failed, queueing offline:', e);
+    }
+  }
+
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const transfer = { ...data, id, status: 'pending', created_at: now, updated_at: now };
@@ -735,14 +866,39 @@ export const getAdjustments = async (shop_id?: string) => {
 // PURCHASES
 // #############################################################
 export const createPurchase = async (data: any) => {
-  const id = crypto.randomUUID();
+  const items = normalizePurchaseItems(data.items || []);
+  const serverPayload = { ...data, items };
+
+  if (isOnline()) {
+    try {
+      const res = await api.post('/purchases', serverPayload);
+      const purchase = normalizePurchase(res.data.purchase || res.data);
+      await db.purchases.put(purchase);
+      if (purchase.items.length > 0) {
+        await db.purchase_items.bulkPut(purchase.items.map((item: any) => ({ ...item, purchase_id: purchase.id }))).catch(() => {});
+      }
+      return { data: purchase };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('createPurchase API failed, queueing offline:', e);
+    }
+  }
+
+  const id = data.id || crypto.randomUUID();
   const now = new Date().toISOString();
-  const purchase = { ...data, id, created_at: now, updated_at: now, status: 'pending' };
+  const purchase = normalizePurchase({
+    ...data,
+    id,
+    items,
+    created_at: now,
+    updated_at: now,
+    status: data.status || 'ordered',
+  });
   
   await db.purchases.add(purchase);
-  if (data.items) {
-    for (const item of data.items) {
-      await db.purchase_items.add({ ...item, id: crypto.randomUUID(), purchase_id: id });
+  if (items.length > 0) {
+    for (const item of items) {
+      await db.purchase_items.add({ ...item, id: item.id || crypto.randomUUID(), purchase_id: id });
     }
   }
   await queueChange('purchases', id, 'CREATE', purchase);
@@ -756,7 +912,7 @@ export const getPurchases = async (shop_id?: string) => {
       const all = extractArr(res.data);
       if (all.length > 0) {
         // Save purchases
-        await db.purchases.bulkPut(all).catch(() => {});
+        await db.purchases.bulkPut(all.map((p: any) => normalizePurchase(p))).catch(() => {});
         // Extract and save items from all purchases
         const allItems: any[] = [];
         for (const p of all) {
@@ -766,22 +922,55 @@ export const getPurchases = async (shop_id?: string) => {
         }
         if (allItems.length > 0) await db.purchase_items.bulkPut(allItems).catch(() => {});
       }
-      return { data: shop_id ? all.filter((p: any) => p.shop_id === shop_id) : all };
+      const normalized = all.map((p: any) => normalizePurchase(p));
+      return { data: shop_id ? normalized.filter((p: any) => p.shop_id === shop_id) : normalized };
     } catch (e) {
       console.warn('getPurchases API failed, falling back to cache:', e);
     }
   }
   const purchases = shop_id ? await db.purchases.where('shop_id').equals(shop_id).toArray() : await db.purchases.toArray();
-  return { data: purchases };
+  const items = await db.purchase_items.toArray();
+  return {
+    data: purchases.map((purchase: any) =>
+      normalizePurchase(purchase, items.filter((item: any) => item.purchase_id === purchase.id))
+    )
+  };
 };
 
 export const getPurchase = async (id: string) => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/purchases/${id}`);
+      const purchase = normalizePurchase(res.data);
+      await db.purchases.put(purchase);
+      if (purchase.items.length > 0) {
+        await db.purchase_items.bulkPut(purchase.items.map((item: any) => ({ ...item, purchase_id: id }))).catch(() => {});
+      }
+      return { data: purchase };
+    } catch (e: any) {
+      if (e.response?.status === 404) throw new Error('Purchase not found');
+      console.warn('getPurchase API failed, falling back to cache:', e);
+    }
+  }
+
   const purchase = await db.purchases.get(id);
   const items = await db.purchase_items.where('purchase_id').equals(id).toArray();
-  return { data: { ...purchase, items } as any };
+  return { data: normalizePurchase(purchase, items) as any };
 };
 
 export const updatePurchase = async (id: string, data: any) => {
+  if (isOnline()) {
+    try {
+      const res = await api.put(`/purchases/${id}`, data);
+      const purchase = normalizePurchase(res.data);
+      await db.purchases.put(purchase);
+      return { data: purchase };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('updatePurchase API failed, queueing offline:', e);
+    }
+  }
+
   const now = new Date().toISOString();
   await db.purchases.update(id, { ...data, updated_at: now });
   await queueChange('purchases', id, 'UPDATE', data);
@@ -789,6 +978,21 @@ export const updatePurchase = async (id: string, data: any) => {
 };
 
 export const receivePurchase = async (id: string, payload: any) => {
+  if (isOnline()) {
+    try {
+      const res = await api.post(`/purchases/${id}/receive`, payload);
+      const purchase = normalizePurchase(res.data);
+      await db.purchases.put(purchase);
+      if (purchase.items.length > 0) {
+        await db.purchase_items.bulkPut(purchase.items.map((item: any) => ({ ...item, purchase_id: id }))).catch(() => {});
+      }
+      return { data: purchase };
+    } catch (e) {
+      if (!isNetworkError(e)) throw e;
+      console.warn('receivePurchase API failed, queueing offline:', e);
+    }
+  }
+
   const now = new Date().toISOString();
   const purchase = await db.purchases.get(id);
   if (!purchase) throw new Error("Purchase not found");
@@ -813,7 +1017,7 @@ export const receivePurchase = async (id: string, payload: any) => {
 
   for (const item of items) {
     // Use received_quantity from form if available, fallback to ordered quantity
-    const receivedQty = receivedQtyMap[item.id] ?? Number(item.quantity || 0);
+    const receivedQty = receivedQtyMap[item.id] ?? Number(item.ordered_quantity ?? item.quantity ?? 0);
 
     // Skip if nothing was received for this item
     if (receivedQty <= 0) continue;
@@ -950,7 +1154,7 @@ export const getFullStats = async (params?: any) => {
       if (cached) {
         return cached;
       }
-      throw e;
+      return { data: await buildLocalStats(params?.shop_id) };
     }
   }
 
@@ -959,7 +1163,7 @@ export const getFullStats = async (params?: any) => {
     return cached;
   }
 
-  throw new Error('Offline and no cached full statistics available.');
+  return { data: await buildLocalStats(params?.shop_id) };
 };
 
 // #############################################################
