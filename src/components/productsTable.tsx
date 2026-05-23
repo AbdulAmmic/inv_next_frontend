@@ -70,25 +70,52 @@ export default function ProductsTable({
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "inStock":
-        return { label: "In Stock", color: "emerald", icon: CheckCircle };
+        return {
+          label: "In Stock",
+          icon: CheckCircle,
+          badgeBg: "bg-emerald-100",
+          badgeText: "text-emerald-700",
+        };
       case "lowStock":
-        return { label: "Low Stock", color: "amber", icon: AlertTriangle };
+        return {
+          label: "Low Stock",
+          icon: AlertTriangle,
+          badgeBg: "bg-amber-100",
+          badgeText: "text-amber-700",
+        };
       case "outOfStock":
-        return { label: "Out of Stock", color: "rose", icon: XCircle };
+        return {
+          label: "Out of Stock",
+          icon: XCircle,
+          badgeBg: "bg-rose-100",
+          badgeText: "text-rose-700",
+        };
       default:
-        return { label: status, color: "slate", icon: Package };
+        return {
+          label: status,
+          icon: Package,
+          badgeBg: "bg-slate-100",
+          badgeText: "text-slate-700",
+        };
     }
   };
 
+  const getSelectButtonClassName = (isSelected: boolean) => {
+    if (isSelected) {
+      return "rounded-full px-3 py-1 text-xs font-semibold transition bg-slate-900 text-white";
+    }
+    return "rounded-full px-3 py-1 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200";
+  };
+
   return (
-    <div className="overflow-x-auto relative">
+    <div className="relative">
       <AnimatePresence>
         {selectedProducts.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex items-center justify-between p-4 bg-slate-900 text-white sticky top-0 z-20 rounded-t-2xl"
+            className="flex flex-col gap-3 p-4 bg-slate-900 text-white sticky top-0 z-20 rounded-t-2xl md:flex-row md:items-center md:justify-between"
           >
             <p className="font-bold text-sm">
               {selectedProducts.length} products selected
@@ -111,8 +138,9 @@ export default function ProductsTable({
         )}
       </AnimatePresence>
 
-      <table className="w-full text-left min-w-[1000px]">
-        <thead>
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left min-w-[1000px]">
+          <thead>
           <tr className="bg-slate-50/50 border-b border-slate-100 italic">
             <th className="px-6 py-4 w-10">
               <input
@@ -142,6 +170,7 @@ export default function ProductsTable({
           <AnimatePresence mode="popLayout">
             {sortedProducts.map((product, idx) => {
               const status = getStatusInfo(product.status);
+              const StatusIcon = status.icon;
               return (
                 <motion.tr
                   layout
@@ -190,8 +219,8 @@ export default function ProductsTable({
                   </td>
 
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-${status.color}-100 text-${status.color}-700`}>
-                      <status.icon className="w-3 h-3" />
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${status.badgeBg} ${status.badgeText}`}>
+                      <StatusIcon className="w-3 h-3" />
                       {status.label}
                     </span>
                   </td>
@@ -233,7 +262,77 @@ export default function ProductsTable({
             </tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
+
+      <div className="md:hidden space-y-4">
+        {sortedProducts.map((product) => {
+          const status = getStatusInfo(product.status);
+          const StatusIcon = status.icon;
+          return (
+            <div key={product.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-base font-bold text-slate-900">
+                    {product.name}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">SKU: {product.sku || "No SKU"}</p>
+                  <p className="text-xs text-slate-500 mt-1">Category: {product.category || "Uncategorized"}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${status.badgeBg} ${status.badgeText}`}>
+                    <StatusIcon className="w-3 h-3" />
+                    {status.label}
+                  </span>
+                  <button
+                    onClick={() => toggleSelect(product.id)}
+                    className={getSelectButtonClassName(selectedProducts.includes(product.id))}
+                  >
+                    {selectedProducts.includes(product.id) ? 'Selected' : 'Select'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Stock</p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">{product.stockQuantity}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Sale Price</p>
+                  <p className="mt-2 font-semibold text-blue-600">₦{Number(product.sellingPrice).toLocaleString()}</p>
+                </div>
+                {(userRole === "admin" || userRole === "subadmin") && (
+                  <div className="rounded-2xl bg-slate-50 p-3 col-span-2">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Unit Cost</p>
+                    <p className="mt-2 font-semibold text-slate-900">₦{Number(product.costPrice).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-slate-500">
+                  {product.description || 'No description available.'}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => onEditProduct(product)}
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDeleteProduct(product)}
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

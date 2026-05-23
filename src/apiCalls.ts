@@ -44,6 +44,18 @@ const parseJwt = (token: string) => {
   }
 };
 
+const isNetworkError = (error: any) => {
+  if (!error) return false;
+  const msg = String(error.message || "").toLowerCase();
+  return (
+    msg.includes("network error") ||
+    msg.includes("timeout") ||
+    msg.includes("cancel") ||
+    error.code === "ECONNABORTED" ||
+    error.code === "ERR_NETWORK"
+  );
+};
+
 // -------------------------------------------------------------
 // 🔐 REQUEST INTERCEPTOR — Attach Token & Auto Refresh
 // -------------------------------------------------------------
@@ -906,6 +918,20 @@ export const getInventoryReport = (shop_id?: string) => api.get(`/reports/invent
 
 export const getFullStats = async (params?: any) => {
   const key = `full_stats_${params?.shop_id || 'global'}_${params?.start_date || 'none'}_${params?.end_date || 'none'}`;
+  const cacheFallback = async () => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        try {
+          return { data: JSON.parse(cached) };
+        } catch (err) {
+          console.warn('getFullStats cache parse failed:', err);
+        }
+      }
+    }
+    return null;
+  };
+
   if (isOnline()) {
     try {
       const res = await api.get('/reports/full-stats', { params });
@@ -913,36 +939,27 @@ export const getFullStats = async (params?: any) => {
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(key, JSON.stringify(stats));
-        } catch {}
+        } catch (err) {
+          console.warn('getFullStats cache write failed:', err);
+        }
       }
       return { data: stats };
-    } catch (e) {
-      console.warn('getFullStats API failed, falling back to cache:', e);
+    } catch (e: any) {
+      console.warn('getFullStats API failed:', e);
+      const cached = await cacheFallback();
+      if (cached) {
+        return cached;
+      }
+      throw e;
     }
   }
 
-  if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(key);
-    if (cached) {
-      try {
-        return { data: JSON.parse(cached) };
-      } catch {}
-    }
+  const cached = await cacheFallback();
+  if (cached) {
+    return cached;
   }
 
-  return { data: {
-    total_sales_amount: 0,
-    gross_profit: 0,
-    net_profit: 0,
-    total_expenses: 0,
-    total_purchase_amount: 0,
-    inventory_selling_value: 0,
-    products_count: 0,
-    customers_count: 0,
-    suppliers_count: 0,
-    low_stock_count: 0,
-    out_of_stock_count: 0,
-  } };
+  throw new Error('Offline and no cached full statistics available.');
 };
 
 // #############################################################

@@ -78,6 +78,7 @@ export default function FinancesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Preparing Dashboard..."); // New State
   const [stats, setStats] = useState<FinancialStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
   const [timeRange, setTimeRange] = useState<string>("month");
@@ -150,12 +151,15 @@ export default function FinancesPage() {
       }
     } catch (err) {
       console.error("Failed to load shops", err);
+      setError("Unable to load shops. Please refresh the page.");
+      setLoading(false);
     }
   };
 
   const fetchStats = async (shopId: string) => {
     try {
       if (!stats) setLoading(true);
+      setError(null);
 
       // Fun dynamic messages
       const messages = [
@@ -177,8 +181,11 @@ export default function FinancesPage() {
 
       const res = await getFullStats(params);
       setStats(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed loading stats", err);
+      setError(err.response?.status === 403
+        ? "You do not have permission to view financial statistics."
+        : "Failed to load financial statistics. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -508,6 +515,13 @@ export default function FinancesPage() {
             </button>
           </motion.div>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Active Range & PI */}
         <div className="flex flex-col gap-6">
