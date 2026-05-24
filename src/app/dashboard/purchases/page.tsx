@@ -413,7 +413,7 @@ export default function PurchasesPage() {
           transition={{ delay: 0.4 }}
           className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-2xl shadow-slate-200/50"
         >
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left min-w-[1100px]">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100 italic">
@@ -545,6 +545,119 @@ export default function PurchasesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card Layout */}
+          <div className="md:hidden flex flex-col divide-y divide-slate-100/50">
+            <AnimatePresence mode="popLayout">
+              {filteredPurchases.map((p, idx) => {
+                const status = getStatusInfo(p.status);
+                return (
+                  <motion.div
+                    layout
+                    key={p.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="p-5 flex flex-col gap-4 bg-white/50 hover:bg-white transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 text-slate-900 rounded-[1rem] flex items-center justify-center font-black text-xs shadow-inner uppercase tracking-tighter shrink-0">
+                          #{p.purchase_number.split('-')[1] || p.purchase_number.slice(-4)}
+                        </div>
+                        <div>
+                          <h3 
+                            className="font-bold text-slate-900 text-sm tracking-tight cursor-pointer"
+                            onClick={() => router.push(`/dashboard/purchases/details?id=${p.id}`)}
+                          >
+                            {p.purchase_number}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-0.5 opacity-60 text-slate-500">
+                            <Calendar className="w-3 h-3" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">{new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 ${statusColorClasses[status.color]} rounded-lg text-[10px] font-black uppercase tracking-widest ring-1`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusDotClasses[status.color]} animate-pulse`} />
+                        {status.label}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/50 rounded-xl p-3 space-y-2 border border-slate-100/50">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-slate-100 text-slate-400">
+                          <Truck className="w-3 h-3" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700 truncate">{p.supplier_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-slate-100 text-slate-400">
+                          <Package className="w-3 h-3" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{p.shop_name}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.items?.slice(0, 2).map((item, i) => (
+                        <span key={i} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-[10px] font-bold truncate max-w-[150px]">
+                          {item.product_name || 'Unknown'} (x{item.ordered_quantity})
+                        </span>
+                      ))}
+                      {(p.items?.length || 0) > 2 && (
+                        <span className="px-2 py-1 bg-slate-50 text-slate-500 border border-slate-200 rounded-lg text-[10px] font-bold">
+                          +{(p.items?.length || 0) - 2}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-slate-100/50">
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Total Amount</p>
+                        <div className="font-black text-slate-900 text-sm">
+                          ₦{(p.total_amount || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => router.push(`/dashboard/purchases/details?id=${p.id}&edit=1`)}
+                          className="p-2 bg-white border border-slate-200 text-slate-400 rounded-xl transition-all shadow-sm"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/dashboard/purchases/details?id=${p.id}`)}
+                          className="p-2 bg-slate-900 text-white rounded-xl shadow-md"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+
+            {filteredPurchases.length === 0 && (
+              <div className="p-12 text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
+                  <Package className="w-8 h-8 text-slate-200" />
+                </div>
+                <h3 className="font-extrabold text-slate-900">Purchase Registry Empty</h3>
+                <p className="text-slate-400 text-xs mt-2 font-medium">
+                  No inbound records found.
+                </p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="mt-6 flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-all text-xs"
+                >
+                  Establish Order <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       </main>

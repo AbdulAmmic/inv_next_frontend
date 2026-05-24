@@ -304,7 +304,7 @@ export default function ExpensesPage() {
 
         {/* TABLE */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
@@ -370,6 +370,64 @@ export default function ExpensesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card Layout */}
+          <div className="md:hidden flex flex-col divide-y divide-gray-100/50">
+            {filteredExpenses.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                  <span className="text-3xl">🧾</span>
+                </div>
+                <h3 className="font-bold text-gray-900">No expenses found</h3>
+                <p className="text-gray-500 text-xs mt-2">Try adjusting your filters.</p>
+              </div>
+            ) : (
+              filteredExpenses.map((e) => {
+                const catName = categories.find(c => c.id === e.category_id)?.name || e.category_name || "Uncategorized";
+                return (
+                  <div key={e.id} className="p-4 flex flex-col gap-3 bg-white hover:bg-gray-50 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getCategoryBadgeColor(catName)}`}>
+                        {catName}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900">
+                        ₦{Number(e.amount).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs text-gray-800 font-medium">
+                        {e.description || <span className="text-gray-400 italic">No description</span>}
+                      </p>
+                      <p className="text-[10px] text-gray-500 font-medium truncate">
+                        {shops.find((s) => s.id === e.shop_id)?.name}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-gray-100/50">
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {new Date(e.date).toLocaleDateString("en-NG")}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleViewDetails(e)}
+                          className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(e.id)}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </main>

@@ -208,7 +208,7 @@ export default function CategoriesPage() {
           {/* Categories Table */}
           {filteredCategories.length > 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -252,6 +252,37 @@ export default function CategoriesPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card Layout */}
+              <div className="md:hidden flex flex-col divide-y divide-gray-100">
+                {filteredCategories.map((cat) => (
+                  <div key={cat.id} className="p-4 flex flex-col gap-3 bg-white hover:bg-gray-50 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-900">{cat.name}</span>
+                        <span className="text-xs text-gray-500 mt-1">{cat.description}</span>
+                      </div>
+                      <span className="px-2.5 py-1 text-[10px] font-medium bg-blue-100 text-blue-800 rounded-full shrink-0">
+                        {cat.productCount} products
+                      </span>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100/50">
+                      <button 
+                        onClick={() => setEditingCategory(cat)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-blue-600 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cat.id)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (

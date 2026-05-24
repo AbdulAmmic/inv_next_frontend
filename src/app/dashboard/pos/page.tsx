@@ -251,6 +251,12 @@ export default function POSPage() {
         setDiscountValue(0);
         setOtherCharges(0);
         toast.success("Transaction completed!");
+        
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance("Thank you for doing business with Tuhanas!");
+          window.speechSynthesis.speak(utterance);
+        }
+
         await loadStock();
       }
     } catch (err: any) {

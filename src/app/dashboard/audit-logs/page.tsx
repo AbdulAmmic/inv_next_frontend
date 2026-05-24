@@ -386,7 +386,7 @@ export default function AuditLogsPage() {
 
                         {/* Logs Table */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="overflow-x-auto">
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full">
                                     <thead className="bg-gray-50 border-b border-gray-200">
                                         <tr>
@@ -486,6 +486,67 @@ export default function AuditLogsPage() {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Mobile Card Layout */}
+                            <div className="md:hidden flex flex-col divide-y divide-gray-100">
+                                {sortedLogs.length > 0 ? (
+                                    sortedLogs.map((log) => (
+                                        <div key={log.id} className="p-4 flex flex-col gap-3 hover:bg-gray-50/50 transition-colors">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                                                        <User className="w-4 h-4 text-indigo-600" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900">{log.user_name}</span>
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-medium">
+                                                            <Calendar className="w-3 h-3" />
+                                                            {new Date(log.created_at).toLocaleString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest shrink-0 ${
+                                                    log.action.includes('delete') ? 'bg-red-50 text-red-700' :
+                                                    log.action.includes('create') ? 'bg-green-50 text-green-700' :
+                                                    log.action.includes('update') ? 'bg-blue-50 text-blue-700' :
+                                                    'bg-gray-50 text-gray-700'
+                                                }`}>
+                                                    {log.action.replace(/_/g, ' ')}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="bg-gray-50/50 rounded-xl p-3 border border-gray-100">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resource</span>
+                                                    <span className="text-xs font-bold text-gray-900">{log.resource}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ID</span>
+                                                    <span className="text-[10px] font-mono text-gray-500 truncate max-w-[150px]">{log.resource_id || "N/A"}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between mt-1">
+                                                <div className="text-[10px] text-gray-400 truncate max-w-[200px]">
+                                                    {JSON.stringify(log.meta)}
+                                                </div>
+                                                <button
+                                                    onClick={() => alert(JSON.stringify(log.meta, null, 2))}
+                                                    className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors shrink-0"
+                                                >
+                                                    <Info className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-12 text-center text-gray-500 flex flex-col items-center gap-3">
+                                        <ShieldAlert className="w-12 h-12 text-gray-200" />
+                                        <p className="text-lg font-bold text-gray-900">No logs found</p>
+                                        <p className="text-xs">Adjust your filters to see more logs.</p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
