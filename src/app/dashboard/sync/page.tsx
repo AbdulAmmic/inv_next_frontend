@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/db";
 import { RefreshCw, CheckCircle2, AlertCircle, Database, ArrowRight, History } from "lucide-react";
 import { motion } from "framer-motion";
-import { pushChanges } from "@/syncEngine";
+import { pushChanges, pullUpdates } from "@/syncEngine";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 
@@ -22,8 +22,9 @@ export default function SyncPage() {
     }
     setSyncing(true);
     try {
-      await pushChanges();
-      toast.success("Sync started");
+      await pushChanges(true);
+      await pullUpdates();
+      toast.success("Sync completed");
     } catch (err) {
       toast.error("Sync failed");
     } finally {

@@ -55,19 +55,17 @@ export function useSyncStatus() {
     try {
       const pending = await db.sync_queue
         .where("status")
-        .anyOf(["pending", "failed"])
+        .equals("pending")
         .count();
 
       setBanner((prev) => ({
         ...prev,
         pendingCount: pending,
         state:
-          prev.state === "syncing" || prev.state === "pulling"
+          prev.state === "syncing" || prev.state === "pulling" || prev.state === "error"
             ? prev.state
             : pending > 0
             ? "unsynced"
-            : prev.state === "error"
-            ? "error"
             : "synced",
       }));
     } catch {
@@ -84,6 +82,11 @@ export function useSyncStatus() {
 
   // ── Online / Offline detection ──
   useEffect(() => {
+    if (typeof window !== "undefined" && navigator.onLine) {
+      setTimeout(() => {
+        if (!isSyncing.current) triggerPull();
+      }, 2000);
+    }
     const handleOnline = () => {
       setOnline(true);
       // Automatically pull when internet comes back
@@ -194,7 +197,7 @@ export function useSyncStatus() {
   }, []);
 
   // ── Manual trigger: push to server ──
-  const pushToServer = useCallback(async () => {
+  const pushToServer = useCallback(async (retryFailed = false) => {
     if (!navigator.onLine || isSyncing.current) return;
     isSyncing.current = true;
 
@@ -209,12 +212,13 @@ export function useSyncStatus() {
     try {
       const { pushChanges } = await import("@/syncEngine");
 
-      const pending = await db.sync_queue
+      const statuses = retryFailed ? ["pending", "failed"] : ["pending"];
+      const pendingCount = await db.sync_queue
         .where("status")
-        .anyOf(["pending", "failed"])
-        .toArray();
+        .anyOf(statuses)
+        .count();
 
-      if (pending.length === 0) {
+      if (pendingCount === 0) {
         isSyncing.current = false;
         setBanner((prev) => ({
           ...prev,
@@ -229,10 +233,10 @@ export function useSyncStatus() {
       setBanner((prev) => ({
         ...prev,
         progress: 15,
-        progressLabel: `Pushing ${pending.length} change${pending.length !== 1 ? "s" : ""}...`,
+        progressLabel: `Pushing ${pendingCount} change${pendingCount !== 1 ? "s" : ""}...`,
       }));
 
-      const result = await pushChanges();
+      const result = await pushChanges(retryFailed);
 
       setBanner((prev) => ({ ...prev, progress: 75, progressLabel: "Verifying..." }));
       await new Promise((r) => setTimeout(r, 300));
@@ -445,10 +449,9 @@ export default function SyncBanner() {
               onClick={
                 banner.state === "error"
                   ? () => {
-                      if (banner.pendingCount > 0) pushToServer();
-                      else triggerPull();
+                      pushToServer(true); // Retry failed
                     }
-                  : pushToServer
+                  : () => pushToServer(false)
               }
               className={`px-3 py-1 rounded-lg text-xs font-black transition-all active:scale-95 flex-shrink-0 ${cfg.actionStyle}`}
             >

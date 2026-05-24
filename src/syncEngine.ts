@@ -53,10 +53,11 @@ syncApi.interceptors.request.use((config) => {
 // ─────────────────────────────────────────────
 // PUSH: Send queued local changes to server
 // ─────────────────────────────────────────────
-export async function pushChanges(): Promise<{ pushed: number; failed: number; conflicts: number }> {
+export async function pushChanges(includeFailed = false): Promise<{ pushed: number; failed: number; conflicts: number }> {
+  const statuses = includeFailed ? ['pending', 'failed'] : ['pending'];
   const pendingChanges = await db.sync_queue
     .where('status')
-    .anyOf(['pending', 'failed'])
+    .anyOf(statuses)
     .toArray();
 
   if (pendingChanges.length === 0) {
@@ -130,6 +131,29 @@ export async function pushChanges(): Promise<{ pushed: number; failed: number; c
             );
           }
           console.warn(`⚠️ ${conflicts.length} conflicts detected`);
+        }
+
+        // Mark other errors as failed
+        const otherErrors = (response.data.errors || []).filter(
+          (e: any) => e.reason !== 'conflict_detected'
+        );
+        if (otherErrors.length > 0) {
+          const failedIds = otherErrors
+            .map((e: any) =>
+              pendingChanges.find(
+                (c) => c.entityId === e.id && c.entity === e.entity
+              )?.id
+            )
+            .filter(Boolean);
+
+          if (failedIds.length > 0) {
+            await db.sync_queue.bulkUpdate(
+              failedIds.map((id) => ({
+                key: id,
+                changes: { status: 'failed' },
+              }))
+            );
+          }
         }
 
         // Clean up old synced entries (>48h)
