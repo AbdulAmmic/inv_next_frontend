@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
+  const [isOfflineData, setIsOfflineData] = useState(false);
 
   const loadShops = async (resolvedRole: string, userShopId?: string) => {
     try {
@@ -92,13 +93,25 @@ export default function DashboardPage() {
     try {
       if (!stats) setLoading(true);
       setError(null);
+      setIsOfflineData(false);
+      
       const res = await getFullStats({ shop_id: shopId });
       setStats(res.data);
+      
+      const online = typeof window !== "undefined" && navigator.onLine;
+      if (!online) {
+        setIsOfflineData(true);
+      }
     } catch (err: any) {
-      console.error("Dashboard Stats Error:", err);
-      setError(err.response?.status === 403
-        ? "You do not have permission to view dashboard statistics."
-        : "Failed to load dashboard statistics.");
+      console.error("Dashboard Stats Error, falling back to local database:", err);
+      try {
+        const { buildLocalStats } = await import("@/apiCalls");
+        const local = await buildLocalStats(shopId);
+        setStats(local);
+        setIsOfflineData(true);
+      } catch (fallbackErr) {
+        setError("Failed to load dashboard statistics.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -175,6 +188,13 @@ export default function DashboardPage() {
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {isOfflineData && (
+          <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-semibold flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 animate-pulse" />
+            <span>Currently displaying locally cached offline statistics. Connect to the internet to sync fresh remote updates.</span>
           </div>
         )}
 

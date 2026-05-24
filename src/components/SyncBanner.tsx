@@ -207,7 +207,7 @@ export default function SyncBanner() {
         <div className="px-4 py-2 flex items-center gap-3 text-sm font-semibold">
           {cfg.icon}
           
-          <span className="flex-1 truncate">{cfg.text}</span>
+          <span className="flex-1 truncate">{displayText}</span>
           
           {/* Progress bar during sync */}
           {banner.state === "syncing" && (

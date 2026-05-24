@@ -92,7 +92,7 @@ const normalizePurchase = (purchase: any, items?: any[]) => {
   };
 };
 
-const buildLocalStats = async (shop_id?: string) => {
+export const buildLocalStats = async (shop_id?: string) => {
   const [products, customers, suppliers, stocks, sales, saleItems, purchases, expenses] = await Promise.all([
     db.products.toArray(),
     db.customers.toArray(),
@@ -1023,10 +1023,16 @@ export const receivePurchase = async (id: string, payload: any) => {
     if (receivedQty <= 0) continue;
 
     // Update purchase_item with actual received quantity
-    await db.purchase_items.update(item.id, {
+    const updatedFields = {
       quantity: receivedQty,
+      received_quantity: receivedQty,
       updated_at: now
-    } as any);
+    };
+    await db.purchase_items.update(item.id, updatedFields as any);
+    await queueChange('purchase_items', item.id, 'UPDATE', {
+      received_quantity: receivedQty,
+      updated_at: now
+    });
 
     // Find stock record for this product in this shop
     const stock = await db.stocks

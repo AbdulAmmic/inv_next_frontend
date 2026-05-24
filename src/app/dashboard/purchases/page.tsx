@@ -88,6 +88,11 @@ export default function PurchasesPage() {
 
   const testConnection = async () => {
     try {
+      const online = typeof window !== "undefined" && navigator.onLine;
+      if (!online) {
+        setConnectionError(true);
+        return false;
+      }
       await healthCheck();
       setConnectionError(false);
       return true;
@@ -102,12 +107,11 @@ export default function PurchasesPage() {
       if (purchases.length === 0) setLoading(true);
       else setRefreshing(true);
 
-      const connected = await testConnection();
-      if (!connected) {
-        toast.error("Database connection unavailable. Please check backend.");
-        setLoading(false);
-        setRefreshing(false);
-        return;
+      const online = typeof window !== "undefined" && navigator.onLine;
+      setConnectionError(!online);
+
+      if (online) {
+        testConnection();
       }
 
       const [purchasesRes, suppliersRes, shopsRes, productsRes] = await Promise.all([
@@ -135,7 +139,7 @@ export default function PurchasesPage() {
           "Unknown Shop",
         total_amount: p.total_amount ?? 0,
         status: p.status || "ordered",
-        date: p.created_at,
+        date: p.created_at || new Date().toISOString(),
         items: p.items || [],
       }));
 
