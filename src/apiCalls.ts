@@ -93,56 +93,125 @@ const normalizePurchase = (purchase: any, items?: any[]) => {
 };
 
 export const buildLocalStats = async (shop_id?: string) => {
-  const [products, customers, suppliers, stocks, sales, saleItems, purchases, expenses] = await Promise.all([
-    db.products.toArray(),
-    db.customers.toArray(),
-    db.suppliers.toArray(),
-    shop_id ? db.stocks.where('shop_id').equals(shop_id).toArray() : db.stocks.toArray(),
-    shop_id ? db.sales.where('shop_id').equals(shop_id).toArray() : db.sales.toArray(),
-    db.sale_items.toArray(),
-    shop_id ? db.purchases.where('shop_id').equals(shop_id).toArray() : db.purchases.toArray(),
-    shop_id ? db.expenses.where('shop_id').equals(shop_id).toArray() : db.expenses.toArray(),
-  ]);
+  const CACHE_KEY = `local_stats_${shop_id || 'global'}`;
 
-  const completedSales = sales.filter((sale: any) => (sale.status || 'completed') === 'completed');
-  const total_sales_amount = completedSales.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0);
-  const total_expenses = expenses.reduce((sum: number, expense: any) => sum + Number(expense.amount || 0), 0);
-  const total_purchase_amount = purchases.reduce((sum: number, purchase: any) => sum + Number(purchase.total_amount || 0), 0);
-  const completedSaleIds = new Set(completedSales.map((sale: any) => sale.id));
-  const total_cost_of_goods_sold = saleItems
-    .filter((item: any) => completedSaleIds.has(item.sale_id))
-    .reduce((sum: number, item: any) => {
-      const product = products.find((p: any) => p.id === item.product_id);
-      return sum + Number(item.quantity || 0) * Number(product?.cost_price || 0);
+  try {
+    const [products, customers, suppliers, stocks, sales, saleItems, purchases, expenses] = await Promise.all([
+      db.products.filter((p: any) => !p.is_deleted).toArray(),
+      db.customers.filter((c: any) => !c.is_deleted).toArray(),
+      db.suppliers.filter((s: any) => !s.is_deleted).toArray(),
+      shop_id
+        ? db.stocks.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
+        : db.stocks.filter((s: any) => !s.is_deleted).toArray(),
+      shop_id
+        ? db.sales.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
+        : db.sales.filter((s: any) => !s.is_deleted).toArray(),
+      db.sale_items.toArray(),
+      shop_id
+        ? db.purchases.where('shop_id').equals(shop_id).filter((p: any) => !p.is_deleted).toArray()
+        : db.purchases.filter((p: any) => !p.is_deleted).toArray(),
+      shop_id
+        ? db.expenses.where('shop_id').equals(shop_id).filter((e: any) => !e.is_deleted).toArray()
+        : db.expenses.filter((e: any) => !e.is_deleted).toArray(),
+    ]);
+
+    // Only completed (non-refunded, non-cancelled) sales
+    const completedSales = sales.filter((sale: any) =>
+      (sale.status || 'completed') === 'completed'
+    );
+
+    const total_sales_amount = completedSales.reduce(
+      (sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0
+    );
+
+    const total_expenses = expenses.reduce(
+      (sum: number, expense: any) => sum + Number(expense.amount || 0), 0
+    );
+
+    const total_purchase_amount = purchases.reduce(
+      (sum: number, purchase: any) => sum + Number(purchase.total_amount || 0), 0
+    );
+
+    // Build shop-specific cost map for accurate COGS
+    const shopCostMap = new Map<string, number>();
+    for (const stock of stocks) {
+      const cost = Number(
+        (stock as any).shop_cost_price ?? (stock as any).cost_price ?? 0
+      );
+      shopCostMap.set((stock as any).product_id, cost);
+    }
+
+    const completedSaleIds = new Set(completedSales.map((sale: any) => sale.id));
+    const total_cost_of_goods_sold = saleItems
+      .filter((item: any) => completedSaleIds.has(item.sale_id))
+      .reduce((sum: number, item: any) => {
+        // Prefer shop-specific cost, then product catalog cost
+        const shopCost = shopCostMap.get(item.product_id);
+        const product = products.find((p: any) => p.id === item.product_id);
+        const cost = shopCost ?? Number(product?.cost_price || 0);
+        return sum + Number(item.quantity || 0) * cost;
+      }, 0);
+
+    // Inventory values using shop_cost_price / shop_price where available
+    const inventory_cost_value = stocks.reduce((sum: number, stock: any) => {
+      const product = products.find((p: any) => p.id === stock.product_id);
+      const cost = Number(stock.shop_cost_price ?? stock.cost_price ?? product?.cost_price ?? 0);
+      return sum + Number(stock.quantity || 0) * cost;
     }, 0);
-  const inventory_cost_value = stocks.reduce((sum: number, stock: any) => {
-    const product = products.find((p: any) => p.id === stock.product_id);
-    return sum + Number(stock.quantity || 0) * Number(stock.shop_cost_price ?? stock.cost_price ?? product?.cost_price ?? 0);
-  }, 0);
-  const inventory_selling_value = stocks.reduce((sum: number, stock: any) => {
-    const product = products.find((p: any) => p.id === stock.product_id);
-    return sum + Number(stock.quantity || 0) * Number(stock.shop_price ?? stock.price ?? product?.price ?? 0);
-  }, 0);
-  const gross_profit = total_sales_amount - total_cost_of_goods_sold;
 
-  return {
-    shop_id,
-    total_sales_amount,
-    total_sales_count: completedSales.length,
-    total_purchase_amount,
-    total_purchases_count: purchases.length,
-    total_expenses,
-    total_expenses_count: expenses.length,
-    inventory_cost_value,
-    inventory_selling_value,
-    low_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= Number(s.min_quantity || 0)).length,
-    out_of_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= 0).length,
-    customers_count: customers.length,
-    suppliers_count: suppliers.length,
-    products_count: shop_id ? stocks.length : products.length,
-    gross_profit,
-    net_profit: gross_profit - total_expenses,
-  };
+    const inventory_selling_value = stocks.reduce((sum: number, stock: any) => {
+      const product = products.find((p: any) => p.id === stock.product_id);
+      const price = Number(stock.shop_price ?? stock.price ?? product?.price ?? 0);
+      return sum + Number(stock.quantity || 0) * price;
+    }, 0);
+
+    const gross_profit = total_sales_amount - total_cost_of_goods_sold;
+    const net_profit = gross_profit - total_expenses;
+
+    const result = {
+      shop_id,
+      total_sales_amount: Math.round(total_sales_amount * 100) / 100,
+      total_sales_count: completedSales.length,
+      total_purchase_amount: Math.round(total_purchase_amount * 100) / 100,
+      total_purchases_count: purchases.length,
+      total_expenses: Math.round(total_expenses * 100) / 100,
+      total_expenses_count: expenses.length,
+      inventory_cost_value: Math.round(inventory_cost_value * 100) / 100,
+      inventory_selling_value: Math.round(inventory_selling_value * 100) / 100,
+      low_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= Number(s.min_quantity || 0)).length,
+      out_of_stock_count: stocks.filter((s: any) => Number(s.quantity || 0) <= 0).length,
+      customers_count: customers.length,
+      suppliers_count: suppliers.length,
+      products_count: shop_id ? stocks.length : products.length,
+      gross_profit: Math.round(gross_profit * 100) / 100,
+      net_profit: Math.round(net_profit * 100) / 100,
+    };
+
+    // Cache in sessionStorage so page refreshes don't show blanks
+    try {
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(result));
+    } catch { /* storage full — skip */ }
+
+    return result;
+  } catch (dbErr) {
+    console.warn('buildLocalStats DB error, checking sessionStorage cache:', dbErr);
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached) return JSON.parse(cached);
+    } catch { /* ignore */ }
+
+    // Absolute fallback — zero state
+    return {
+      shop_id,
+      total_sales_amount: 0, total_sales_count: 0,
+      total_purchase_amount: 0, total_purchases_count: 0,
+      total_expenses: 0, total_expenses_count: 0,
+      inventory_cost_value: 0, inventory_selling_value: 0,
+      low_stock_count: 0, out_of_stock_count: 0,
+      customers_count: 0, suppliers_count: 0, products_count: 0,
+      gross_profit: 0, net_profit: 0,
+    };
+  }
 };
 
 // -------------------------------------------------------------
@@ -1127,50 +1196,51 @@ export const getDailySales = (shop_id?: string) => api.get(`/reports/daily-sales
 export const getInventoryReport = (shop_id?: string) => api.get(`/reports/inventory`, { params: { shop_id } });
 
 export const getFullStats = async (params?: any) => {
-  const key = `full_stats_${params?.shop_id || 'global'}_${params?.start_date || 'none'}_${params?.end_date || 'none'}`;
-  const cacheFallback = async () => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem(key);
-      if (cached) {
-        try {
-          return { data: JSON.parse(cached) };
-        } catch (err) {
-          console.warn('getFullStats cache parse failed:', err);
-        }
-      }
-    }
+  const lsKey = `full_stats_${params?.shop_id || 'global'}_${params?.start_date || 'none'}_${params?.end_date || 'none'}`;
+  const ssKey = `local_stats_${params?.shop_id || 'global'}`;
+
+  /** Try localStorage → sessionStorage → null */
+  const getCached = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const ls = localStorage.getItem(lsKey);
+      if (ls) return { data: JSON.parse(ls) };
+    } catch { /* ignore */ }
+    try {
+      const ss = sessionStorage.getItem(ssKey);
+      if (ss) return { data: JSON.parse(ss) };
+    } catch { /* ignore */ }
     return null;
   };
 
   if (isOnline()) {
     try {
-      const res = await api.get('/reports/full-stats', { params });
+      const res = await api.get('/reports/full-stats', { params, timeout: 20000 });
       const stats = res.data;
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(key, JSON.stringify(stats));
-        } catch (err) {
-          console.warn('getFullStats cache write failed:', err);
-        }
-      }
+      // Cache successful response
+      try {
+        if (typeof window !== 'undefined') localStorage.setItem(lsKey, JSON.stringify(stats));
+      } catch { /* storage full — skip */ }
       return { data: stats };
     } catch (e: any) {
-      console.warn('getFullStats API failed:', e);
-      const cached = await cacheFallback();
-      if (cached) {
-        return cached;
-      }
+      const status = e.response?.status;
+      if (status === 401 || status === 403) throw e; // Auth errors — propagate
+
+      console.warn(`getFullStats API failed (${status || 'network'}), falling back to cache`);
+      // Cache-first fallback — never crash the dashboard
+      const cached = getCached();
+      if (cached) return cached;
+      // Last resort — compute from local Dexie data
       return { data: await buildLocalStats(params?.shop_id) };
     }
   }
 
-  const cached = await cacheFallback();
-  if (cached) {
-    return cached;
-  }
-
+  // Offline path: cache → local compute
+  const cached = getCached();
+  if (cached) return cached;
   return { data: await buildLocalStats(params?.shop_id) };
 };
+
 
 // #############################################################
 // 📊 AUDIT LOGS (ADMIN ONLY)
