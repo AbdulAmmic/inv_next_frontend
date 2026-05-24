@@ -1,8 +1,8 @@
-const CACHE_NAME = "tuhanas-cache-v1";
-const OFFLINE_URL = "/offline.html";
+const CACHE_NAME = "tuhanas-cache-v2";
 const PRECACHE_URLS = [
   "/",
-  "/offline.html",
+  "/dashboard",
+  "/dashboard/pos",
   "/manifest.json",
   "/favicon.png",
   "/icons/icon-192x192.png",
@@ -50,8 +50,12 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => cacheAndReturn(request, response.clone()))
         .catch(async () => {
-          const cachedResponse = await caches.match(request);
-          return cachedResponse || caches.match(OFFLINE_URL);
+          const cachedResponse = await caches.match(request, { ignoreSearch: true });
+          if (cachedResponse) return cachedResponse;
+          
+          // If we don't have the exact page, return the /dashboard/pos page as a fallback app shell
+          // Next.js will hydrate it and might be able to recover or at least show the POS shell
+          return caches.match("/dashboard/pos") || caches.match("/");
         })
     );
     return;
