@@ -45,7 +45,8 @@ export default function StockTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      <div className="hidden md:block overflow-x-auto">
       <table className="min-w-full text-sm text-left">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr className="text-gray-600">
@@ -136,5 +137,58 @@ export default function StockTable({
         </tbody>
       </table>
     </div>
+
+    {/* Mobile Cards */}
+    <div className="md:hidden divide-y divide-gray-100">
+      {rows.map((row) => (
+        <div key={`${row.product_id}-${row.shop_id ?? "global"}`} className="p-4 space-y-3 hover:bg-gray-50/60">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="font-medium text-gray-900 text-base">{row.productName}</div>
+              <div className="text-xs text-gray-500 mt-0.5">SKU: {row.sku || "-"} | Cat: {row.category || "-"}</div>
+            </div>
+            <StockStatusBadge status={row.status} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm bg-gray-50 p-3 rounded-xl">
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Current Stock</div>
+              <div className="font-bold text-gray-900 text-lg">{row.currentStock} <span className="text-sm font-normal text-gray-500">{row.unit || "pcs"}</span></div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Min / Max</div>
+              <div className="font-medium text-gray-700">
+                {row.minStockLevel} {row.maxStockLevel != null ? `/ ${row.maxStockLevel}` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+            <button
+              onClick={() => onAdjust(row)}
+              className="flex-1 justify-center inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              Adjust
+            </button>
+            {canTransfer && (
+              <button
+                onClick={() => onTransfer(row)}
+                className="flex-1 justify-center inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-blue-200 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                Transfer
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+      {loading && (
+        <div className="p-8 text-center text-gray-500 text-sm">
+          Loading...
+        </div>
+      )}
+    </div>
+    </>
   );
 }

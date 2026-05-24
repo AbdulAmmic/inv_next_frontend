@@ -87,7 +87,7 @@ export default function SyncPage() {
               Pending Queue
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
@@ -127,6 +127,34 @@ export default function SyncPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Pending Queue */}
+          <div className="md:hidden divide-y divide-slate-50">
+            {pendingItems?.length === 0 ? (
+              <div className="px-6 py-10 text-center text-slate-400 font-medium italic">
+                No pending changes. Everything is in sync!
+              </div>
+            ) : (
+              pendingItems?.map((item) => (
+                <div key={item.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 capitalize">{item.entity}</span>
+                    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                      item.operation === 'CREATE' ? 'bg-emerald-50 text-emerald-600' :
+                      item.operation === 'UPDATE' ? 'bg-indigo-50 text-indigo-600' :
+                      'bg-rose-50 text-rose-600'
+                    }`}>
+                      {item.operation}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-mono text-slate-400 truncate max-w-[150px]">{item.entityId}</span>
+                    <span className="text-slate-500">{new Date(item.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Recent History */}
@@ -137,7 +165,7 @@ export default function SyncPage() {
               Recent Sync History
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
@@ -165,6 +193,32 @@ export default function SyncPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Recent Sync History */}
+          <div className="md:hidden divide-y divide-slate-50">
+            {syncedItems?.map((item) => (
+              <div key={item.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-600 capitalize">{item.entity}</span>
+                    <span className="text-xs text-slate-500 font-medium px-2 py-0.5 bg-slate-100 rounded-md">{item.operation}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-500 font-bold text-[10px] uppercase">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Synced
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 text-right">
+                  {new Date(item.timestamp).toLocaleString()}
+                </div>
+              </div>
+            ))}
+            {syncedItems?.length === 0 && (
+              <div className="px-6 py-10 text-center text-slate-400 font-medium italic">
+                No recent sync history.
+              </div>
+            )}
           </div>
         </div>
       </main>

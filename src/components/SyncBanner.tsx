@@ -283,6 +283,13 @@ export function useSyncStatus() {
     }
   }, [refreshPendingCount, triggerPull]);
 
+  // ── Auto Push when online ──
+  useEffect(() => {
+    if (online && banner.pendingCount > 0 && !isSyncing.current) {
+      pushToServer();
+    }
+  }, [online, banner.pendingCount, pushToServer]);
+
   return { banner, pushToServer, triggerPull, refreshPendingCount, online };
 }
 

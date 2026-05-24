@@ -416,9 +416,9 @@ export const getStocks = async (shop_id?: string) => {
     const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
     // Enrich with product info
     const enriched = await Promise.all(stocks.map(async (s: any) => {
-      if (s.productName) return { ...s, currentStock: s.quantity || s.currentStock || 0 };
+      if (s.productName) return { ...s, currentStock: s.quantity ?? s.currentStock ?? 0 };
       const product = await db.products.get(s.product_id);
-      return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity || 0 };
+      return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
     }));
     return { data: enriched };
   } catch (e) {
@@ -429,7 +429,7 @@ export const getStocks = async (shop_id?: string) => {
   const stocks = shop_id ? await db.stocks.where('shop_id').equals(shop_id).toArray() : await db.stocks.toArray();
   const enriched = await Promise.all(stocks.map(async (s) => {
     const product = await db.products.get(s.product_id);
-    return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity || 0 };
+    return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
   }));
   return { data: enriched };
 };

@@ -252,7 +252,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -299,6 +299,52 @@ export default function SettingsPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Cards Layout */}
+                <div className="md:hidden divide-y divide-slate-100">
+                  {filteredUsers.map((u) => (
+                    <div key={u.id} className="p-4 space-y-4 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-sm uppercase">
+                            {u.full_name?.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
+                            <div className="text-xs text-slate-400 font-medium">{u.email}</div>
+                          </div>
+                        </div>
+                        <RoleBadge role={u.role} />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-slate-50 p-2 rounded-lg">
+                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Shop Node</span>
+                          <span className="font-bold text-slate-600">
+                            {shops.find((s) => s.id === u.shop_id)?.name || <span className="text-slate-300">N/A</span>}
+                          </span>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg">
+                          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Secret Key</span>
+                          <div className="flex items-center gap-1.5 font-mono text-xs font-black text-slate-700">
+                            <Key size={10} className="text-slate-400" />
+                            {u.plain_password || "••••••••"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button onClick={() => openEditModal(u)} className="px-4 py-2 flex items-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all font-bold text-xs"><Edit size={14} /> Edit</button>
+                        <button onClick={() => deleteUserHandler(u.id)} className="px-4 py-2 flex items-center gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition-all font-bold text-xs"><Trash2 size={14} /> Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                     <div className="p-8 text-center text-slate-500 text-sm">
+                       No users found.
+                     </div>
+                  )}
                 </div>
               </div>
             </motion.div>

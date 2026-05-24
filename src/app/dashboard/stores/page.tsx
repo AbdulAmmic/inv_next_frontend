@@ -237,8 +237,9 @@ export default function StoresPage() {
                 <p className="text-gray-600">Loading stores...</p>
               </div>
             ) : filteredStores.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -309,6 +310,50 @@ export default function StoresPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {filteredStores.map((store) => (
+                  <div key={store.id} className="p-4 space-y-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <Building className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{store.name}</div>
+                          <div className="text-xs text-gray-500">{store.phone}</div>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        store.status === "Active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {store.status}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 p-3 rounded-lg">
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Manager</span>
+                        <span className="font-medium text-gray-900">{store.manager}</span>
+                      </div>
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Location</span>
+                        <div className="flex items-center gap-1 text-gray-900">
+                          <MapPin className="w-3 h-3 text-gray-400" />
+                          <span className="truncate">{store.location}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                      <button className="px-3 py-1.5 flex items-center gap-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors font-medium text-xs"><Eye className="w-3.5 h-3.5" /> View</button>
+                      <button className="px-3 py-1.5 flex items-center gap-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors font-medium text-xs"><MoreVertical className="w-3.5 h-3.5" /> Options</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              </>
             ) : (
               <div className="p-12 text-center">
                 <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-xl flex items-center justify-center">

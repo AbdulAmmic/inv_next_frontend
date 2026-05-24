@@ -176,7 +176,7 @@ function SaleDetailContent() {
 
             {/* ITEMS TABLE */}
             <div className="border rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full min-w-[560px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
@@ -204,6 +204,29 @@ function SaleDetailContent() {
                   ))}
                 </tbody>
               </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {safeItems.map((item: any) => (
+                  <div key={item.id} className="p-4 space-y-3 bg-white">
+                    <p className="font-semibold text-gray-900">{item.product_name || item.product_id}</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 p-3 rounded-lg">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Qty</p>
+                        <p className="font-medium">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Unit Price</p>
+                        <p className="font-medium">₦{Number(item.unit_price || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                      <span className="text-sm text-gray-500">Total</span>
+                      <span className="font-bold text-gray-900">₦{Number(item.total_price || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
