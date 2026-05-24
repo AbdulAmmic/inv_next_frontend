@@ -9,8 +9,7 @@ import {
     Download, Mail
 } from "lucide-react";
 import { getAuditLogs, downloadBackup } from "@/apiCalls";
-import Sidebar from "@/components/sidebar";
-import Header from "@/components/header";
+
 import Loader from "@/components/Loader";
 import { toast } from "react-hot-toast";
 
@@ -203,13 +202,7 @@ export default function AuditLogsPage() {
     }
 
     return (
-        <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100">
-            <Sidebar isOpen={true} toggleSidebar={() => { }} isMobile={false} />
-
-            <div className="flex-1 flex flex-col">
-                <Header />
-
-                <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="flex-1 p-4 md:p-6 lg:p-8">
                     <div className="mb-8">
                         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                             <div>
@@ -558,8 +551,6 @@ export default function AuditLogsPage() {
                             </div>
                         </div>
                     </div>
-                </main>
-            </div>
         </div>
     );
 }

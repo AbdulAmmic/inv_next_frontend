@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
 import {
-  Menu,
   Plus,
   Search,
   Building,
@@ -117,14 +114,8 @@ export default function StoresPage() {
   const totalStores = stores.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMobile={false} />
-      
-      <div className="flex-1 flex flex-col">
-        <Header />
-        
-        <main className="p-6 max-w-7xl mx-auto w-full">
-          {/* Header Section */}
+    <div className="p-6 max-w-7xl mx-auto w-full">
+      {/* Header Section */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
               <button
@@ -395,8 +386,6 @@ export default function StoresPage() {
             onClose={() => setShowCreateModal(false)}
             onSave={handleCreateStore}
           />
-        </main>
-      </div>
     </div>
   );
 }

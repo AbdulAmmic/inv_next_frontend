@@ -8,9 +8,7 @@ import jsPDF from "jspdf";
 import { Trash2, Printer, Search, Plus, QrCode, Menu, LayoutGrid } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// App Components
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
+
 
 interface Product {
     id: string;
@@ -135,19 +133,7 @@ export default function QRLabelsPage() {
     const allLabels = queue.flatMap((item) => Array(item.quantity).fill(item.product));
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
-            {/* SIDEBAR */}
-            <Sidebar
-                isOpen={sidebarOpen}
-                isMobile={false}
-                toggleSidebar={() => setSidebarOpen((v) => !v)}
-            />
-
-            <div className="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300">
-                {/* HEADER */}
-                <Header />
-
-                <main className="flex-1 overflow-hidden p-4 md:p-6 flex flex-col md:flex-row gap-6">
+        <div className="flex-1 overflow-hidden p-4 md:p-6 flex flex-col md:flex-row gap-6">
 
                     {/* LEFT PANEL: CONTROLS */}
                     <div className="w-full md:w-96 flex-shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
@@ -375,8 +361,6 @@ export default function QRLabelsPage() {
                         </div>
                     </div>
 
-                </main>
-            </div>
         </div>
     );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
+
 import { Menu, FolderPlus, Edit, Trash2, Plus, X, Search } from "lucide-react";
 
 interface Category {
@@ -67,11 +66,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMobile={false} />
-      <div className="flex-1 flex flex-col transition-all duration-300">
-        <Header />
-        <main className="p-6">
+    <div className="p-6">
           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
             <div className="flex items-center">
               <button
@@ -301,8 +296,6 @@ export default function CategoriesPage() {
               </button>
             </div>
           )}
-        </main>
-      </div>
     </div>
   );
 }
