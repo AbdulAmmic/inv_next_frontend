@@ -176,7 +176,7 @@ export default function SuppliersPage() {
           </div>
 
           {/* SUPPLIERS TABLE */}
-          <div className="bg-white p-6 rounded-xl border">
+          <div className="bg-white md:p-6 rounded-xl md:border">
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm min-w-[760px]">
                 <thead>

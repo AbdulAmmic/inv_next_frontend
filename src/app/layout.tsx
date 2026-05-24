@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Tuhanas Inventory",
@@ -43,7 +42,6 @@ export default function RootLayout({
         className="antialiased text-black"
       >
         <Toaster position="top-right" />
-        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

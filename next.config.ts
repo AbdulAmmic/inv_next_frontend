@@ -1,8 +1,19 @@
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
 
-// ELECTRON_BUILD=true → static export (for Electron's file:// loading)
-// Default (Vercel/web) → normal Next.js server mode
+// ELECTRON_BUILD=true -> static export (for Electron's file:// loading)
+// Default (Vercel/web) -> normal Next.js server mode
 const isElectronBuild = process.env.ELECTRON_BUILD === "true";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  fallbacks: {
+    document: "/dashboard/pos", // Instead of ~offline, just fall back to POS
+  },
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+});
 
 const nextConfig: NextConfig = {
   ...(isElectronBuild
@@ -20,4 +31,4 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
 };
 
-export default nextConfig;
+export default isElectronBuild ? nextConfig : withPWA(nextConfig);
