@@ -459,55 +459,57 @@ export default function StockPage() {
                           </span>
                         </td>
 
-                        {userRole !== "manager" && (<td className="px-6 py-4">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                              onClick={() => {
-                                setSelectedRow(row);
-                                setModalType("adjust");
-                              }}
-                              title="Adjust Stock"
-                            >
-                              <Wrench size={18} />
-                            </button>
-
-                            <button
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              onClick={() => {
-                                setSelectedRow(row);
-                                setModalType("edit");
-                              }}
-                              title="Edit Details"
-                            >
-                              <Edit size={18} />
-                            </button>
-
-                            {(userRole === "admin" || userRole === "subadmin") && (
+                        {userRole !== "manager" && (
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end gap-2">
                               <button
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                 onClick={() => {
                                   setSelectedRow(row);
-                                  setModalType("grievance");
+                                  setModalType("adjust");
                                 }}
-                                title="Report Issue (Broken/Lost)"
+                                title="Adjust Stock"
                               >
-                                <AlertTriangle size={18} />
+                                <Wrench size={18} />
                               </button>
-                            )}
 
-                            <button
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                              onClick={() => {
-                                setSelectedRow(row);
-                                setModalType("transfer");
-                              }}
-                              title="Transfer Stock"
-                            >
-                              <ArrowLeftRight size={18} />
-                            </button>
-                          </div>
-                        </td>
+                              <button
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                onClick={() => {
+                                  setSelectedRow(row);
+                                  setModalType("edit");
+                                }}
+                                title="Edit Details"
+                              >
+                                <Edit size={18} />
+                              </button>
+
+                              {(userRole === "admin" || userRole === "subadmin") && (
+                                <button
+                                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                  onClick={() => {
+                                    setSelectedRow(row);
+                                    setModalType("grievance");
+                                  }}
+                                  title="Report Issue (Broken/Lost)"
+                                >
+                                  <AlertTriangle size={18} />
+                                </button>
+                              )}
+
+                              <button
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                onClick={() => {
+                                  setSelectedRow(row);
+                                  setModalType("transfer");
+                                }}
+                                title="Transfer Stock"
+                              >
+                                <ArrowLeftRight size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </motion.tr>
                     ))}
                   </AnimatePresence>

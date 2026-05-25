@@ -1,4 +1,4 @@
-/**
+﻿/**
  * syncEngine.ts
  *
  * Robust sync engine — push queued changes UP to server, pull delta DOWN.
@@ -333,6 +333,25 @@ export async function pullUpdates(): Promise<{ total: number }> {
       // Don't let one bad table block the rest
       console.warn(`⚠️ Could not sync table "${dexieTable}":`, err.message);
     }
+  }
+
+  // After pulling shops, pre-warm the settings cache for offline receipt printing
+  try {
+    const allShops = await db.shops.toArray();
+    await Promise.all(allShops.map(async (shop: any) => {
+      try {
+        const res = await syncApi.get('/shops/' + shop.id + '/settings');
+        const settings = res.data?.settings || res.data || {};
+        if (typeof window !== 'undefined' && Object.keys(settings).length > 0) {
+          localStorage.setItem(`shop_settings_${shop.id}`, JSON.stringify(settings));
+        }
+      } catch {
+        // Non-critical � skip if this shop settings endpoint fails
+      }
+    }));
+    console.log('?? Shop settings cache warmed for offline use');
+  } catch (e) {
+    console.warn('Could not warm shop settings cache:', e);
   }
 
   if (typeof window !== 'undefined' && timestamp) {

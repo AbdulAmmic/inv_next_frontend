@@ -28,7 +28,8 @@ import {
   ChevronsUpDown,
   Package,
   ArrowRight,
-  UserPlus
+  UserPlus,
+  Clock
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
@@ -246,7 +247,11 @@ export default function POSPage() {
       };
       const res = await createSale(payload);
       if (res.data) {
-        setReceipt({ ...res.data.sale, items: res.data.items, total: res.data.sale.total_amount, discount: res.data.sale.discount_amount });
+        setReceipt(() => {
+          const shopId = res.data.sale?.shop_id || (typeof window !== 'undefined' ? localStorage.getItem('selected_shop_id') : null);
+          const cachedSettings = shopId ? (() => { try { return JSON.parse(localStorage.getItem(`shop_settings_${shopId}`) || '{}'); } catch { return {}; } })() : {};
+          return { ...res.data.sale, items: res.data.items, total: res.data.sale.total_amount, discount: res.data.sale.discount_amount, refund_policy: cachedSettings.refund_policy || '' };
+        });
         setCart([]);
         setDiscountValue(0);
         setOtherCharges(0);
@@ -454,10 +459,11 @@ export default function POSPage() {
                 </div>
 
                 {/* Payment Methods */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <PaymentBtn active={paymentMethod === 'cash'} onClick={() => setPaymentMethod('cash')} icon={<Banknote className="w-4 h-4" />} label="Cash" />
                   <PaymentBtn active={paymentMethod === 'pos'} onClick={() => setPaymentMethod('pos')} icon={<CreditCard className="w-4 h-4" />} label="POS" />
                   <PaymentBtn active={paymentMethod === 'transfer'} onClick={() => setPaymentMethod('transfer')} icon={<Wallet className="w-4 h-4" />} label="Transfer" />
+                  <PaymentBtn active={paymentMethod === 'credit'} onClick={() => setPaymentMethod('credit')} icon={<Clock className="w-4 h-4" />} label="Credit" />
                 </div>
 
                 {/* Action */}

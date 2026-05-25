@@ -10,7 +10,9 @@ import {
   getBackupEmails,
   addBackupEmail,
   deleteBackupEmail,
-  downloadBackup
+  downloadBackup,
+  getShopSettings,
+  updateShopSettings,
 } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import {
@@ -30,17 +32,22 @@ import {
   Search,
   RefreshCw,
   MoreVertical,
-  Key
+  Key,
+  FileText,
+  Save
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"users" | "backups">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "backups" | "store">("users");
   const [users, setUsers] = useState<any[]>([]);
   const [shops, setShops] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [storeSettings, setStoreSettings] = useState<any>({});
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [selectedShopForSettings, setSelectedShopForSettings] = useState("");
 
   const [newUser, setNewUser] = useState({
     name: "",
@@ -67,6 +74,15 @@ export default function SettingsPage() {
       setUsers(usersRes.data);
       setShops(shopsRes.data);
       setBackupEmails(backupsRes.data);
+
+      // Load settings for the first shop by default
+      const shopList = shopsRes.data || [];
+      if (shopList.length > 0) {
+        const defaultShopId = shopList[0].id;
+        setSelectedShopForSettings(defaultShopId);
+        const settingsRes = await getShopSettings(defaultShopId).catch(() => ({ data: {} }));
+        setStoreSettings(settingsRes.data || {});
+      }
     } catch (err) {
       toast.error("Failed to sync settings data");
     } finally {
@@ -190,6 +206,28 @@ export default function SettingsPage() {
     }
   };
 
+  const handleShopSettingsChange = async (newShopId: string) => {
+    setSelectedShopForSettings(newShopId);
+    if (!newShopId) return;
+    try {
+      const res = await getShopSettings(newShopId);
+      setStoreSettings(res.data || {});
+    } catch { setStoreSettings({}); }
+  };
+
+  const handleSaveStoreSettings = async () => {
+    if (!selectedShopForSettings) { toast.error("Please select a shop first"); return; }
+    setSavingSettings(true);
+    try {
+      await updateShopSettings(selectedShopForSettings, storeSettings);
+      toast.success("Store settings saved!");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to save settings");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const filteredUsers = users.filter(u =>
     u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -212,6 +250,12 @@ export default function SettingsPage() {
               onClick={() => setActiveTab("users")}
               icon={<Users size={16} />}
               label="User Access"
+            />
+            <TabButton
+              active={activeTab === "store"}
+              onClick={() => setActiveTab("store")}
+              icon={<Store size={16} />}
+              label="Store Settings"
             />
             <TabButton
               active={activeTab === "backups"}
@@ -346,6 +390,63 @@ export default function SettingsPage() {
                      </div>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          ) : activeTab === "store" ? (
+            <motion.div
+              key="store"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6 max-w-2xl"
+            >
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Receipt &amp; Refund Policy</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Printed on every receipt</p>
+                  </div>
+                </div>
+
+                {shops.length > 1 && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Select Shop</label>
+                    <div className="relative">
+                      <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <select
+                        value={selectedShopForSettings}
+                        onChange={(e) => handleShopSettingsChange(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none appearance-none focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all"
+                      >
+                        {shops.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Refund Policy Text</label>
+                  <textarea
+                    rows={5}
+                    placeholder="e.g. Goods sold are not returnable. Exchange only within 7 days with original receipt. No refunds on perishable items."
+                    value={storeSettings.refund_policy || ""}
+                    onChange={(e) => setStoreSettings((prev: any) => ({ ...prev, refund_policy: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all resize-none"
+                  />
+                  <p className="text-[10px] text-slate-400 pl-1">This text will appear at the bottom of every printed or downloaded receipt for this shop.</p>
+                </div>
+
+                <button
+                  onClick={handleSaveStoreSettings}
+                  disabled={savingSettings}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                >
+                  {savingSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {savingSettings ? "Saving..." : "Save Settings"}
+                </button>
               </div>
             </motion.div>
           ) : (

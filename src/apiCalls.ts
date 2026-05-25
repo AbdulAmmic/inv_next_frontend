@@ -323,6 +323,86 @@ export const getUsers = () => api.get(`/users`);
 export const getUserById = (id: string) => api.get(`/users/${id}`);
 export const updateUserById = (id: string, data: any) => api.put(`/users/${id}`, data);
 export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
+// #############################################################
+// ⚙️ SHOP SETTINGS (refund policy, receipt footer, etc.)
+// #############################################################
+
+// Key used for localStorage caching
+const shopSettingsKey = (shop_id: string) => `shop_settings_${shop_id}`;
+
+export const getShopSettings = async (shop_id: string) => {
+  // 1. Try the backend first when online (also refreshes cache)
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/shops/${shop_id}/settings`);
+      const settings = res.data?.settings || res.data || {};
+      // Persist to localStorage for offline use
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(shopSettingsKey(shop_id), JSON.stringify(settings));
+      }
+      return { data: settings };
+    } catch (e) {
+      console.warn('getShopSettings backend failed, using local cache:', e);
+    }
+  }
+
+  // 2. Offline: read from localStorage cache
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(shopSettingsKey(shop_id));
+    if (cached) {
+      try { return { data: JSON.parse(cached) }; } catch {}
+    }
+
+    // 3. Last resort: check if shop row in Dexie has embedded settings
+    try {
+      const shop = await db.shops.get(shop_id);
+      if (shop && (shop as any).settings) {
+        return { data: (shop as any).settings };
+      }
+    } catch {}
+  }
+
+  return { data: {} };
+};
+
+export const updateShopSettings = async (shop_id: string, settings: any) => {
+  // Always write to localStorage immediately so receipts work offline right away
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(shopSettingsKey(shop_id), JSON.stringify(settings));
+  }
+
+  // Also persist into Dexie so the sync queue can push it
+  try {
+    const existing = await db.shops.get(shop_id);
+    if (existing) {
+      const updated = { ...existing, settings, updated_at: new Date().toISOString() };
+      await db.shops.put(updated);
+      // Queue for backend sync
+      await queueChange('shops', shop_id, 'UPDATE', { settings, updated_at: updated.updated_at });
+    }
+  } catch (e) {
+    console.warn('Could not persist shop settings to Dexie:', e);
+  }
+
+  // If online, push to backend immediately
+  if (isOnline()) {
+    try {
+      const res = await api.put(`/shops/${shop_id}/settings`, settings);
+      const updated = res.data?.settings || res.data || settings;
+      // Re-write confirmed data from server
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(shopSettingsKey(shop_id), JSON.stringify(updated));
+      }
+      return { data: updated };
+    } catch (e) {
+      console.warn('updateShopSettings backend push failed, queued for later sync:', e);
+    }
+  }
+
+  // Offline — return the local version, will sync when online
+  return { data: settings };
+};
+
 
 
 // #############################################################

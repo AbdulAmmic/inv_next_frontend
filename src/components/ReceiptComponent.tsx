@@ -25,6 +25,7 @@ interface SaleData {
     discount: number;
     total: number;
     payment_method: string;
+    refund_policy?: string;
 }
 
 interface ReceiptComponentProps {
@@ -230,6 +231,12 @@ Total: ₦${sale.total.toLocaleString()}
                         <div className="text-center text-xs text-gray-400 mt-8 space-y-1">
                             <p>Thank you for your patronage!</p>
                             <p>Please come again.</p>
+                            {sale.refund_policy && (
+                                <div className="mt-3 pt-3 border-t border-dashed border-gray-200 text-left">
+                                    <p className="font-bold text-gray-500 text-[10px] uppercase tracking-widest mb-1">Refund Policy</p>
+                                    <p className="text-[10px] leading-relaxed text-gray-400 italic">{sale.refund_policy}</p>
+                                </div>
+                            )}
                             <div className="pt-4 opacity-50">
                                 <p>Powered by Tuhans Inventory</p>
                             </div>
