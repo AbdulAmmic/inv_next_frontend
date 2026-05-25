@@ -189,7 +189,7 @@ export default function SalesPage() {
   const totalRefunds = filteredSales.reduce((sum, sale) => sale.amount < 0 ? sum + Math.abs(sale.amount) : sum, 0);
   const netAmount = totalSalesAmount - totalRefunds;
 
-  const paymentMethods = ["all", "Cash", "Card", "Transfer", "POS"];
+  const paymentMethods = ["all", "Cash", "Card", "Transfer", "POS", "Credit"];
   const statuses = ["all", "completed", "refunded", "pending"];
 
   if (loading && !sales.length) {

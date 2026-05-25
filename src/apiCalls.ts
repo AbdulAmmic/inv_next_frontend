@@ -96,7 +96,7 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
   const CACHE_KEY = `local_stats_${shop_id || 'global'}_${start_date || 'all'}_${end_date || 'all'}`;
 
   try {
-    const [products, customers, suppliers, stocks, allSales, saleItems, allPurchases, allExpenses, allGrievances] = await Promise.all([
+    const [products, customers, suppliers, stocks, allSales, allPurchases, allExpenses, allGrievances] = await Promise.all([
       db.products.filter((p: any) => !p.is_deleted).toArray(),
       db.customers.filter((c: any) => !c.is_deleted).toArray(),
       db.suppliers.filter((s: any) => !s.is_deleted).toArray(),
@@ -106,7 +106,6 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
       shop_id
         ? db.sales.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
         : db.sales.filter((s: any) => !s.is_deleted).toArray(),
-      db.sale_items.toArray(),
       shop_id
         ? db.purchases.where('shop_id').equals(shop_id).filter((p: any) => !p.is_deleted).toArray()
         : db.purchases.filter((p: any) => !p.is_deleted).toArray(),
@@ -138,6 +137,13 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
       (sale.status || 'completed') === 'completed'
     );
 
+    const completedSaleIds = completedSales.map((s: any) => s.id);
+
+    // Fetch sale items optimized (only for completed sales in range, not entire table)
+    const saleItems = completedSaleIds.length > 0
+      ? await db.sale_items.where('sale_id').anyOf(completedSaleIds).toArray()
+      : [];
+
     const total_sales_amount = completedSales.reduce(
       (sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0
     );
@@ -150,17 +156,17 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
       (sum: number, purchase: any) => sum + Number(purchase.total_amount || 0), 0
     );
 
-    // Build shop-specific cost map for accurate COGS
+    // Build shop-specific cost map with compound keys for accurate COGS
     const shopCostMap = new Map<string, number>();
     for (const stock of stocks) {
       const cost = Number(
         (stock as any).shop_cost_price ?? (stock as any).cost_price ?? 0
       );
-      shopCostMap.set((stock as any).product_id, cost);
+      shopCostMap.set(`${stock.shop_id}_${stock.product_id}`, cost);
     }
 
     const total_grievance_cost = grievances.reduce((sum: number, g: any) => {
-      const shopCost = shopCostMap.get(g.product_id);
+      const shopCost = shopCostMap.get(`${g.shop_id}_${g.product_id}`);
       const product = products.find((p: any) => p.id === g.product_id);
       const cost = shopCost ?? Number(product?.cost_price || 0);
       return sum + Number(g.quantity || 0) * cost;
@@ -169,19 +175,20 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
     // Grievances are considered a form of expense (cost of damaged goods)
     const combined_expenses = total_expenses + total_grievance_cost;
 
-    const completedSaleIds = new Set(completedSales.map((sale: any) => sale.id));
+    const saleShopMap = new Map<string, string>();
+    for (const sale of completedSales) {
+      saleShopMap.set(sale.id, sale.shop_id);
+    }
     
     // Deduplicate sale items to prevent COGS double-counting from offline sync
     const uniqueSaleItemsMap = new Map<string, any>();
     for (const item of saleItems) {
-      if (completedSaleIds.has(item.sale_id)) {
-        uniqueSaleItemsMap.set(`${item.sale_id}_${item.product_id}`, item);
-      }
+      uniqueSaleItemsMap.set(`${item.sale_id}_${item.product_id}`, item);
     }
     
     const total_cost_of_goods_sold = Array.from(uniqueSaleItemsMap.values()).reduce((sum: number, item: any) => {
-      // Prefer shop-specific cost, then product catalog cost
-      const shopCost = shopCostMap.get(item.product_id);
+      const shopId = saleShopMap.get(item.sale_id);
+      const shopCost = shopId ? shopCostMap.get(`${shopId}_${item.product_id}`) : undefined;
       const product = products.find((p: any) => p.id === item.product_id);
       const cost = shopCost ?? Number(product?.cost_price || 0);
       return sum + Number(item.quantity || 0) * cost;

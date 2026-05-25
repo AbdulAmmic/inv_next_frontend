@@ -382,25 +382,42 @@ export default function SyncBanner() {
         {!dismissed && (
           <motion.div
             key="offline"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="bg-slate-700 text-white overflow-hidden"
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-32px)] bg-slate-800/95 text-white rounded-2xl shadow-xl border border-white/10 backdrop-blur-md overflow-hidden"
           >
-            <div className="px-4 py-2 flex items-center gap-3 text-sm font-semibold">
-              <WifiOff className="w-4 h-4 flex-shrink-0 text-slate-300" />
-              <span className="flex-1 truncate">
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/10 rounded-xl">
+                    <WifiOff className="w-4 h-4 text-slate-300 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest leading-none mb-1">
+                      Network Status
+                    </p>
+                    <p className="text-xs font-bold leading-tight">
+                      {banner.pendingCount > 0
+                        ? `Offline · ${banner.pendingCount} pending changes`
+                        : "Offline Mode"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDismissed(true)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5 text-white/80" />
+                </button>
+              </div>
+              <p className="text-[11px] text-white/70 leading-normal">
                 {banner.pendingCount > 0
-                  ? `Offline — ${banner.pendingCount} change${banner.pendingCount !== 1 ? "s" : ""} saved locally, will sync when connected`
-                  : "Offline — using locally cached data"}
-              </span>
-              <button
-                onClick={() => setDismissed(true)}
-                className="p-1 hover:bg-white/20 rounded transition-colors flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+                  ? "Your changes are saved locally. They will automatically sync to the server when your internet connection is restored."
+                  : "Using locally cached database. You can continue creating sales, adding stock, and printing receipts offline."}
+              </p>
             </div>
           </motion.div>
         )}
@@ -412,65 +429,73 @@ export default function SyncBanner() {
   const actionDisabled = banner.state === "syncing" || banner.state === "pulling";
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={banner.state}
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: "auto", opacity: 1 }}
-        exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className={`${cfg.bg} text-white overflow-hidden`}
-      >
-        <div className="px-4 py-2 flex items-center gap-3 text-sm font-semibold">
-          {cfg.icon}
-
-          <span className="flex-1 truncate text-xs">{cfg.text}</span>
-
-          {/* Progress bar — shown during syncing or pulling */}
-          {cfg.showProgress && (
-            <div className="flex items-center gap-2 w-36 flex-shrink-0">
-              <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-white rounded-full"
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${banner.progress}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                />
+    <AnimatePresence>
+      {!dismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className={`fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-32px)] ${cfg.bg} text-white rounded-2xl shadow-xl overflow-hidden border border-white/10 backdrop-blur-md bg-opacity-95 transition-colors duration-300`}
+        >
+          <div className="p-4 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-xl">
+                  {cfg.icon}
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest leading-none mb-1">
+                    Sync Status
+                  </p>
+                  <p className="text-xs font-bold leading-tight">{cfg.text}</p>
+                </div>
               </div>
-              <span className="text-xs text-white/80 w-8 text-right tabular-nums">
-                {banner.progress}%
-              </span>
+              
+              {/* Close button */}
+              <button
+                onClick={() => setDismissed(true)}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5 text-white/80" />
+              </button>
             </div>
-          )}
 
-          {/* Action button */}
-          {cfg.action && !actionDisabled && (
-            <button
-              onClick={
-                banner.state === "error"
-                  ? () => {
-                      pushToServer(true); // Retry failed
-                    }
-                  : () => pushToServer(false)
-              }
-              className={`px-3 py-1 rounded-lg text-xs font-black transition-all active:scale-95 flex-shrink-0 ${cfg.actionStyle}`}
-            >
-              {cfg.action}
-            </button>
-          )}
+            {/* Progress bar — shown during syncing or pulling */}
+            {cfg.showProgress && (
+              <div className="space-y-1">
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-white rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${banner.progress}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-white/70 font-semibold">
+                  <span>{banner.state === "pulling" ? "Pulling updates..." : "Pushing changes..."}</span>
+                  <span className="tabular-nums">{banner.progress}%</span>
+                </div>
+              </div>
+            )}
 
-          {/* Dismiss on synced state */}
-          {(banner.state === "synced") && (
-            <button
-              onClick={() => setDismissed(true)}
-              className="p-1 hover:bg-white/20 rounded transition-colors flex-shrink-0 ml-1"
-              title="Dismiss"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </motion.div>
+            {/* Action button */}
+            {cfg.action && !actionDisabled && (
+              <button
+                onClick={
+                  banner.state === "error"
+                    ? () => pushToServer(true)
+                    : () => pushToServer(false)
+                }
+                className={`w-full py-2 rounded-xl text-xs font-black transition-all active:scale-[0.98] ${cfg.actionStyle}`}
+              >
+                {cfg.action}
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }
