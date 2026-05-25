@@ -399,7 +399,7 @@ export default function StockPage() {
                     ) : null}
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Price</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Status</th>
-                    <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>
+                    {userRole !== "manager" && <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>}
                   </tr>
                 </thead>
 
@@ -459,7 +459,7 @@ export default function StockPage() {
                           </span>
                         </td>
 
-                        <td className="px-6 py-4">
+                        {userRole !== "manager" && (<td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <button
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"

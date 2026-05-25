@@ -92,11 +92,11 @@ const normalizePurchase = (purchase: any, items?: any[]) => {
   };
 };
 
-export const buildLocalStats = async (shop_id?: string) => {
-  const CACHE_KEY = `local_stats_${shop_id || 'global'}`;
+export const buildLocalStats = async (shop_id?: string, start_date?: string, end_date?: string) => {
+  const CACHE_KEY = `local_stats_${shop_id || 'global'}_${start_date || 'all'}_${end_date || 'all'}`;
 
   try {
-    const [products, customers, suppliers, stocks, sales, saleItems, purchases, expenses] = await Promise.all([
+    const [products, customers, suppliers, stocks, allSales, saleItems, allPurchases, allExpenses, allGrievances] = await Promise.all([
       db.products.filter((p: any) => !p.is_deleted).toArray(),
       db.customers.filter((c: any) => !c.is_deleted).toArray(),
       db.suppliers.filter((s: any) => !s.is_deleted).toArray(),
@@ -113,7 +113,25 @@ export const buildLocalStats = async (shop_id?: string) => {
       shop_id
         ? db.expenses.where('shop_id').equals(shop_id).filter((e: any) => !e.is_deleted).toArray()
         : db.expenses.filter((e: any) => !e.is_deleted).toArray(),
+      shop_id
+        ? db.adjustments.where('shop_id').equals(shop_id).filter((a: any) => a.adjustment_type === 'grievance' && !a.is_deleted).toArray()
+        : db.adjustments.filter((a: any) => a.adjustment_type === 'grievance' && !a.is_deleted).toArray(),
     ]);
+
+    // Date filtering helper
+    const isWithinRange = (dateStr: string) => {
+      if (!start_date && !end_date) return true;
+      if (!dateStr) return false;
+      const d = new Date(dateStr).getTime();
+      const start = start_date ? new Date(start_date).getTime() : 0;
+      const end = end_date ? new Date(end_date).setHours(23, 59, 59, 999) : Infinity;
+      return d >= start && d <= end;
+    };
+
+    const sales = allSales.filter((s: any) => isWithinRange(s.created_at));
+    const purchases = allPurchases.filter((p: any) => isWithinRange(p.created_at));
+    const expenses = allExpenses.filter((e: any) => isWithinRange(e.created_at));
+    const grievances = allGrievances.filter((g: any) => isWithinRange(g.created_at));
 
     // Only completed (non-refunded, non-cancelled) sales
     const completedSales = sales.filter((sale: any) =>
@@ -141,16 +159,33 @@ export const buildLocalStats = async (shop_id?: string) => {
       shopCostMap.set((stock as any).product_id, cost);
     }
 
+    const total_grievance_cost = grievances.reduce((sum: number, g: any) => {
+      const shopCost = shopCostMap.get(g.product_id);
+      const product = products.find((p: any) => p.id === g.product_id);
+      const cost = shopCost ?? Number(product?.cost_price || 0);
+      return sum + Number(g.quantity || 0) * cost;
+    }, 0);
+    
+    // Grievances are considered a form of expense (cost of damaged goods)
+    const combined_expenses = total_expenses + total_grievance_cost;
+
     const completedSaleIds = new Set(completedSales.map((sale: any) => sale.id));
-    const total_cost_of_goods_sold = saleItems
-      .filter((item: any) => completedSaleIds.has(item.sale_id))
-      .reduce((sum: number, item: any) => {
-        // Prefer shop-specific cost, then product catalog cost
-        const shopCost = shopCostMap.get(item.product_id);
-        const product = products.find((p: any) => p.id === item.product_id);
-        const cost = shopCost ?? Number(product?.cost_price || 0);
-        return sum + Number(item.quantity || 0) * cost;
-      }, 0);
+    
+    // Deduplicate sale items to prevent COGS double-counting from offline sync
+    const uniqueSaleItemsMap = new Map<string, any>();
+    for (const item of saleItems) {
+      if (completedSaleIds.has(item.sale_id)) {
+        uniqueSaleItemsMap.set(`${item.sale_id}_${item.product_id}`, item);
+      }
+    }
+    
+    const total_cost_of_goods_sold = Array.from(uniqueSaleItemsMap.values()).reduce((sum: number, item: any) => {
+      // Prefer shop-specific cost, then product catalog cost
+      const shopCost = shopCostMap.get(item.product_id);
+      const product = products.find((p: any) => p.id === item.product_id);
+      const cost = shopCost ?? Number(product?.cost_price || 0);
+      return sum + Number(item.quantity || 0) * cost;
+    }, 0);
 
     // Inventory values using shop_cost_price / shop_price where available
     const inventory_cost_value = stocks.reduce((sum: number, stock: any) => {
@@ -166,7 +201,7 @@ export const buildLocalStats = async (shop_id?: string) => {
     }, 0);
 
     const gross_profit = total_sales_amount - total_cost_of_goods_sold;
-    const net_profit = gross_profit - total_expenses;
+    const net_profit = gross_profit - combined_expenses;
 
     const result = {
       shop_id,
@@ -174,7 +209,7 @@ export const buildLocalStats = async (shop_id?: string) => {
       total_sales_count: completedSales.length,
       total_purchase_amount: Math.round(total_purchase_amount * 100) / 100,
       total_purchases_count: purchases.length,
-      total_expenses: Math.round(total_expenses * 100) / 100,
+      total_expenses: Math.round(combined_expenses * 100) / 100,
       total_expenses_count: expenses.length,
       inventory_cost_value: Math.round(inventory_cost_value * 100) / 100,
       inventory_selling_value: Math.round(inventory_selling_value * 100) / 100,
@@ -322,7 +357,7 @@ export const getProducts = async (params?: {
   include_stock?: boolean;
   shop_id?: string;
 }) => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get('/products', { 
         params: { 
@@ -409,6 +444,7 @@ export const deleteProduct = async (id: string) => {
 // 📊 STOCK MANAGEMENT (PER SHOP)
 // #############################################################
 export const getStocks = async (shop_id?: string) => {
+  if (false && isOnline()) {
   try {
     const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
     const allStocks = extractArr(res.data);
@@ -423,6 +459,7 @@ export const getStocks = async (shop_id?: string) => {
     return { data: enriched };
   } catch (e) {
     console.warn('getStocks API failed, falling back to cache:', e);
+  }
   }
 
   // Offline fallback
@@ -612,7 +649,7 @@ export const createSale = async (data: any) => {
 };
 
 export const getSales = async (shop_id?: string) => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
       const all = extractArr(res.data);
@@ -638,7 +675,7 @@ export const getSales = async (shop_id?: string) => {
 };
 
 export const getSale = async (id: string) => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get(`/sales/${id}`);
       const sale = res.data.sale;
@@ -677,13 +714,27 @@ export const getSale = async (id: string) => {
   const items = await db.sale_items.where('sale_id').equals(id).toArray();
   const enrichedItems = await Promise.all(items.map(async (item: any) => {
     const product = await db.products.get(item.product_id);
+    const unit_price = Number(item.unit_price ?? item.price ?? item.unitPrice ?? product?.price ?? 0);
+    const quantity = Number(item.quantity || 1);
     return {
       ...item,
-      product_name: item.product_name || product?.name || item.product_id,
+      product_name: item.product_name || product?.name || item.product_id || "Unknown Product",
+      unit_price,
+      total_price: Number(item.total_price) || (unit_price * quantity),
+      quantity
     };
   }));
 
-  return { data: { sale, items: enrichedItems } };
+  // Deduplicate by product_id to remove sync duplicates
+  const uniqueMap = new Map();
+  for (const item of enrichedItems) {
+    const existing = uniqueMap.get(item.product_id);
+    if (!existing || (existing.total_price === 0 && item.total_price > 0)) {
+      uniqueMap.set(item.product_id, item);
+    }
+  }
+
+  return { data: { sale, items: Array.from(uniqueMap.values()) } };
 };
 
 export const refundSale = async (id: string) => {
@@ -717,7 +768,7 @@ export const refundSale = async (id: string) => {
 // 🧍 CUSTOMERS
 // #############################################################
 export const getCustomers = async () => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get('/customers');
       const customers = extractArr(res.data);
@@ -743,7 +794,7 @@ export const createCustomer = async (data: any) => {
 // 🧑‍💼 SUPPLIERS
 // #############################################################
 export const getSuppliers = async () => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get('/suppliers');
       const suppliers = extractArr(res.data);
@@ -975,7 +1026,7 @@ export const createPurchase = async (data: any) => {
 };
 
 export const getPurchases = async (shop_id?: string) => {
-  if (isOnline()) {
+  if (false && isOnline()) {
     try {
       const res = await api.get('/purchases', { params: shop_id ? { shop_id } : {} });
       const all = extractArr(res.data);
@@ -1231,14 +1282,14 @@ export const getFullStats = async (params?: any) => {
       const cached = getCached();
       if (cached) return cached;
       // Last resort — compute from local Dexie data
-      return { data: await buildLocalStats(params?.shop_id) };
+      return { data: await buildLocalStats(params?.shop_id, params?.start_date, params?.end_date) };
     }
   }
 
   // Offline path: cache → local compute
   const cached = getCached();
   if (cached) return cached;
-  return { data: await buildLocalStats(params?.shop_id) };
+  return { data: await buildLocalStats(params?.shop_id, params?.start_date, params?.end_date) };
 };
 
 
