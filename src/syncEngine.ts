@@ -1,4 +1,4 @@
-﻿/**
+/**
  * syncEngine.ts
  *
  * Robust sync engine — push queued changes UP to server, pull delta DOWN.
@@ -98,11 +98,14 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
         // Mark successfully processed as synced
         if (processed.length > 0) {
           const syncedIds = processed
-            .map((p: any) =>
-              pendingChanges.find(
+            .map((p: any) => {
+              if (typeof p.index === "number" && pendingChanges[p.index]) {
+                return pendingChanges[p.index].id;
+              }
+              return pendingChanges.find(
                 (c) => c.entityId === p.id && c.entity === p.entity
-              )?.id
-            )
+              )?.id;
+            })
             .filter(Boolean);
 
           if (syncedIds.length > 0) {
@@ -115,11 +118,14 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
         // Mark conflicts
         if (conflicts.length > 0) {
           const conflictIds = conflicts
-            .map((e: any) =>
-              pendingChanges.find(
+            .map((e: any) => {
+              if (typeof e.index === "number" && pendingChanges[e.index]) {
+                return pendingChanges[e.index].id;
+              }
+              return pendingChanges.find(
                 (c) => c.entityId === e.id && c.entity === e.entity
-              )?.id
-            )
+              )?.id;
+            })
             .filter(Boolean);
 
           if (conflictIds.length > 0) {
@@ -139,11 +145,14 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
         );
         if (otherErrors.length > 0) {
           const failedIds = otherErrors
-            .map((e: any) =>
-              pendingChanges.find(
+            .map((e: any) => {
+              if (typeof e.index === "number" && pendingChanges[e.index]) {
+                return pendingChanges[e.index].id;
+              }
+              return pendingChanges.find(
                 (c) => c.entityId === e.id && c.entity === e.entity
-              )?.id
-            )
+              )?.id;
+            })
             .filter(Boolean);
 
           if (failedIds.length > 0) {

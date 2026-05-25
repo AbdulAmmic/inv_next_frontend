@@ -322,11 +322,29 @@ export const registerUser = (data: {
 }) => api.post(`/auth/register`, data);
 
 
-// #############################################################
-// 👤 USERS (ADMIN ONLY)
-// #############################################################
+export const getUsers = async () => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/users`);
+      if (typeof window !== "undefined" && res.data) {
+        localStorage.setItem("cached_users", JSON.stringify(res.data));
+      }
+      return res;
+    } catch (e) {
+      console.warn("getUsers backend failed, using cache:", e);
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("cached_users");
+      if (cached) return { data: JSON.parse(cached) };
+    } catch (err) {
+      console.warn("getUsers failed to parse cached users:", err);
+    }
+  }
+  return { data: [] };
+};
 
-export const getUsers = () => api.get(`/users`);
 export const getUserById = (id: string) => api.get(`/users/${id}`);
 export const updateUserById = (id: string, data: any) => api.put(`/users/${id}`, data);
 export const deleteUserById = (id: string) => api.delete(`/users/${id}`);
@@ -1383,7 +1401,28 @@ export const getFullStats = async (params?: any) => {
 // #############################################################
 // 📊 AUDIT LOGS (ADMIN ONLY)
 // #############################################################
-export const getAuditLogs = () => api.get(`/audit-logs`);
+export const getAuditLogs = async () => {
+  if (isOnline()) {
+    try {
+      const res = await api.get(`/audit-logs`);
+      if (typeof window !== "undefined" && res.data) {
+        localStorage.setItem("cached_audit_logs", JSON.stringify(res.data));
+      }
+      return res;
+    } catch (e) {
+      console.warn("getAuditLogs backend failed, using cache:", e);
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("cached_audit_logs");
+      if (cached) return { data: JSON.parse(cached) };
+    } catch (err) {
+      console.warn("getAuditLogs failed to parse cached logs:", err);
+    }
+  }
+  return { data: [] };
+};
 
 // #############################################################
 // 🔙 BACKUP (ADMIN ONLY)

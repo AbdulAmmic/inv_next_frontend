@@ -18,7 +18,8 @@ import {
   QrCode,
   ClipboardList,
   LayoutDashboard,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -43,7 +44,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
       const stored = localStorage.getItem("user");
       if (stored) {
         const parsed = JSON.parse(stored);
-        setRole(parsed.role || "");
+        setRole((parsed.role || "").toLowerCase());
       }
     } catch (err) {
       console.error("Failed to parse user:", err);
@@ -55,6 +56,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     { icon: Package, label: "Products", href: "/dashboard/products" },
     { icon: QrCode, label: "QR Labels", href: "/dashboard/products/labels" },
     { icon: DollarSign, label: "Stock", href: "/dashboard/stock" },
+    { icon: ShieldAlert, label: "Grievances", href: "/dashboard/grievances", key: "grievances" },
     { icon: Folder, label: "Categories", href: "/dashboard/categories" },
     { icon: Users, label: "Customers", href: "/dashboard/customers" },
     { icon: BarChart3, label: "Finances", href: "/dashboard/finances", key: "finances" },
@@ -78,7 +80,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
   if (role === "staff") {
     allowedMenu = allMenu.filter(item =>
-      ["Overview", "Products", "Stock", "Sales"].includes(item.label)
+      ["Overview", "Products", "Stock", "Sales", "Grievances"].includes(item.label)
     );
     allowedBottom = bottomMenu.filter(item => item.label === "Logout");
   } else if (role === "subadmin") {

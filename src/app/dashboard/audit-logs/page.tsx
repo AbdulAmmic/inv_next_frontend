@@ -71,7 +71,7 @@ export default function AuditLogsPage() {
         const savedUser = localStorage.getItem("user");
         if (savedUser) {
             const parsed = JSON.parse(savedUser);
-            if (parsed.role !== "admin") {
+            if ((parsed.role || "").toLowerCase() !== "admin") {
                 router.push("/dashboard");
                 return;
             }
