@@ -94,75 +94,44 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
         const conflicts = (response.data.errors || []).filter(
           (e: any) => e.reason === 'conflict_detected'
         );
-
-        // Mark successfully processed as synced
-        if (processed.length > 0) {
-          const syncedIds = processed
-            .map((p: any) => {
-              if (typeof p.index === "number" && pendingChanges[p.index]) {
-                return pendingChanges[p.index].id;
-              }
-              return pendingChanges.find(
-                (c) => c.entityId === p.id && c.entity === p.entity
-              )?.id;
-            })
-            .filter(Boolean);
-
-          if (syncedIds.length > 0) {
-            await db.sync_queue.bulkUpdate(
-              syncedIds.map((id) => ({ key: id, changes: { status: 'synced' } }))
-            );
-          }
-        }
-
-        // Mark conflicts
-        if (conflicts.length > 0) {
-          const conflictIds = conflicts
-            .map((e: any) => {
-              if (typeof e.index === "number" && pendingChanges[e.index]) {
-                return pendingChanges[e.index].id;
-              }
-              return pendingChanges.find(
-                (c) => c.entityId === e.id && c.entity === e.entity
-              )?.id;
-            })
-            .filter(Boolean);
-
-          if (conflictIds.length > 0) {
-            await db.sync_queue.bulkUpdate(
-              conflictIds.map((id) => ({
-                key: id,
-                changes: { status: 'conflict_detected' },
-              }))
-            );
-          }
-          console.warn(`⚠️ ${conflicts.length} conflicts detected`);
-        }
-
-        // Mark other errors as failed
         const otherErrors = (response.data.errors || []).filter(
           (e: any) => e.reason !== 'conflict_detected'
         );
-        if (otherErrors.length > 0) {
-          const failedIds = otherErrors
-            .map((e: any) => {
-              if (typeof e.index === "number" && pendingChanges[e.index]) {
-                return pendingChanges[e.index].id;
-              }
-              return pendingChanges.find(
-                (c) => c.entityId === e.id && c.entity === e.entity
-              )?.id;
-            })
-            .filter(Boolean);
 
-          if (failedIds.length > 0) {
-            await db.sync_queue.bulkUpdate(
-              failedIds.map((id) => ({
-                key: id,
-                changes: { status: 'failed' },
-              }))
-            );
+        const conflictIndices = new Set<number>();
+        conflicts.forEach((e: any) => {
+          if (typeof e.index === "number") conflictIndices.add(e.index);
+        });
+
+        const failedIndices = new Set<number>();
+        otherErrors.forEach((e: any) => {
+          if (typeof e.index === "number") failedIndices.add(e.index);
+        });
+
+        // 100% robust index-based status resolution for the entire batch
+        const updates = pendingChanges.map((c, index) => {
+          if (conflictIndices.has(index)) {
+            return { key: c.id, changes: { status: 'conflict_detected' as const } };
+          } else if (failedIndices.has(index)) {
+            const errDetail = otherErrors.find((e: any) => e.index === index);
+            return {
+              key: c.id,
+              changes: {
+                status: 'failed' as const,
+                error: errDetail?.reason || 'Server sync failed',
+              },
+            };
+          } else {
+            return { key: c.id, changes: { status: 'synced' as const } };
           }
+        });
+
+        if (updates.length > 0) {
+          await db.sync_queue.bulkUpdate(updates);
+        }
+
+        if (conflicts.length > 0) {
+          console.warn(`⚠️ ${conflicts.length} conflicts detected`);
         }
 
         // Clean up old synced entries (>48h)

@@ -172,18 +172,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }, []);
 
     // ─────────────────────────────────────────────────────────────
-    // Auto-sync when device comes back online
+    // Auto-sync when device comes back online & periodic background pull
     // ─────────────────────────────────────────────────────────────
     useEffect(() => {
         const handleOnline = () => {
-            // SyncBanner handles this — backgroundSync is triggered there
-            // Just ensure the gate is open
             if (stage === "ready") {
                 backgroundSync();
             }
         };
         window.addEventListener("online", handleOnline);
-        return () => window.removeEventListener("online", handleOnline);
+
+        // Quietly pull new updates & push pending changes every 60 seconds when online
+        let interval: any;
+        if (stage === "ready") {
+            interval = setInterval(() => {
+                if (navigator.onLine && localStorage.getItem("access_token")) {
+                    backgroundSync();
+                }
+            }, 60000);
+        }
+
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            if (interval) clearInterval(interval);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [stage]);
 
