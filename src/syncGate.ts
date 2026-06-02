@@ -40,6 +40,12 @@ export function waitForSync(timeoutMs = 30000): Promise<void> {
     const timer = setTimeout(() => {
       // Timeout — open the gate anyway so pages don't hang forever
       _ready = true;
+      // Notify any listeners that we timed out (data may be incomplete)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tuhanas:sync-timeout', {
+          detail: { timeoutMs }
+        }));
+      }
       resolve();
     }, timeoutMs);
 

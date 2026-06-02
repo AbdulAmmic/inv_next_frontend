@@ -269,6 +269,7 @@ api.interceptors.request.use(
         const payload = parseJwt(token);
         const now = Date.now() / 1000;
 
+        // Refresh proactively if token expires within 5 minutes
         if (payload && payload.exp - now < 300) {
           try {
             console.log("🔄 Refreshing token...");
@@ -279,10 +280,12 @@ api.interceptors.request.use(
             if (res.data.access_token) {
               token = res.data.access_token;
               localStorage.setItem("access_token", token!);
-              console.log("✅ Token flushed");
+              console.log("✅ Token refreshed");
             }
           } catch (err) {
-            console.error("❌ Token refresh failed", err);
+            // Refresh failed — continue with the existing token.
+            // The response interceptor will handle a 401 if the token is truly expired.
+            console.warn("⚠️ Token refresh failed — using existing token", err);
           }
         }
       }
@@ -462,7 +465,7 @@ export const getProducts = async (params?: {
   include_stock?: boolean;
   shop_id?: string;
 }) => {
-  if (false && isOnline()) {
+  if (isOnline()) {
     try {
       const res = await api.get('/products', { 
         params: { 
@@ -476,9 +479,9 @@ export const getProducts = async (params?: {
         // Background cache update
         db.products.bulkPut(products.map((p: any) => ({ ...p, updated_at: p.updated_at || new Date().toISOString() }))).catch(() => {});
         
-        // If the backend already included stock, we might want to cache those too
+        // If the backend already included stock, cache those too
         if (params?.include_stock) {
-          const stocks = products.map(p => p.stock).filter(Boolean);
+          const stocks = products.map((p: any) => p.stock).filter(Boolean);
           if (stocks.length > 0) db.stocks.bulkPut(stocks).catch(() => {});
         }
       }
@@ -489,9 +492,9 @@ export const getProducts = async (params?: {
   }
 
   // Offline fallback
-  const products = await db.products.toArray();
+  const products = await db.products.filter((p: any) => !p.is_deleted).toArray();
   if (params?.include_stock) {
-    const stocks = await db.stocks.toArray();
+    const stocks = await db.stocks.filter((s: any) => !s.is_deleted).toArray();
     return { data: products.map(p => ({ 
       ...p, 
       stock: stocks.find(s => s.product_id === p.id && (!params.shop_id || s.shop_id === params.shop_id)) 
@@ -549,26 +552,31 @@ export const deleteProduct = async (id: string) => {
 // 📊 STOCK MANAGEMENT (PER SHOP)
 // #############################################################
 export const getStocks = async (shop_id?: string) => {
-  if (false && isOnline()) {
-  try {
-    const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
-    const allStocks = extractArr(res.data);
-    if (allStocks.length > 0) db.stocks.bulkPut(allStocks).catch(() => {});
-    const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
-    // Enrich with product info
-    const enriched = await Promise.all(stocks.map(async (s: any) => {
-      if (s.productName) return { ...s, currentStock: s.quantity ?? s.currentStock ?? 0 };
-      const product = await db.products.get(s.product_id);
-      return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
-    }));
-    return { data: enriched };
-  } catch (e) {
-    console.warn('getStocks API failed, falling back to cache:', e);
-  }
+  if (isOnline()) {
+    try {
+      const res = await api.get('/stocks', { params: shop_id ? { shop_id } : {} });
+      // The backend wraps the data: { success, data: [...] }
+      const allStocks = extractArr(res.data?.data ?? res.data);
+      if (allStocks.length > 0) {
+        db.stocks.bulkPut(allStocks.map((s: any) => ({ ...s, updated_at: s.updated_at || new Date().toISOString() }))).catch(() => {});
+      }
+      const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
+      // Backend already enriches with productName etc., but enrich from local if missing
+      const enriched = await Promise.all(stocks.map(async (s: any) => {
+        if (s.productName) return { ...s, currentStock: s.quantity ?? s.currentStock ?? 0 };
+        const product = await db.products.get(s.product_id);
+        return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
+      }));
+      return { data: enriched };
+    } catch (e) {
+      console.warn('getStocks API failed, falling back to cache:', e);
+    }
   }
 
-  // Offline fallback
-  const stocks = shop_id ? await db.stocks.where('shop_id').equals(shop_id).toArray() : await db.stocks.toArray();
+  // Offline fallback — enrich from local Dexie
+  const stocks = shop_id
+    ? await db.stocks.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
+    : await db.stocks.filter((s: any) => !s.is_deleted).toArray();
   const enriched = await Promise.all(stocks.map(async (s) => {
     const product = await db.products.get(s.product_id);
     return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
@@ -754,14 +762,15 @@ export const createSale = async (data: any) => {
 };
 
 export const getSales = async (shop_id?: string) => {
-  if (false && isOnline()) {
+  if (isOnline()) {
     try {
       const res = await api.get('/sales', { params: shop_id ? { shop_id } : {} });
-      const all = extractArr(res.data);
+      // Backend returns { success, data: [...] }
+      const all = extractArr(res.data?.data ?? res.data);
       if (all.length > 0) {
-        // Save sales
-        await db.sales.bulkPut(all).catch(() => {});
-        // Extract and save items from all sales
+        // Cache sales locally
+        await db.sales.bulkPut(all.map((s: any) => ({ ...s, updated_at: s.updated_at || new Date().toISOString() }))).catch(() => {});
+        // Extract and cache sale items if embedded
         const allItems: any[] = [];
         for (const sale of all) {
           if (sale.items) {
@@ -775,7 +784,9 @@ export const getSales = async (shop_id?: string) => {
       console.warn('getSales API failed, falling back to cache:', e);
     }
   }
-  const sales = shop_id ? await db.sales.where('shop_id').equals(shop_id).toArray() : await db.sales.toArray();
+  const sales = shop_id
+    ? await db.sales.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
+    : await db.sales.filter((s: any) => !s.is_deleted).toArray();
   return { data: sales };
 };
 

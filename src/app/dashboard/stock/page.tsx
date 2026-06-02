@@ -45,10 +45,12 @@ export default function StockPage() {
   const [selectedRow, setSelectedRow] = useState<StockRow | null>(null);
   const [modalType, setModalType] = useState<"adjust" | "transfer" | "edit" | "grievance" | null>(null);
 
-  const selectedShopId =
+  // Reactive shop selection — listens for changes from other components/tabs
+  const [selectedShopId, setSelectedShopId] = useState<string>(
     typeof window !== "undefined"
       ? localStorage.getItem("selected_shop_id") || ""
-      : "";
+      : ""
+  );
 
   const [userRole, setUserRole] = useState<string>("");
 
@@ -62,6 +64,15 @@ export default function StockPage() {
         } catch { }
       }
     }
+
+    // Listen for shop changes from other components (e.g. dashboard shop selector)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "selected_shop_id" && e.newValue !== null) {
+        setSelectedShopId(e.newValue);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   // --------------------------------------------------
@@ -119,7 +130,9 @@ export default function StockPage() {
   useEffect(() => {
     fetchData();
     loadShops();
-  }, []);
+  // Re-fetch when selected shop changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShopId]);
 
   // --------------------------------------------------
   // ADJUST STOCK HANDLER

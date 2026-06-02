@@ -135,10 +135,18 @@ export function isNetworkError(err: any): boolean {
 }
 
 // ─────────────────────────────────────────────
-// Clear cached credentials (e.g. on logout)
-// ─────────────────────────────────────────────
 export function clearOfflineCredentials(): void {
+  // Remove the generic/legacy key
   localStorage.removeItem(OFFLINE_CRED_KEY);
+  // Remove all per-user keys (tuhanas_offline_cred_<email>)
+  const toRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(OFFLINE_CRED_KEY + '_')) {
+      toRemove.push(key);
+    }
+  }
+  toRemove.forEach((k) => localStorage.removeItem(k));
 }
 
 // ─────────────────────────────────────────────

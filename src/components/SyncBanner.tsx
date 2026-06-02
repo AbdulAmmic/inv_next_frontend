@@ -82,11 +82,6 @@ export function useSyncStatus() {
 
   // ── Online / Offline detection ──
   useEffect(() => {
-    if (typeof window !== "undefined" && navigator.onLine) {
-      setTimeout(() => {
-        if (!isSyncing.current) triggerPull();
-      }, 2000);
-    }
     const handleOnline = () => {
       setOnline(true);
       // Automatically pull when internet comes back

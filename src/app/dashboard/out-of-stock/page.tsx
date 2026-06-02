@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   AlertTriangle,
@@ -28,9 +29,13 @@ interface StockItem {
   status: string;
   lastUpdated: string | null;
   demand_percentage?: number;
+  daily_velocity?: number;
+  days_until_stockout?: number | null;
+  product_id?: string;
 }
 
 export default function OutOfStockPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +56,7 @@ export default function OutOfStockPage() {
 
       const allStocks: StockItem[] = apiRows.map((item: any) => ({
         id: item.id,
+        product_id: item.product_id,
         productName: item.productName || "Unknown Product",
         sku: item.sku || "N/A",
         category: item.category || "Uncategorized",
@@ -59,6 +65,8 @@ export default function OutOfStockPage() {
         status: item.status || "active",
         lastUpdated: item.lastUpdated || null,
         demand_percentage: item.demand_percentage ?? 0,
+        daily_velocity: item.daily_velocity ?? 0,
+        days_until_stockout: item.days_until_stockout ?? null,
       }));
 
       const outOfStockItems = allStocks.filter((item) => item.currentStock <= 0);
@@ -261,6 +269,7 @@ export default function OutOfStockPage() {
                       <th className="px-8 py-5 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Product Title</th>
                       <th className="px-8 py-5 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Classification</th>
                       <th className="px-8 py-5 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Market Demand</th>
+                      <th className="px-8 py-5 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Stockout Est.</th>
                       <th className="px-8 py-5 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right">Action</th>
                     </tr>
                   </thead>
@@ -311,10 +320,32 @@ export default function OutOfStockPage() {
                                   className={`h-full ${(item.demand_percentage || 0) > 60 ? 'bg-rose-500' : 'bg-amber-500'}`}
                                 />
                               </div>
+                              {(item.daily_velocity || 0) > 0 && (
+                                <p className="text-[9px] text-slate-400 font-bold">{item.daily_velocity?.toFixed(1)} units/day</p>
+                              )}
                             </div>
                           </td>
+                          {/* Stockout estimate column */}
+                          <td className="px-8 py-6">
+                            {item.currentStock > 0 && item.days_until_stockout != null ? (
+                              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                                item.days_until_stockout <= 7 ? 'bg-rose-100 text-rose-700' :
+                                item.days_until_stockout <= 30 ? 'bg-amber-100 text-amber-700' :
+                                'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                <TrendingDown className="w-3 h-3" />
+                                {item.days_until_stockout}d left
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-bold italic">
+                                {item.currentStock <= 0 ? '— depleted —' : 'No data'}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-8 py-6 text-right">
-                            <button className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group/btn">
+                            <button
+                              onClick={() => router.push('/dashboard/purchases')}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-lg shadow-slate-200 group/btn">
                               Restock
                               <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
                             </button>
@@ -375,9 +406,14 @@ export default function OutOfStockPage() {
                             className={`h-full ${(item.demand_percentage || 0) > 60 ? 'bg-rose-500' : 'bg-amber-500'}`}
                           />
                         </div>
+                        {(item.daily_velocity || 0) > 0 && (
+                          <p className="text-[9px] text-slate-400 font-bold mt-1">{item.daily_velocity?.toFixed(1)} units/day</p>
+                        )}
                       </div>
 
-                      <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-md group">
+                      <button
+                        onClick={() => router.push('/dashboard/purchases')}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-600 transition-all active:scale-95 shadow-md group">
                         Restock Now
                         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </button>
