@@ -18,6 +18,26 @@ import {
   RefreshCw,
   Download,
   Calendar,
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Wallet,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  TrendingUp,
+  Store,
+  Boxes,
+  CircleDollarSign,
+  Users,
+  Truck,
+  AlertTriangle,
+  Package,
+  BarChart3,
+  RefreshCw,
+  Download,
+  Calendar,
   MoreVertical,
   ChevronDown,
   Loader2
@@ -26,6 +46,7 @@ import { getShops, getFullStats } from "@/apiCalls";
 import { motion, AnimatePresence } from "framer-motion";
 import Loader from "@/components/Loader";
 import { toast } from "react-hot-toast";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface FinancialStats {
   total_sales_amount: number;
@@ -632,6 +653,71 @@ export default function FinancesPage() {
             color="orange"
             compactValue={formatCompact(stats?.total_purchase_amount || 0)}
           />
+        </div>
+
+        {/* Financial Flow Chart */}
+        <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 w-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-slate-900">Financial Flow Overview</h3>
+          </div>
+          <div className="w-full h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
+                  { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
+                  { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
+                  { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
+                  { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 11 }} 
+                  tickFormatter={(val) => `₦${(val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val)}`}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  content={({ active, payload, label }: any) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl">
+                          <p className="font-bold text-slate-700 text-sm mb-1">{label}</p>
+                          <p className="text-slate-900 font-black text-lg">
+                            {formatNaira(payload[0].value || 0)}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                  {
+                    [
+                      { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
+                      { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
+                      { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
+                      { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
+                      { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))
+                  }
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Business Overview Section */}

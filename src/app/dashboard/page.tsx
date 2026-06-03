@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -350,6 +351,55 @@ export default function DashboardPage() {
                 trend={safeStats.net_profit >= 0 ? "up" : "down"}
               />
             </div>
+
+            {/* Quick Chart */}
+            {(role === "admin" || role === "subadmin") && (
+              <div className="px-6 md:px-8 pb-8">
+                <div className="w-full h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { name: 'Revenue', value: Math.max(0, safeStats.total_sales_amount || 0), color: '#10b981' },
+                        { name: 'Purchases', value: Math.max(0, safeStats.total_purchase_amount || 0), color: '#f59e0b' },
+                        { name: 'Expenses', value: Math.max(0, safeStats.total_expenses || 0), color: '#ef4444' },
+                      ]}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(val) => `₦${(val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val)}`} />
+                      <Tooltip 
+                        cursor={{ fill: '#f8fafc' }}
+                        content={({ active, payload, label }: any) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-2 border border-slate-100 shadow-lg rounded-lg">
+                                <p className="font-bold text-slate-700 text-xs mb-0.5">{label}</p>
+                                <p className="text-slate-900 font-black text-sm">
+                                  {formatCurrency(payload[0].value || 0)}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                        {
+                          [
+                            { color: '#10b981' },
+                            { color: '#f59e0b' },
+                            { color: '#ef4444' },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))
+                        }
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* Inventory value strip */}
             {(safeStats.inventory_cost_value > 0 || safeStats.inventory_selling_value > 0) && (
