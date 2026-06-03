@@ -61,6 +61,8 @@ export default function ExpensesPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
+  const [currentUserRole, setCurrentUserRole] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
 
   const [newExpense, setNewExpense] = useState({
@@ -99,6 +101,7 @@ export default function ExpensesPage() {
       if (stored) {
         const parsed = JSON.parse(stored);
         const role = parsed.role || "";
+        setCurrentUserRole(role);
         if (role === "staff") {
           toast.error("Access denied: You cannot manage Expenses.");
           router.replace("/dashboard");
@@ -228,6 +231,11 @@ export default function ExpensesPage() {
     return colors[index];
   };
 
+  const formatCurrency = (val: number) => {
+    if (currentUserRole !== "admin" && currentUserRole !== "subadmin") return "₦******";
+    return `₦${val.toLocaleString()}`;
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -260,7 +268,7 @@ export default function ExpensesPage() {
         <div className="bg-white p-6 rounded-xl mb-6 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Total Expenses (Filtered)</p>
           <p className="text-3xl font-bold text-gray-900 mt-2">
-            ₦{totalExpenses.toLocaleString()}
+            {formatCurrency(totalExpenses)}
           </p>
         </div>
 
@@ -341,7 +349,7 @@ export default function ExpensesPage() {
                           {e.description || "-"}
                         </td>
                         <td className="p-4 text-sm font-bold text-gray-900 whitespace-nowrap">
-                          ₦{Number(e.amount).toLocaleString()}
+                          {formatCurrency(Number(e.amount))}
                         </td>
                         <td className="p-4 text-sm text-gray-500 whitespace-nowrap">
                           {new Date(e.date).toLocaleDateString("en-NG")}
@@ -392,7 +400,7 @@ export default function ExpensesPage() {
                         {catName}
                       </span>
                       <span className="text-sm font-bold text-gray-900">
-                        ₦{Number(e.amount).toLocaleString()}
+                        {formatCurrency(Number(e.amount))}
                       </span>
                     </div>
 
@@ -474,7 +482,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold">Amount</p>
-                  <p className="text-2xl font-bold text-gray-900">₦{selectedExpense.amount.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedExpense.amount)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-semibold">Date</p>

@@ -82,6 +82,7 @@ export default function PurchasesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -157,6 +158,13 @@ export default function PurchasesPage() {
   };
 
   useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setCurrentUserRole(parsed.role?.toLowerCase() || "");
+      } catch {}
+    }
     fetchData();
   }, []);
 
@@ -264,6 +272,11 @@ export default function PurchasesPage() {
   const totalSpent = purchases.reduce((s, p) => s + (p.total_amount || 0), 0);
   const pendingCount = purchases.filter(x => x.status === "ordered" || x.status === "receiving").length;
 
+  const formatCurrency = (val: number) => {
+    if (currentUserRole !== "admin" && currentUserRole !== "subadmin") return "₦******";
+    return `₦${val.toLocaleString()}`;
+  };
+
   if (loading && purchases.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -350,7 +363,7 @@ export default function PurchasesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
           {[
             { label: "Total Orders", value: purchases.length, icon: ShoppingCart, color: "blue", delay: 0 },
-            { label: "Procurement Mass", value: `₦${totalSpent.toLocaleString()}`, icon: Wallet, color: "emerald", delay: 0.1 },
+            { label: "Procurement Mass", value: formatCurrency(totalSpent), icon: Wallet, color: "emerald", delay: 0.1 },
             { label: "Active Pipeline", value: pendingCount, icon: Truck, color: "indigo", delay: 0.2 },
             { label: "Vendor Count", value: suppliers.length, icon: BarChart3, color: "purple", delay: 0.3 }
           ].map((stat, i) => (
@@ -490,7 +503,7 @@ export default function PurchasesPage() {
                         </td>
                         <td className="px-8 py-6 text-sm">
                           <div className="font-black text-slate-900">
-                            ₦{(p.total_amount || 0).toLocaleString()}
+                            {formatCurrency(p.total_amount || 0)}
                           </div>
                           <p className="text-[10px] text-slate-300 font-bold uppercase tracking-tighter italic">Total Net Procurement</p>
                         </td>
@@ -618,7 +631,7 @@ export default function PurchasesPage() {
                       <div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic">Total Amount</p>
                         <div className="font-black text-slate-900 text-sm">
-                          ₦{(p.total_amount || 0).toLocaleString()}
+                          {formatCurrency(p.total_amount || 0)}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

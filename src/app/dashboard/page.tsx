@@ -158,8 +158,10 @@ export default function DashboardPage() {
     });
   }, [loadStats]);
 
-  const formatCurrency = (n: number | undefined | null) =>
-    "₦" + Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatCurrency = (n: number | undefined | null) => {
+    if (role !== "admin" && role !== "subadmin") return "₦******";
+    return "₦" + Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   // Show full-page loader only on very first load with no cached stats
   if (loading && !stats && !error) {
@@ -343,7 +345,7 @@ export default function DashboardPage() {
               <FinancialCard
                 label="Net Profit"
                 value={formatCurrency(safeStats.net_profit)}
-                subLabel={`After ₦${Number(safeStats.total_expenses || 0).toLocaleString("en-NG")} expenses`}
+                subLabel={`After ${role !== "admin" && role !== "subadmin" ? "₦******" : "₦" + Number(safeStats.total_expenses || 0).toLocaleString("en-NG")} expenses`}
                 icon={<TrendingUp className="w-3.5 h-3.5" />}
                 trend={safeStats.net_profit >= 0 ? "up" : "down"}
               />
