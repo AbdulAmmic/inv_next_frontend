@@ -311,7 +311,7 @@ export default function DashboardPage() {
 
         {/* Financial Overview — Admin/Manager only */}
         {(role === "admin" || role === "subadmin" || role === "manager") && (
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-slate-100 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Financial Performance</h2>
               <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -456,8 +456,8 @@ const MetricCard = ({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow ${
-        isAlert ? "border-rose-200 bg-rose-50/10" : ""
+      className={`bg-white border border-slate-100 p-5 rounded-xl hover:border-slate-200 transition-colors ${
+        isAlert ? "border-rose-100 bg-rose-50/20" : ""
       }`}
     >
       <div className="flex items-start justify-between">

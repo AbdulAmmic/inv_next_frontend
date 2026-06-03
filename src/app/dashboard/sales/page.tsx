@@ -183,191 +183,6 @@ export default function SalesPage() {
     if (sortConfig.key === 'created_at') return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     if (sortConfig.key === 'item_count') return (a.item_count - b.item_count) * dir;
     return 0;
-"use client";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Eye, Printer, ShoppingBag, RefreshCw, Download, Filter,
-  TrendingUp, DollarSign, TrendingDown, BarChart3, Search,
-  User, Users, CreditCard, Package, Calendar, Clock,
-  ArrowUpDown, XCircle, CheckCircle, ChevronDown, Trash2
-} from "lucide-react";
-import { getSales, getSale, getUsers } from "@/apiCalls";
-import ReceiptComponent from "@/components/ReceiptComponent";
-import Loader from "@/components/Loader";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-hot-toast";
-
-interface Sale {
-  id: string;
-  sale_number: string;
-  shop_name: string;
-  staff_name: string;
-  customer_name: string;
-  amount: number;
-  payment_method: string;
-  item_count: number;
-  created_at_display: string;
-  status: string;
-  created_at: string;
-}
-
-interface FilterState {
-  search: string;
-  customer: string;
-  staff: string;
-  payment_method: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-}
-
-export default function SalesPage() {
-  const router = useRouter();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [staffList, setStaffList] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedShop, setSelectedShop] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
-    key: 'created_at',
-    direction: 'desc'
-  });
-
-  const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
-
-  const [filters, setFilters] = useState<FilterState>({
-    search: "",
-    customer: "all",
-    staff: "all",
-    payment_method: "all",
-    status: "all",
-    startDate: "",
-    endDate: ""
-  });
-
-  const fetchSales = async (shopId: string) => {
-    try {
-      if (!sales.length) setLoading(true);
-      const res = await getSales(shopId);
-      const data = Array.isArray(res.data) ? res.data : [];
-
-      const cleaned = data.map((s: any) => {
-        const isReturned = s.status === "refunded";
-        return {
-          id: s.id,
-          sale_number: s.sale_number,
-          shop_name: s.shop_name,
-          staff_name: s.staff_name,
-          customer_name: s.customer_name,
-          amount: isReturned ? -Math.abs(s.total_amount || 0) : s.total_amount || 0,
-          payment_method: s.payment_method,
-          item_count: s.item_count,
-          created_at_display: s.created_at ? new Date(s.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : "Unknown",
-          status: s.status,
-          created_at: s.created_at
-        };
-      });
-
-      setSales(cleaned);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to load sales data");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const fetchStaff = async () => {
-    try {
-      const res = await getUsers();
-      if (res.data && Array.isArray(res.data)) {
-        const names = Array.from(new Set(res.data.map((u: any) => u.full_name))).filter(Boolean) as string[];
-        setStaffList(names);
-      }
-    } catch (err) {
-      console.error("Failed to load staff list", err);
-    }
-  };
-
-  useEffect(() => {
-    const shopId = localStorage.getItem("selected_shop_id");
-    const savedUser = localStorage.getItem("user");
-    let role = "";
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      role = (parsed.role || "").toLowerCase();
-      setCurrentUserRole(role);
-    }
-    setSelectedShop(shopId);
-    if (role === "admin") fetchStaff();
-    if (shopId) fetchSales(shopId);
-    else setLoading(false);
-  }, []);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    if (selectedShop) fetchSales(selectedShop);
-    toast.success("Sales records updated");
-  };
-
-  const handleViewReceipt = async (saleId: string) => {
-    try {
-      const res = await getSale(saleId);
-      if (res.data) {
-        const saleData = {
-          ...res.data.sale,
-          items: res.data.items,
-          total: res.data.sale.total_amount,
-          discount: res.data.sale.discount_amount,
-        };
-        setSelectedReceipt(saleData);
-      }
-    } catch (err) {
-      console.error("Failed to fetch sale details", err);
-      toast.error("Could not load receipt details.");
-    }
-  };
-
-  const filteredSales = sales.filter(sale => {
-    if (
-      filters.search &&
-      !(sale.sale_number || "").toLowerCase().includes(filters.search.toLowerCase()) &&
-      !(sale.customer_name || "").toLowerCase().includes(filters.search.toLowerCase())
-    ) return false;
-    if (filters.customer !== "all") {
-      if (filters.customer === "walk_in") {
-        if (sale.customer_name && sale.customer_name.toLowerCase() !== "walk-in") return false;
-      } else if (sale.customer_name !== filters.customer) return false;
-    }
-    if (filters.staff !== "all" && sale.staff_name !== filters.staff) return false;
-    if (
-      filters.payment_method !== "all" &&
-      (sale.payment_method || "").toLowerCase() !== filters.payment_method.toLowerCase()
-    ) return false;
-    if (filters.status !== "all" && (sale.status || "").toLowerCase() !== filters.status.toLowerCase()) return false;
-    if (filters.startDate || filters.endDate) {
-      const saleDate = new Date(sale.created_at);
-      if (filters.startDate && saleDate < new Date(filters.startDate)) return false;
-      if (filters.endDate) {
-        const end = new Date(filters.endDate);
-        end.setHours(23, 59, 59, 999);
-        if (saleDate > end) return false;
-      }
-    }
-    return true;
-  });
-
-  const sortedSales = [...filteredSales].sort((a, b) => {
-    const dir = sortConfig.direction === 'asc' ? 1 : -1;
-    if (sortConfig.key === 'amount') return (a.amount - b.amount) * dir;
-    if (sortConfig.key === 'created_at') return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
-    if (sortConfig.key === 'item_count') return (a.item_count - b.item_count) * dir;
-    return 0;
   });
 
   const totalSalesAmount = filteredSales.reduce((sum, sale) => sale.amount > 0 ? sum + sale.amount : sum, 0);
@@ -551,6 +366,45 @@ export default function SalesPage() {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full min-w-[940px] text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-16">#</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Ref & Date</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Staff</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {sortedSales.length > 0 ? (
+                  sortedSales.map((sale, idx) => (
+                    <motion.tr
+                      key={sale.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="group hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 text-center font-bold text-slate-300">{idx + 1}</td>
+                      <td className="px-6 py-4">
+                        <p className="font-black text-slate-900">{sale.sale_number}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>{sale.created_at_display}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-700">{sale.customer_name || "Walk-in"}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-700">{sale.staff_name || "Unknown"}</p>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <p className={`font-black ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                          ₦{Math.abs(sale.amount).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{sale.payment_method}</p>
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={sale.status} />

@@ -18,26 +18,6 @@ import {
   RefreshCw,
   Download,
   Calendar,
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Wallet,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  TrendingUp,
-  Store,
-  Boxes,
-  CircleDollarSign,
-  Users,
-  Truck,
-  AlertTriangle,
-  Package,
-  BarChart3,
-  RefreshCw,
-  Download,
-  Calendar,
   MoreVertical,
   ChevronDown,
   Loader2
@@ -582,7 +562,7 @@ export default function FinancesPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: pi.delay }}
-                className={`bg-gradient-to-br ${pi.gradient} p-5 md:p-6 rounded-2xl text-white shadow-xl shadow-slate-200 group relative overflow-hidden min-w-0`}
+                className={`bg-gradient-to-br ${pi.gradient} p-5 rounded-xl text-white shadow-none group relative overflow-hidden min-w-0 hover:opacity-95 transition-opacity`}
               >
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex items-center justify-between mb-2">
@@ -656,7 +636,7 @@ export default function FinancesPage() {
         </div>
 
         {/* Financial Flow Chart */}
-        <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 w-full">
+        <div className="mb-8 bg-white rounded-xl border border-gray-100 p-5 w-full hover:border-gray-200 transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900">Financial Flow Overview</h3>
           </div>
@@ -724,7 +704,7 @@ export default function FinancesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Business Metrics */}
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Overview</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MiniMetricCard
@@ -757,7 +737,7 @@ export default function FinancesPage() {
 
           {/* Right Column - Stock Status */}
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Status</h3>
               <div className="space-y-4">
                 <StockAlertCard
@@ -801,7 +781,7 @@ export default function FinancesPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="mt-8 bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="flex flex-wrap gap-3">
             <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition-colors">
@@ -842,7 +822,7 @@ const MetricCard = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-300 group">
+    <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors duration-300 group">
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white`}>
           {icon}
