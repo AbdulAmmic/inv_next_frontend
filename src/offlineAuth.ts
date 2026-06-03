@@ -49,7 +49,7 @@ export async function cacheLoginCredentials(
 ): Promise<void> {
   try {
     const cleanEmail = email.toLowerCase().trim();
-    const passwordHash = await sha256(cleanEmail + ':' + password);
+    const passwordHash = await sha256(cleanEmail + ':' + password.trim());
     const cred: CachedCredential = {
       email: cleanEmail,
       passwordHash,
@@ -110,7 +110,7 @@ export async function verifyOfflineLogin(
     return { success: false, reason: 'No offline record for this email.' };
   }
 
-  const enteredHash = await sha256(cleanEmail + ':' + password);
+  const enteredHash = await sha256(cleanEmail + ':' + password.trim());
   if (enteredHash !== cred.passwordHash) {
     return { success: false, reason: 'Incorrect password.' };
   }

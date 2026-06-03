@@ -80,9 +80,13 @@ export default function LoginPage() {
     return false;
   };
 
-  const doLogin = async (toastId: string): Promise<"success" | "auth_error" | "network_error"> => {
+  const doLogin = async (
+    toastId: string,
+    email: string,
+    password: string
+  ): Promise<"success" | "auth_error" | "network_error"> => {
     try {
-      const response = await loginUser(formData.email, formData.password);
+      const response = await loginUser(email, password);
       const data = response.data;
 
       if (data?.access_token) {
@@ -91,9 +95,10 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         localStorage.removeItem("offline_session");
 
+        // Cache uses the already-clean email + password
         await cacheLoginCredentials(
-          formData.email,
-          formData.password,
+          email,
+          password,
           data.user,
           data.access_token,
           data.refresh_token
@@ -120,18 +125,32 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
+    // Normalise email and password ONCE here, use these throughout — never formData directly
     const cleanEmail = formData.email.trim().toLowerCase();
-    setFormData((prev) => ({ ...prev, email: cleanEmail }));
-    formData.email = cleanEmail;
+    const cleanPassword = formData.password.trim();
 
-    if (!validateForm()) return;
+    // Update display state so the input shows the cleaned email
+    setFormData((prev) => ({ ...prev, email: cleanEmail }));
+
+    if (!cleanEmail) {
+      setErrors((prev) => ({ ...prev, email: "Email is required" }));
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
+      setErrors((prev) => ({ ...prev, email: "Enter a valid email" }));
+      return;
+    }
+    if (!cleanPassword) {
+      setErrors((prev) => ({ ...prev, password: "Password is required" }));
+      return;
+    }
 
     setLoading(true);
     const toastId = toast.loading("Signing in...");
 
     try {
       // ── Step 1: Try online login ──
-      let result = await doLogin(toastId);
+      let result = await doLogin(toastId, cleanEmail, cleanPassword);
 
       if (result === "success") return;
 
@@ -140,7 +159,7 @@ export default function LoginPage() {
         const awake = await wakeAndRetry(toastId);
 
         if (awake) {
-          result = await doLogin(toastId);
+          result = await doLogin(toastId, cleanEmail, cleanPassword);
           if (result === "success") return;
 
           if (result === "auth_error") {
@@ -151,7 +170,7 @@ export default function LoginPage() {
 
         // ── Step 3: Server unreachable — try offline cache ──
         toast.loading("Server unreachable — checking offline credentials...", { id: toastId });
-        const offlineResult = await verifyOfflineLogin(formData.email, formData.password);
+        const offlineResult = await verifyOfflineLogin(cleanEmail, cleanPassword);
 
         if (offlineResult.success) {
           const cached = offlineResult.data;
