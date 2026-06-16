@@ -558,7 +558,11 @@ export const getStocks = async (shop_id?: string) => {
       // The backend wraps the data: { success, data: [...] }
       const allStocks = extractArr(res.data?.data ?? res.data);
       if (allStocks.length > 0) {
-        db.stocks.bulkPut(allStocks.map((s: any) => ({ ...s, updated_at: s.updated_at || new Date().toISOString() }))).catch(() => {});
+        db.stocks.bulkPut(allStocks.map((s: any) => ({
+          ...s,
+          quantity: s.quantity ?? s.currentStock ?? 0,
+          updated_at: s.updated_at || new Date().toISOString()
+        }))).catch(() => {});
       }
       const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
       // Backend already enriches with productName etc., but enrich from local if missing
@@ -1218,6 +1222,35 @@ export const receivePurchase = async (id: string, payload: any) => {
     try {
       const res = await api.post(`/purchases/${id}/receive`, payload);
       const purchase = normalizePurchase(res.data);
+      const now = new Date().toISOString();
+
+      // Update local stocks with the differences
+      if (purchase.items && purchase.items.length > 0) {
+        for (const item of purchase.items) {
+          const localItem = await db.purchase_items.get(item.id);
+          const previouslyReceived = localItem?.received_quantity || 0;
+          const diff = (item.received_quantity || 0) - previouslyReceived;
+
+          if (diff !== 0) {
+            const stock = await db.stocks.where({ shop_id: purchase.shop_id, product_id: item.product_id }).first();
+            if (stock) {
+              const newQty = (stock.quantity || 0) + diff;
+              await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+            } else if (diff > 0) {
+              const stockId = crypto.randomUUID();
+              await db.stocks.add({
+                id: stockId,
+                shop_id: purchase.shop_id,
+                product_id: item.product_id,
+                quantity: diff,
+                min_quantity: 0,
+                updated_at: now
+              });
+            }
+          }
+        }
+      }
+
       await db.purchases.put(purchase);
       if (purchase.items.length > 0) {
         await db.purchase_items.bulkPut(purchase.items.map((item: any) => ({ ...item, purchase_id: id }))).catch(() => {});
@@ -1255,8 +1288,9 @@ export const receivePurchase = async (id: string, payload: any) => {
     // Use received_quantity from form if available, fallback to ordered quantity
     const receivedQty = receivedQtyMap[item.id] ?? Number(item.ordered_quantity ?? item.quantity ?? 0);
 
-    // Skip if nothing was received for this item
-    if (receivedQty <= 0) continue;
+    const previouslyReceived = item.received_quantity || 0;
+    const diff = receivedQty - previouslyReceived;
+    if (diff === 0) continue;
 
     // Update purchase_item with actual received quantity
     const updatedFields = {
@@ -1276,24 +1310,24 @@ export const receivePurchase = async (id: string, payload: any) => {
       .first();
 
     if (stock) {
-      const newQty = (stock.quantity || 0) + receivedQty;
+      const newQty = (stock.quantity || 0) + diff;
       await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
       await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty, updated_at: now });
-      console.log(`✅ Stock updated: product=${item.product_id}, +${receivedQty} → total=${newQty}`);
-    } else {
+      console.log(`✅ Stock updated: product=${item.product_id}, +${diff} → total=${newQty}`);
+    } else if (diff > 0) {
       // No stock record yet — create one
       const stockId = crypto.randomUUID();
       const newStock = {
         id: stockId,
         shop_id: purchase.shop_id,
         product_id: item.product_id,
-        quantity: receivedQty,
+        quantity: diff,
         min_quantity: 0,
         updated_at: now
       };
       await db.stocks.add(newStock);
       await queueChange('stocks', stockId, 'CREATE', newStock);
-      console.log(`🆕 Stock created: product=${item.product_id}, qty=${receivedQty}`);
+      console.log(`🆕 Stock created: product=${item.product_id}, qty=${diff}`);
     }
   }
 
