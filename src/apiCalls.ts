@@ -527,10 +527,14 @@ export const getProduct = async (id: string) => {
 export const createProduct = async (data: any) => {
   const id = data.id || crypto.randomUUID();
   const record = { ...data, id, updated_at: new Date().toISOString() };
-  
-  await db.products.add(record);
-  await queueChange('products', id, 'CREATE', record);
-  
+
+  // Atomic: a crash between the Dexie write and queueChange would otherwise
+  // leave a product that exists locally but never syncs (or vice versa).
+  await db.transaction('rw', db.products, db.sync_queue, async () => {
+    await db.products.add(record);
+    await queueChange('products', id, 'CREATE', record);
+  });
+
   return { data: record };
 };
 
@@ -644,13 +648,16 @@ export const adjustStock = async (data: {
     }
   }
 
-  const stock = await db.stocks.where({ shop_id: data.shop_id, product_id: data.product_id }).first();
-  const now = new Date().toISOString();
-  if (stock) {
-    const newQty = (stock.quantity || 0) + data.quantity;
-    await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-    await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty });
-  }
+  // Offline: route through the same `adjustments` queuing path createAdjustment
+  // uses, instead of duplicating a second, slightly different ad-hoc
+  // stock-update path. Keeps exactly one code path for "offline stock delta".
+  await createAdjustment({
+    shop_id: data.shop_id,
+    product_id: data.product_id,
+    adjustment_type: data.quantity >= 0 ? 'addition' : 'subtraction',
+    quantity_change: data.quantity,
+    reason: data.reason,
+  });
   return { data: { success: true } };
 };
 
@@ -677,21 +684,11 @@ export const createSale = async (data: any) => {
     status: 'completed' 
   };
   
-  await db.sales.add(sale);
-  
   // Fetch Shop Info from local Dexie database
   let shopName = "Tuhanas Shop";
   let shopAddress = "";
   let shopPhone = "";
-  if (data.shop_id) {
-    const shop = await db.shops.get(data.shop_id);
-    if (shop) {
-      shopName = shop.name || shopName;
-      shopAddress = shop.address || "";
-      shopPhone = shop.phone || "";
-    }
-  }
-  
+
   // Fetch Staff Info from localStorage user profile
   let staffName = "Staff Member";
   try {
@@ -701,52 +698,73 @@ export const createSale = async (data: any) => {
       staffName = localUser.full_name || localUser.name || staffName;
     }
   } catch {}
-  
+
   // Fetch Customer Info from local Dexie database
   let customerName = "Walk-in Customer";
-  if (data.customer_id) {
-    const customer = await db.customers.get(data.customer_id);
-    if (customer) {
-      customerName = customer.name || customerName;
-    }
-  }
-  
-  const itemsList = [];
-  
-  // Also add items and update stock
-  if (data.items) {
-    for (const item of data.items) {
-      const itemId = crypto.randomUUID();
-      const saleItem = { ...item, id: itemId, sale_id: id };
-      await db.sale_items.add(saleItem);
 
-      // Fetch Product Info for receipt
-      const product = await db.products.get(item.product_id);
-      const productName = product ? product.name : "Product Item";
+  const itemsList: any[] = [];
 
-      itemsList.push({
-        product_name: productName,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price
-      });
+  // Atomic: a crash partway through this sequence would otherwise leave the
+  // sale, its items, the stock decrement, and the sync queue out of sync
+  // with each other.
+  await db.transaction('rw', [db.sales, db.sale_items, db.stocks, db.shops, db.customers, db.products, db.sync_queue], async () => {
+    await db.sales.add(sale);
 
-      // DECREMENT STOCK
-      const stock = await db.stocks.where({ 
-        shop_id: data.shop_id, 
-        product_id: item.product_id 
-      }).first();
-
-      if (stock) {
-        const newQty = (stock.quantity || 0) - (item.quantity || 0);
-        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-        await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty });
+    if (data.shop_id) {
+      const shop = await db.shops.get(data.shop_id);
+      if (shop) {
+        shopName = shop.name || shopName;
+        shopAddress = shop.address || "";
+        shopPhone = shop.phone || "";
       }
     }
-  }
-  
-  await queueChange('sales', id, 'CREATE', sale);
-  
+
+    if (data.customer_id) {
+      const customer = await db.customers.get(data.customer_id);
+      if (customer) {
+        customerName = customer.name || customerName;
+      }
+    }
+
+    // Also add items and update stock
+    if (data.items) {
+      for (const item of data.items) {
+        const itemId = crypto.randomUUID();
+        const saleItem = { ...item, id: itemId, sale_id: id };
+        await db.sale_items.add(saleItem);
+
+        // Fetch Product Info for receipt
+        const product = await db.products.get(item.product_id);
+        const productName = product ? product.name : "Product Item";
+
+        itemsList.push({
+          product_name: productName,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.quantity * item.unit_price
+        });
+
+        // Local optimistic decrement for instant UI feedback only. The
+        // authoritative decrement happens server-side, derived from this
+        // sale's own items (see backend sync_push) — we no longer push a
+        // separate raw absolute-quantity 'stocks' update, since that raced
+        // against other offline actions on the same stock row and silently
+        // lost updates.
+        const stock = await db.stocks.where({
+          shop_id: data.shop_id,
+          product_id: item.product_id
+        }).first();
+
+        if (stock) {
+          const newQty = Math.max(0, (stock.quantity || 0) - (item.quantity || 0));
+          await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+        }
+      }
+    }
+
+    await queueChange('sales', id, 'CREATE', sale);
+  });
+
   const responseData = {
     sale: {
       ...sale,
@@ -1003,22 +1021,47 @@ export const createTransfer = async (data: any) => {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const transfer = { ...data, id, status: 'pending', created_at: now, updated_at: now };
-  
-  await db.transfers.add(transfer);
-  await queueChange('transfers', id, 'CREATE', transfer);
 
-  // Decrement source stock
-  const stock = await db.stocks.where({ 
-    shop_id: data.from_shop_id, 
-    product_id: data.product_id 
-  }).first();
+  // Atomic: keeps the transfer record, both local stock rows, and the sync
+  // queue entry consistent even if the app crashes mid-sequence.
+  await db.transaction('rw', db.transfers, db.stocks, db.sync_queue, async () => {
+    await db.transfers.add(transfer);
 
-  if (stock) {
-    const newQty = (stock.quantity || 0) - (data.quantity || 0);
-    await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-    await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty });
-  }
-  
+    // Local optimistic stock updates for instant UI feedback only. The
+    // authoritative move happens server-side from the transfer's own
+    // from/to/quantity fields (see backend sync_push) — we no longer push a
+    // separate raw absolute-quantity 'stocks' update, since that raced
+    // against other offline actions on the same stock row and could
+    // silently lose or double-apply an update.
+    const fromStock = await db.stocks.where({
+      shop_id: data.from_shop_id,
+      product_id: data.product_id
+    }).first();
+    if (fromStock) {
+      const newQty = Math.max(0, (fromStock.quantity || 0) - (data.quantity || 0));
+      await db.stocks.update(fromStock.id, { quantity: newQty, updated_at: now });
+    }
+
+    const toStock = await db.stocks.where({
+      shop_id: data.to_shop_id,
+      product_id: data.product_id
+    }).first();
+    if (toStock) {
+      await db.stocks.update(toStock.id, { quantity: (toStock.quantity || 0) + (data.quantity || 0), updated_at: now });
+    } else {
+      await db.stocks.add({
+        id: crypto.randomUUID(),
+        shop_id: data.to_shop_id,
+        product_id: data.product_id,
+        quantity: data.quantity || 0,
+        min_quantity: 0,
+        updated_at: now
+      });
+    }
+
+    await queueChange('transfers', id, 'CREATE', transfer);
+  });
+
   return { data: transfer };
 };
 
@@ -1051,46 +1094,52 @@ export const createAdjustment = async (data: {
   const userRaw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
   const user = userRaw ? JSON.parse(userRaw) : { id: 'unknown' };
 
-  const adjustment = { 
-    id, 
+  const adjustment = {
+    id,
     shop_id: data.shop_id,
     product_id: data.product_id,
     adjustment_type: data.adjustment_type,
     quantity: Math.abs(data.quantity_change),
+    quantity_change: data.quantity_change,
     note: data.reason || 'manual_edit',
     staff_id: user.id,
-    created_at: now, 
-    updated_at: now 
+    created_at: now,
+    updated_at: now
   };
-  
-  await db.adjustments.add(adjustment);
-  await queueChange('adjustments', id, 'CREATE', adjustment);
 
-  // Update stock levels
-  const stock = await db.stocks.where({ 
-    shop_id: data.shop_id, 
-    product_id: data.product_id 
-  }).first();
+  // Atomic: keeps the adjustment record, the local stock row, and the sync
+  // queue entry consistent even if the app crashes mid-sequence.
+  await db.transaction('rw', db.adjustments, db.stocks, db.sync_queue, async () => {
+    await db.adjustments.add(adjustment);
 
-  if (stock) {
-    const newQty = (stock.quantity || 0) + data.quantity_change;
-    await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-    await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty });
-  } else {
-    // If no stock exists, create it
-    const stockId = crypto.randomUUID();
-    const newStock = {
-      id: stockId,
+    // Local optimistic stock update for instant UI feedback only. The
+    // authoritative change happens server-side from this adjustment's own
+    // signed `quantity_change` (see backend sync_push) — we no longer push
+    // a separate raw absolute-quantity 'stocks' update, since that raced
+    // against other offline actions on the same stock row and could
+    // silently lose an update.
+    const stock = await db.stocks.where({
       shop_id: data.shop_id,
-      product_id: data.product_id,
-      quantity: data.quantity_change > 0 ? data.quantity_change : 0,
-      min_quantity: 0,
-      updated_at: now
-    };
-    await db.stocks.add(newStock);
-    await queueChange('stocks', stockId, 'CREATE', newStock);
-  }
-  
+      product_id: data.product_id
+    }).first();
+
+    if (stock) {
+      const newQty = Math.max(0, (stock.quantity || 0) + data.quantity_change);
+      await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+    } else {
+      await db.stocks.add({
+        id: crypto.randomUUID(),
+        shop_id: data.shop_id,
+        product_id: data.product_id,
+        quantity: data.quantity_change > 0 ? data.quantity_change : 0,
+        min_quantity: 0,
+        updated_at: now
+      });
+    }
+
+    await queueChange('adjustments', id, 'CREATE', adjustment);
+  });
+
   return { data: adjustment };
 };
 
@@ -1106,7 +1155,15 @@ export const getAdjustments = async (shop_id?: string) => {
 // PURCHASES
 // #############################################################
 export const createPurchase = async (data: any) => {
-  const items = normalizePurchaseItems(data.items || []);
+  // Assign stable ids up front so the same item ids land in both the local
+  // purchase_items table and the queued sync payload — otherwise offline
+  // items with no id would get a fresh randomUUID() at Dexie-insert time but
+  // a *different* server-generated id once synced, leaving duplicate rows
+  // locally after the next pull.
+  const items = normalizePurchaseItems(data.items || []).map((item) => ({
+    ...item,
+    id: item.id || crypto.randomUUID(),
+  }));
   const serverPayload = { ...data, items };
 
   if (isOnline()) {
@@ -1135,13 +1192,15 @@ export const createPurchase = async (data: any) => {
     status: data.status || 'ordered',
   });
   
-  await db.purchases.add(purchase);
-  if (items.length > 0) {
-    for (const item of items) {
-      await db.purchase_items.add({ ...item, id: item.id || crypto.randomUUID(), purchase_id: id });
+  // Atomic: a crash partway through a multi-item purchase would otherwise
+  // leave Dexie with a purchase missing some of its items.
+  await db.transaction('rw', db.purchases, db.purchase_items, db.sync_queue, async () => {
+    await db.purchases.add(purchase);
+    if (items.length > 0) {
+      await db.purchase_items.bulkAdd(items.map((item) => ({ ...item, purchase_id: id })));
     }
-  }
-  await queueChange('purchases', id, 'CREATE', purchase);
+    await queueChange('purchases', id, 'CREATE', purchase);
+  });
   return { data: purchase };
 };
 
@@ -1266,10 +1325,6 @@ export const receivePurchase = async (id: string, payload: any) => {
   const purchase = await db.purchases.get(id);
   if (!purchase) throw new Error("Purchase not found");
 
-  // Update purchase status
-  await db.purchases.update(id, { status: 'received', updated_at: now });
-  await queueChange('purchases', id, 'UPDATE', { status: 'received' });
-
   // payload.items contains the form data with received_quantity per item
   const payloadItems: any[] = payload?.items || [];
 
@@ -1281,57 +1336,68 @@ export const receivePurchase = async (id: string, payload: any) => {
     }
   }
 
-  // Fetch all purchase items for this purchase
-  const items = await db.purchase_items.where('purchase_id').equals(id).toArray();
+  let itemsTouched = 0;
 
-  for (const item of items) {
-    // Use received_quantity from form if available, fallback to ordered quantity
-    const receivedQty = receivedQtyMap[item.id] ?? Number(item.ordered_quantity ?? item.quantity ?? 0);
+  // Atomic: keeps the purchase status, each purchase_item, the local stock
+  // rows, and the sync queue entries consistent even if the app crashes
+  // mid-sequence.
+  await db.transaction('rw', db.purchases, db.purchase_items, db.stocks, db.sync_queue, async () => {
+    await db.purchases.update(id, { status: 'received', updated_at: now });
+    await queueChange('purchases', id, 'UPDATE', { status: 'received' });
 
-    const previouslyReceived = item.received_quantity || 0;
-    const diff = receivedQty - previouslyReceived;
-    if (diff === 0) continue;
+    // Fetch all purchase items for this purchase
+    const items = await db.purchase_items.where('purchase_id').equals(id).toArray();
+    itemsTouched = items.length;
 
-    // Update purchase_item with actual received quantity
-    const updatedFields = {
-      quantity: receivedQty,
-      received_quantity: receivedQty,
-      updated_at: now
-    };
-    await db.purchase_items.update(item.id, updatedFields as any);
-    await queueChange('purchase_items', item.id, 'UPDATE', {
-      received_quantity: receivedQty,
-      updated_at: now
-    });
+    for (const item of items) {
+      // Use received_quantity from form if available, fallback to ordered quantity
+      const receivedQty = receivedQtyMap[item.id] ?? Number(item.ordered_quantity ?? item.quantity ?? 0);
 
-    // Find stock record for this product in this shop
-    const stock = await db.stocks
-      .where({ shop_id: purchase.shop_id, product_id: item.product_id })
-      .first();
+      const previouslyReceived = item.received_quantity || 0;
+      const diff = receivedQty - previouslyReceived;
+      if (diff === 0) continue;
 
-    if (stock) {
-      const newQty = (stock.quantity || 0) + diff;
-      await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-      await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty, updated_at: now });
-      console.log(`✅ Stock updated: product=${item.product_id}, +${diff} → total=${newQty}`);
-    } else if (diff > 0) {
-      // No stock record yet — create one
-      const stockId = crypto.randomUUID();
-      const newStock = {
-        id: stockId,
-        shop_id: purchase.shop_id,
-        product_id: item.product_id,
-        quantity: diff,
-        min_quantity: 0,
+      // Update purchase_item with actual received quantity
+      const updatedFields = {
+        quantity: receivedQty,
+        received_quantity: receivedQty,
         updated_at: now
       };
-      await db.stocks.add(newStock);
-      await queueChange('stocks', stockId, 'CREATE', newStock);
-      console.log(`🆕 Stock created: product=${item.product_id}, qty=${diff}`);
-    }
-  }
+      await db.purchase_items.update(item.id, updatedFields as any);
 
-  return { data: { success: true, message: `Stock updated for ${items.length} items` } };
+      // Queue the *delta*, not the absolute received_quantity: another
+      // device may have already received part of this same purchase before
+      // this syncs, and an absolute overwrite here would silently clobber
+      // that. The server applies `received_quantity_delta` atomically to
+      // both the purchase_item and the shop's stock (see backend sync_push).
+      await queueChange('purchase_items', item.id, 'UPDATE', {
+        received_quantity: receivedQty,
+        received_quantity_delta: diff,
+        updated_at: now
+      });
+
+      // Local optimistic stock update for instant UI feedback only.
+      const stock = await db.stocks
+        .where({ shop_id: purchase.shop_id, product_id: item.product_id })
+        .first();
+
+      if (stock) {
+        const newQty = Math.max(0, (stock.quantity || 0) + diff);
+        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+      } else if (diff > 0) {
+        await db.stocks.add({
+          id: crypto.randomUUID(),
+          shop_id: purchase.shop_id,
+          product_id: item.product_id,
+          quantity: diff,
+          min_quantity: 0,
+          updated_at: now
+        });
+      }
+    }
+  });
+
+  return { data: { success: true, message: `Stock updated for ${itemsTouched} items` } };
 };
 
 // #############################################################
