@@ -9,7 +9,7 @@ import { pullUpdates } from "@/syncEngine";
 import { db } from "@/db";
 import { markSyncReady, isSyncReady } from "@/syncGate";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;

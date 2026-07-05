@@ -5,7 +5,7 @@ import { queueChange, pushChanges, pullUpdates } from "./syncEngine";
 import { waitForSync } from "./syncGate";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
 
 // -------------------------------------------------------------
 // 🔧 AXIOS INSTANCE

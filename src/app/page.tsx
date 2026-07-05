@@ -54,7 +54,7 @@ export default function LoginPage() {
 
   // Wake server with /health pings, then retry login
   const wakeAndRetry = async (toastId: string): Promise<boolean> => {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://inv-flask-api.onrender.com";
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
     setServerWaking(true);
     toast.loading("Server is starting up — please wait (up to 60s)...", { id: toastId });
 

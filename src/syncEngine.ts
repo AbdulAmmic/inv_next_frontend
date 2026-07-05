@@ -16,7 +16,7 @@ import { db } from './db';
 
 const LAST_SYNC_KEY = 'last_sync_timestamp';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://inv-flask-api.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://player-linear-mills-newcastle.trycloudflare.com';
 
 // Own axios instance — NO import from apiCalls.ts (avoids circular deps)
 const syncApi = axios.create({ baseURL: API_BASE, timeout: 120000 });

@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://inv-flask-api.onrender.com",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com",
   headers: {
     "Content-Type": "application/json",
   },
