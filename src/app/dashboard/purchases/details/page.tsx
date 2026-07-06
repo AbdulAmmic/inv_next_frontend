@@ -19,9 +19,9 @@ import {
   PackageOpen,
   FileEdit,
   Truck,
-  CheckCircle2,
   DollarSign,
-  Hash
+  Hash,
+  Loader2
 } from "lucide-react";
 
 import { toast } from "react-toastify";
@@ -51,6 +51,8 @@ function PurchaseDetailsContent() {
 
   // Receive item states
   const [receiveItems, setReceiveItems] = useState<any[]>([]);
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [receiving, setReceiving] = useState(false);
 
   // ============================
   // LOAD PURCHASE DATA
@@ -114,6 +116,8 @@ function PurchaseDetailsContent() {
   // SAVE EDITED GENERAL INFO
   // ============================
   const saveInfo = async () => {
+    if (savingInfo) return;
+    setSavingInfo(true);
     try {
       await updatePurchase(id as string, {
         invoice_number: editInfo.invoice_number,
@@ -125,9 +129,11 @@ function PurchaseDetailsContent() {
       });
 
       toast.success("Purchase updated successfully");
-      loadData();
+      await loadData();
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Failed to update");
+    } finally {
+      setSavingInfo(false);
     }
   };
 
@@ -135,6 +141,8 @@ function PurchaseDetailsContent() {
   // RECEIVE PURCHASE
   // ============================
   const saveReceive = async () => {
+    if (receiving) return;
+    setReceiving(true);
     try {
       await receivePurchase(id as string, {
         items: receiveItems,
@@ -143,10 +151,12 @@ function PurchaseDetailsContent() {
         container_number: editInfo.container_number
       });
 
-      toast.success("Purchase received successfully");
-      loadData();
+      toast.success("Purchase received — inventory updated");
+      await loadData();
     } catch (err) {
       toast.error("Failed to receive items");
+    } finally {
+      setReceiving(false);
     }
   };
 
@@ -356,10 +366,15 @@ function PurchaseDetailsContent() {
 
                   <button
                     onClick={saveInfo}
-                    className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-3 font-medium shadow-lg shadow-blue-500/25"
+                    disabled={savingInfo}
+                    className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center gap-3 font-medium shadow-lg shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:from-blue-600 disabled:hover:to-blue-700"
                   >
-                    <Save className="w-5 h-5" />
-                    Save Changes
+                    {savingInfo ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Save className="w-5 h-5" />
+                    )}
+                    {savingInfo ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </div>
@@ -647,15 +662,15 @@ function PurchaseDetailsContent() {
                   <div className="space-y-4">
                     <button
                       onClick={saveReceive}
-                      className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200 hover:scale-105 shadow-lg shadow-emerald-500/25"
+                      disabled={receiving}
+                      className="w-full px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200 hover:scale-105 shadow-lg shadow-emerald-500/25 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-emerald-500"
                     >
-                      <Truck className="w-5 h-5" />
-                      Receive Purchase
-                    </button>
-
-                    <button className="w-full px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200 border border-white/20">
-                      <CheckCircle2 className="w-5 h-5" />
-                      Mark Complete
+                      {receiving ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Truck className="w-5 h-5" />
+                      )}
+                      {receiving ? "Receiving..." : "Receive Purchase"}
                     </button>
                   </div>
                 </div>

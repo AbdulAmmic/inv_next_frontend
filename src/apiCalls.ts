@@ -1340,11 +1340,18 @@ export const receivePurchase = async (id: string, payload: any) => {
           const previouslyReceived = localItem?.received_quantity || 0;
           const diff = (item.received_quantity || 0) - previouslyReceived;
 
-          if (diff !== 0) {
+          // Reflect the item's cost/selling price locally too — the server
+          // already updated the product/stock price on receive, but the
+          // local Dexie cache wouldn't otherwise see it until the next pull.
+          const priceFields: any = {};
+          if (item.cost !== undefined && item.cost !== null) priceFields.shop_cost_price = item.cost;
+          if (item.selling_price) priceFields.shop_price = item.selling_price;
+
+          if (diff !== 0 || Object.keys(priceFields).length > 0) {
             const stock = await db.stocks.where({ shop_id: purchase.shop_id, product_id: item.product_id }).first();
             if (stock) {
-              const newQty = (stock.quantity || 0) + diff;
-              await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+              const newQty = Math.max(0, (stock.quantity || 0) + diff);
+              await db.stocks.update(stock.id, { quantity: newQty, updated_at: now, ...priceFields });
             } else if (diff > 0) {
               const stockId = crypto.randomUUID();
               await db.stocks.add({
@@ -1353,9 +1360,17 @@ export const receivePurchase = async (id: string, payload: any) => {
                 product_id: item.product_id,
                 quantity: diff,
                 min_quantity: 0,
-                updated_at: now
+                updated_at: now,
+                ...priceFields
               });
             }
+          }
+
+          if (item.cost !== undefined && item.cost !== null) {
+            await db.products.update(item.product_id, { cost_price: item.cost, updated_at: now });
+          }
+          if (item.selling_price) {
+            await db.products.update(item.product_id, { price: item.selling_price, updated_at: now });
           }
         }
       }
@@ -1426,14 +1441,23 @@ export const receivePurchase = async (id: string, payload: any) => {
         updated_at: now
       });
 
-      // Local optimistic stock update for instant UI feedback only.
+      // Local optimistic stock update for instant UI feedback only — the
+      // authoritative update (including price, see below) happens
+      // server-side once this syncs.
       const stock = await db.stocks
         .where({ shop_id: purchase.shop_id, product_id: item.product_id })
         .first();
 
+      // Reflect this item's cost/selling price locally too, matching what
+      // the backend does on sync — otherwise the product/stock still shows
+      // the old price locally until the next full pull.
+      const priceFields: any = {};
+      if (item.cost !== undefined && item.cost !== null) priceFields.shop_cost_price = item.cost;
+      if (item.selling_price) priceFields.shop_price = item.selling_price;
+
       if (stock) {
         const newQty = Math.max(0, (stock.quantity || 0) + diff);
-        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now, ...priceFields });
       } else if (diff > 0) {
         await db.stocks.add({
           id: crypto.randomUUID(),
@@ -1441,8 +1465,16 @@ export const receivePurchase = async (id: string, payload: any) => {
           product_id: item.product_id,
           quantity: diff,
           min_quantity: 0,
-          updated_at: now
+          updated_at: now,
+          ...priceFields
         });
+      }
+
+      if (item.cost !== undefined && item.cost !== null) {
+        await db.products.update(item.product_id, { cost_price: item.cost, updated_at: now });
+      }
+      if (item.selling_price) {
+        await db.products.update(item.product_id, { price: item.selling_price, updated_at: now });
       }
     }
   });
