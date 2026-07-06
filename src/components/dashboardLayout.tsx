@@ -52,7 +52,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const backgroundSync = async () => {
         try {
             const token = localStorage.getItem("access_token");
-            if (!navigator.onLine || !token) return;
+            // Deliberately NOT gating on `navigator.onLine` here — it's known to
+            // be unreliable (especially in Electron) and a false negative would
+            // skip this entirely, forever. pushChanges/pullUpdates each do
+            // their own robust connectivity check (with an active probe
+            // fallback) and no-op cheaply if truly offline.
+            if (!token) return;
 
             const { pushChanges, pullUpdates: pull } = await import("@/syncEngine");
 
@@ -182,11 +187,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         };
         window.addEventListener("online", handleOnline);
 
-        // Quietly pull new updates & push pending changes every 60 seconds when online
+        // Quietly pull new updates & push pending changes every 60 seconds.
+        // Not gated on navigator.onLine (see backgroundSync) — only on
+        // having a token, since backgroundSync/pushChanges/pullUpdates
+        // handle connectivity themselves.
         let interval: any;
         if (stage === "ready") {
             interval = setInterval(() => {
-                if (navigator.onLine && localStorage.getItem("access_token")) {
+                if (localStorage.getItem("access_token")) {
                     backgroundSync();
                 }
             }, 60000);

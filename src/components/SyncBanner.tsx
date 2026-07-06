@@ -23,6 +23,10 @@ type SyncState = "synced" | "unsynced" | "syncing" | "pulling" | "error" | "offl
 interface SyncBannerState {
   state: SyncState;
   pendingCount: number;
+  // Items that pushed and got stuck (failed / rate_limited / conflict_detected)
+  // — these will NOT resolve on their own and need a manual retry, unlike
+  // 'pending' which just means "not pushed yet, will sync automatically".
+  stuckCount: number;
   progress: number;        // 0–100
   progressLabel: string;
   errorMsg: string | null;
@@ -33,6 +37,7 @@ interface SyncBannerState {
 const DEFAULT_STATE: SyncBannerState = {
   state: "synced",
   pendingCount: 0,
+  stuckCount: 0,
   progress: 0,
   progressLabel: "",
   errorMsg: null,
@@ -53,17 +58,20 @@ export function useSyncStatus() {
   // ── Refresh pending queue count ──
   const refreshPendingCount = useCallback(async () => {
     try {
-      const pending = await db.sync_queue
-        .where("status")
-        .equals("pending")
-        .count();
+      const [pending, stuck] = await Promise.all([
+        db.sync_queue.where("status").equals("pending").count(),
+        db.sync_queue.where("status").anyOf(["failed", "rate_limited", "conflict_detected"]).count(),
+      ]);
 
       setBanner((prev) => ({
         ...prev,
         pendingCount: pending,
+        stuckCount: stuck,
         state:
-          prev.state === "syncing" || prev.state === "pulling" || prev.state === "error"
+          prev.state === "syncing" || prev.state === "pulling"
             ? prev.state
+            : stuck > 0
+            ? "error"
             : pending > 0
             ? "unsynced"
             : "synced",
@@ -73,10 +81,12 @@ export function useSyncStatus() {
     }
   }, []);
 
-  // Poll every 8 seconds
+  // Poll every 20 seconds — real-time updates come from the push/pull
+  // events below; this is just a safety-net fallback, so it doesn't need
+  // to be aggressive (avoids competing with the UI for IndexedDB access).
   useEffect(() => {
     refreshPendingCount();
-    const interval = setInterval(refreshPendingCount, 8000);
+    const interval = setInterval(refreshPendingCount, 20000);
     return () => clearInterval(interval);
   }, [refreshPendingCount]);
 
@@ -133,16 +143,16 @@ export function useSyncStatus() {
       const total = e.detail?.total ?? 0;
       const nowISO = new Date().toISOString();
       if (typeof window !== "undefined") localStorage.setItem("last_push_at", nowISO);
-      setBanner({
+      setBanner((prev) => ({
+        ...prev,
         state: "synced",
-        pendingCount: 0,
         progress: 100,
         progressLabel: total > 0 ? `✓ Pulled ${total} records` : "Already up to date",
         errorMsg: null,
         lastSyncedAt: nowISO,
         pulledCount: total,
-      });
-      // Refresh queue count after pull
+      }));
+      // Refresh queue count (and correct state if anything is still stuck)
       refreshPendingCount();
     };
 
@@ -207,7 +217,9 @@ export function useSyncStatus() {
     try {
       const { pushChanges } = await import("@/syncEngine");
 
-      const statuses = retryFailed ? ["pending", "failed"] : ["pending"];
+      const statuses = retryFailed
+        ? ["pending", "failed", "rate_limited", "conflict_detected"]
+        : ["pending"];
       const pendingCount = await db.sync_queue
         .where("status")
         .anyOf(statuses)
@@ -250,9 +262,9 @@ export function useSyncStatus() {
           errorMsg: `${result.failed} change${result.failed !== 1 ? "s" : ""} failed to sync`,
         }));
       } else {
-        setBanner({
+        setBanner((prev) => ({
+          ...prev,
           state: "synced",
-          pendingCount: 0,
           progress: 100,
           progressLabel:
             result.pushed > 0
@@ -261,7 +273,7 @@ export function useSyncStatus() {
           errorMsg: null,
           lastSyncedAt: nowISO,
           pulledCount: 0,
-        });
+        }));
       }
 
       await refreshPendingCount();
@@ -351,7 +363,11 @@ export default function SyncBanner() {
     error: {
       bg: "bg-red-500",
       icon: <AlertCircle className="w-4 h-4 flex-shrink-0" />,
-      text: banner.errorMsg || "Sync error — tap to retry",
+      text:
+        banner.errorMsg ||
+        (banner.stuckCount > 0
+          ? `${banner.stuckCount} change${banner.stuckCount !== 1 ? "s" : ""} stuck — tap to retry`
+          : "Sync error — tap to retry"),
       action: "Retry",
       actionStyle: "bg-white text-red-600 hover:bg-red-50",
       showProgress: false,

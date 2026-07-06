@@ -12,7 +12,7 @@
  */
 
 import axios from 'axios';
-import { db } from './db';
+import { db, SyncQueueEntry } from './db';
 
 const LAST_SYNC_KEY = 'last_sync_timestamp';
 
@@ -24,7 +24,42 @@ const syncApi = axios.create({ baseURL: API_BASE, timeout: 120000 });
 const MAX_SYNC_RETRIES = 3;
 const RETRY_BASE_MS = 1500;
 
-const isOnline = () => typeof window !== 'undefined' && navigator.onLine;
+// `navigator.onLine` is known to be unreliable (especially in Electron) — it
+// can report `false` while the network is actually fine, which would
+// otherwise make pushChanges/pullUpdates silently no-op forever, freezing
+// the whole sync queue with no visible error. Trust it when it says we're
+// online (fast path, no network round trip); when it says we're offline,
+// actively probe the API before giving up.
+async function isOnline(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if (navigator.onLine) return true;
+  try {
+    await syncApi.get('/health', { timeout: 4000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Global lock — prevents pushChanges/pullUpdates from ever running
+// concurrently, regardless of how many timers/components trigger them
+// (dashboard's background interval, the sync banner's poll, online-event
+// listeners, manual retry buttons, etc). Without this, two overlapping
+// calls could both read the same 'pending' rows and submit them twice, or
+// race on the sync_queue status updates.
+let _syncLock = false;
+export function isSyncInProgress(): boolean {
+  return _syncLock;
+}
+function acquireSyncLock(): boolean {
+  if (_syncLock) return false;
+  _syncLock = true;
+  return true;
+}
+function releaseSyncLock(): void {
+  _syncLock = false;
+}
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isNetworkError = (error: any) => {
   return (
@@ -54,7 +89,13 @@ syncApi.interceptors.request.use((config) => {
 // PUSH: Send queued local changes to server
 // ─────────────────────────────────────────────
 export async function pushChanges(includeFailed = false): Promise<{ pushed: number; failed: number; conflicts: number }> {
-  const statuses = includeFailed ? ['pending', 'failed'] : ['pending'];
+  // A manual retry should also pick up items stuck as 'rate_limited' or
+  // 'conflict_detected' — otherwise those are permanently stranded with no
+  // way to recover once the transient condition (rate limit window, a
+  // resolved conflict) has passed.
+  const statuses = includeFailed
+    ? ['pending', 'failed', 'rate_limited', 'conflict_detected']
+    : ['pending'];
   const pendingChanges = await db.sync_queue
     .where('status')
     .anyOf(statuses)
@@ -65,11 +106,26 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
     return { pushed: 0, failed: 0, conflicts: 0 };
   }
 
-  if (!isOnline()) {
+  if (!(await isOnline())) {
     console.warn('⚠️ Offline — pushChanges skipped');
     return { pushed: 0, failed: 0, conflicts: 0 };
   }
 
+  if (!acquireSyncLock()) {
+    console.warn('⚠️ Sync already in progress — skipping this push');
+    return { pushed: 0, failed: 0, conflicts: 0 };
+  }
+
+  try {
+    return await pushChangesLocked(pendingChanges);
+  } finally {
+    releaseSyncLock();
+  }
+}
+
+async function pushChangesLocked(
+  pendingChanges: SyncQueueEntry[]
+): Promise<{ pushed: number; failed: number; conflicts: number }> {
   const mappedChanges = pendingChanges.map((c) => {
     const change: any = {
       entity: c.entity,
@@ -191,11 +247,24 @@ export async function pushChanges(includeFailed = false): Promise<{ pushed: numb
 // PULL: Fetch records changed since lastSync
 // ─────────────────────────────────────────────
 export async function pullUpdates(): Promise<{ total: number }> {
-  if (!isOnline()) {
+  if (!(await isOnline())) {
     console.warn('⚠️ Offline — pullUpdates skipped');
     return { total: 0 };
   }
 
+  if (!acquireSyncLock()) {
+    console.warn('⚠️ Sync already in progress — skipping this pull');
+    return { total: 0 };
+  }
+
+  try {
+    return await pullUpdatesLocked();
+  } finally {
+    releaseSyncLock();
+  }
+}
+
+async function pullUpdatesLocked(): Promise<{ total: number }> {
   dispatch('tuhanas:pull-start');
   dispatch('tuhanas:pull-progress', {
     step: 0,

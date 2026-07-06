@@ -56,6 +56,22 @@ const isNetworkError = (error: any) => {
   );
 };
 
+/**
+ * Batch-fetch products by id in a single Dexie call instead of one `.get()`
+ * per row — enriching a few hundred stock/sale-item rows individually was
+ * a major source of page-load lag.
+ */
+const bulkGetProductMap = async (productIds: (string | undefined | null)[]): Promise<Map<string, any>> => {
+  const uniqueIds = Array.from(new Set(productIds.filter((id): id is string => Boolean(id))));
+  if (uniqueIds.length === 0) return new Map();
+  const products = await db.products.bulkGet(uniqueIds);
+  const map = new Map<string, any>();
+  products.forEach((p, i) => {
+    if (p) map.set(uniqueIds[i], p);
+  });
+  return map;
+};
+
 const normalizePurchaseItems = (items: any[] = []) =>
   items.map((item) => {
     const ordered_quantity = Number(item.ordered_quantity ?? item.quantity ?? 0);
@@ -165,9 +181,14 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
       shopCostMap.set(`${stock.shop_id}_${stock.product_id}`, cost);
     }
 
+    // O(1) product lookups — this used to be products.find() inside every
+    // reduce below, an O(products × rows) scan repeated 4 times (hundreds
+    // of thousands of comparisons on a real product/stock catalog).
+    const productMap = new Map(products.map((p: any) => [p.id, p]));
+
     const total_grievance_cost = grievances.reduce((sum: number, g: any) => {
       const shopCost = shopCostMap.get(`${g.shop_id}_${g.product_id}`);
-      const product = products.find((p: any) => p.id === g.product_id);
+      const product = productMap.get(g.product_id);
       const cost = shopCost ?? Number(product?.cost_price || 0);
       return sum + Number(g.quantity || 0) * cost;
     }, 0);
@@ -187,22 +208,27 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
     }
     
     const total_cost_of_goods_sold = Array.from(uniqueSaleItemsMap.values()).reduce((sum: number, item: any) => {
+      // Prefer the cost snapshot taken at sale time (item.cost_price) —
+      // falling back to today's shop/product cost for older sale_items
+      // recorded before that snapshot existed. Without the snapshot, a
+      // supplier price change today silently rewrites the profit of every
+      // historical sale of that product.
       const shopId = saleShopMap.get(item.sale_id);
       const shopCost = shopId ? shopCostMap.get(`${shopId}_${item.product_id}`) : undefined;
-      const product = products.find((p: any) => p.id === item.product_id);
-      const cost = shopCost ?? Number(product?.cost_price || 0);
-      return sum + Number(item.quantity || 0) * cost;
+      const product = productMap.get(item.product_id);
+      const cost = item.cost_price ?? shopCost ?? Number(product?.cost_price || 0);
+      return sum + Number(item.quantity || 0) * Number(cost);
     }, 0);
 
     // Inventory values using shop_cost_price / shop_price where available
     const inventory_cost_value = stocks.reduce((sum: number, stock: any) => {
-      const product = products.find((p: any) => p.id === stock.product_id);
+      const product = productMap.get(stock.product_id);
       const cost = Number(stock.shop_cost_price ?? stock.cost_price ?? product?.cost_price ?? 0);
       return sum + Number(stock.quantity || 0) * cost;
     }, 0);
 
     const inventory_selling_value = stocks.reduce((sum: number, stock: any) => {
-      const product = products.find((p: any) => p.id === stock.product_id);
+      const product = productMap.get(stock.product_id);
       const price = Number(stock.shop_price ?? stock.price ?? product?.price ?? 0);
       return sum + Number(stock.quantity || 0) * price;
     }, 0);
@@ -494,11 +520,16 @@ export const getProducts = async (params?: {
   // Offline fallback
   const products = await db.products.filter((p: any) => !p.is_deleted).toArray();
   if (params?.include_stock) {
-    const stocks = await db.stocks.filter((s: any) => !s.is_deleted).toArray();
-    return { data: products.map(p => ({ 
-      ...p, 
-      stock: stocks.find(s => s.product_id === p.id && (!params.shop_id || s.shop_id === params.shop_id)) 
-    })) };
+    const allStocks = await db.stocks.filter((s: any) => !s.is_deleted).toArray();
+    const relevantStocks = params.shop_id
+      ? allStocks.filter((s) => s.shop_id === params.shop_id)
+      : allStocks;
+    // Map instead of a per-product .find() scan — was O(products × stocks).
+    const stockByProductId = new Map<string, any>();
+    for (const s of relevantStocks) {
+      if (!stockByProductId.has(s.product_id)) stockByProductId.set(s.product_id, s);
+    }
+    return { data: products.map(p => ({ ...p, stock: stockByProductId.get(p.id) })) };
   }
   return { data: products };
 };
@@ -569,12 +600,16 @@ export const getStocks = async (shop_id?: string) => {
         }))).catch(() => {});
       }
       const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
-      // Backend already enriches with productName etc., but enrich from local if missing
-      const enriched = await Promise.all(stocks.map(async (s: any) => {
+      // Backend already enriches with productName etc., but enrich from local if missing.
+      // Single bulk lookup instead of one Dexie read per row (was 600+ individual
+      // awaited reads on a full stock list).
+      const needsLookup = stocks.filter((s: any) => !s.productName);
+      const productMap = await bulkGetProductMap(needsLookup.map((s: any) => s.product_id));
+      const enriched = stocks.map((s: any) => {
         if (s.productName) return { ...s, currentStock: s.quantity ?? s.currentStock ?? 0 };
-        const product = await db.products.get(s.product_id);
+        const product = productMap.get(s.product_id);
         return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
-      }));
+      });
       return { data: enriched };
     } catch (e) {
       console.warn('getStocks API failed, falling back to cache:', e);
@@ -585,10 +620,11 @@ export const getStocks = async (shop_id?: string) => {
   const stocks = shop_id
     ? await db.stocks.where('shop_id').equals(shop_id).filter((s: any) => !s.is_deleted).toArray()
     : await db.stocks.filter((s: any) => !s.is_deleted).toArray();
-  const enriched = await Promise.all(stocks.map(async (s) => {
-    const product = await db.products.get(s.product_id);
+  const productMap = await bulkGetProductMap(stocks.map((s: any) => s.product_id));
+  const enriched = stocks.map((s) => {
+    const product = productMap.get(s.product_id);
     return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
-  }));
+  });
   return { data: enriched };
 };
 
@@ -668,20 +704,31 @@ export const createSale = async (data: any) => {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const saleNumber = `SL-${id.substring(0, 8).toUpperCase()}`;
-  
+
+  // Assign stable ids up front so the same item ids land in both the local
+  // sale_items table and the queued sync payload — otherwise a fresh
+  // randomUUID() was generated only for the Dexie row while the queued
+  // payload reused the caller's original items with no id, so the server
+  // minted a DIFFERENT id and left a duplicate row locally after the next pull.
+  const items = (data.items || []).map((item: any) => ({
+    ...item,
+    id: item.id || crypto.randomUUID(),
+  }));
+
   // Calculate total, subtotal, discount
-  const subtotal = (data.items || []).reduce((acc: number, item: any) => acc + (item.quantity * item.unit_price), 0);
+  const subtotal = items.reduce((acc: number, item: any) => acc + (item.quantity * item.unit_price), 0);
   const discount = data.discount_amount || 0;
   const total = subtotal - discount + (data.other_charges || 0);
-  
-  const sale = { 
-    ...data, 
-    id, 
+
+  const sale = {
+    ...data,
+    id,
+    items,
     sale_number: saleNumber,
     total_amount: total,
-    created_at: now, 
-    updated_at: now, 
-    status: 'completed' 
+    created_at: now,
+    updated_at: now,
+    status: 'completed'
   };
   
   // Fetch Shop Info from local Dexie database
@@ -727,38 +774,41 @@ export const createSale = async (data: any) => {
     }
 
     // Also add items and update stock
-    if (data.items) {
-      for (const item of data.items) {
-        const itemId = crypto.randomUUID();
-        const saleItem = { ...item, id: itemId, sale_id: id };
-        await db.sale_items.add(saleItem);
+    for (const item of items) {
+      // Fetch Product + stock info for receipt AND to snapshot the cost at
+      // time of sale — without this, COGS/profit for this sale would be
+      // silently recomputed from whatever the product's cost is *today*,
+      // drifting every time a supplier price changes.
+      const product = await db.products.get(item.product_id);
+      const stock = await db.stocks.where({
+        shop_id: data.shop_id,
+        product_id: item.product_id
+      }).first();
+      const costPrice = Number(
+        (stock as any)?.shop_cost_price ?? (stock as any)?.cost_price ?? product?.cost_price ?? 0
+      );
 
-        // Fetch Product Info for receipt
-        const product = await db.products.get(item.product_id);
-        const productName = product ? product.name : "Product Item";
+      const saleItem = { ...item, sale_id: id, cost_price: costPrice };
+      await db.sale_items.add(saleItem);
+      item.cost_price = costPrice;
 
-        itemsList.push({
-          product_name: productName,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.quantity * item.unit_price
-        });
+      const productName = product ? product.name : "Product Item";
+      itemsList.push({
+        product_name: productName,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.quantity * item.unit_price
+      });
 
-        // Local optimistic decrement for instant UI feedback only. The
-        // authoritative decrement happens server-side, derived from this
-        // sale's own items (see backend sync_push) — we no longer push a
-        // separate raw absolute-quantity 'stocks' update, since that raced
-        // against other offline actions on the same stock row and silently
-        // lost updates.
-        const stock = await db.stocks.where({
-          shop_id: data.shop_id,
-          product_id: item.product_id
-        }).first();
-
-        if (stock) {
-          const newQty = Math.max(0, (stock.quantity || 0) - (item.quantity || 0));
-          await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-        }
+      // Local optimistic decrement for instant UI feedback only. The
+      // authoritative decrement happens server-side, derived from this
+      // sale's own items (see backend sync_push) — we no longer push a
+      // separate raw absolute-quantity 'stocks' update, since that raced
+      // against other offline actions on the same stock row and silently
+      // lost updates.
+      if (stock) {
+        const newQty = Math.max(0, (stock.quantity || 0) - (item.quantity || 0));
+        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
       }
     }
 

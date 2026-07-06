@@ -89,7 +89,14 @@ function PurchaseDetailsContent() {
           id: i.id,
           product_name: i.product_name,
           ordered_quantity: i.ordered_quantity,
-          received_quantity: i.received_quantity,
+          // Default to "fully received" (the common case) rather than the
+          // raw stored value, which is 0 for anything not yet received.
+          // Previously this pre-filled every row with 0, so any row the
+          // user didn't manually retype submitted as "0 received" and
+          // silently added nothing to stock — the most common report of
+          // "receiving doesn't add to inventory."
+          received_quantity:
+            i.received_quantity > 0 ? i.received_quantity : i.ordered_quantity,
           batch_number: i.batch_number || "",
           expiry_date: i.expiry_date || "",
           is_cancelled: i.is_cancelled,

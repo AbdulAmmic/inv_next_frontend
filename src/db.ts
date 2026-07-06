@@ -58,6 +58,9 @@ export interface SaleItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  // Snapshot of the product's cost at time of sale, so historical profit
+  // doesn't drift when the product's current cost changes later.
+  cost_price?: number;
   is_deleted?: boolean;
   [key: string]: any;
 }
