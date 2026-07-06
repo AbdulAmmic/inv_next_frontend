@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import ProductsStats from "@/components/productsStats";
 import ProductsTable from "@/components/productsTable";
 import ProductFormModal from "@/components/productsModal";
@@ -171,12 +172,16 @@ export default function ProductsPage() {
   // ------------------------------------------------
   // FILTER HANDLER (Search + Stock)
   // ------------------------------------------------
+  // Debounce the search term so the ~365-product filter doesn't re-run on
+  // every keystroke.
+  const debouncedSearch = useDebouncedValue(search, 300);
+
   useEffect(() => {
     let list = [...products];
 
     // Search filter
-    if (search.trim()) {
-      const term = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const term = debouncedSearch.toLowerCase();
       list = list.filter(
         (p) =>
           (p.name || "").toLowerCase().includes(term) ||
@@ -191,7 +196,7 @@ export default function ProductsPage() {
     }
 
     setFilteredProducts(list);
-  }, [search, stockFilter, products]);
+  }, [debouncedSearch, stockFilter, products]);
 
   // ------------------------------------------------
   // OUT OF STOCK BUTTON HANDLER

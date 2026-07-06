@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getCustomers, createCustomer } from "@/apiCalls";
 import { toast } from "react-hot-toast";
+import Pagination from "@/components/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+
+const PAGE_SIZE = 50;
 import {
   Plus,
   User,
@@ -92,11 +96,24 @@ export default function CustomersPage() {
   };
 
   // Filter customers
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.email ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.phone ?? "").includes(searchTerm)
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
+  const [page, setPage] = useState(1);
+
+  const filteredCustomers = useMemo(() => customers.filter((customer) =>
+    customer.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    (customer.email ?? "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    (customer.phone ?? "").includes(debouncedSearch)
+  ), [customers, debouncedSearch]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+  const paginatedCustomers = useMemo(
+    () => filteredCustomers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredCustomers, page]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   // Calculate stats
   const totalCustomers = customers.length;
@@ -213,7 +230,7 @@ export default function CustomersPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 <AnimatePresence mode="popLayout">
-                  {filteredCustomers.map((customer, idx) => (
+                  {paginatedCustomers.map((customer, idx) => (
                     <motion.tr
                       layout
                       key={customer.id}
@@ -316,7 +333,7 @@ export default function CustomersPage() {
           {/* Mobile Card Layout */}
           <div className="md:hidden flex flex-col divide-y divide-slate-100/50">
             <AnimatePresence mode="popLayout">
-              {filteredCustomers.map((customer, idx) => (
+              {paginatedCustomers.map((customer, idx) => (
                 <motion.div
                   layout
                   key={customer.id}
@@ -401,6 +418,14 @@ export default function CustomersPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={filteredCustomers.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </motion.div>
       </main>
 

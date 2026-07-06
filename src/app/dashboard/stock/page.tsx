@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import Loader from "@/components/Loader";
+import Pagination from "@/components/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { motion, AnimatePresence } from "framer-motion";
+
+const PAGE_SIZE = 50;
 
 // --------------------------------------------------
 // TYPES
@@ -229,11 +233,24 @@ export default function StockPage() {
   // --------------------------------------------------
   // FILTER & PDF
   // --------------------------------------------------
-  const filteredStock = stock.filter(item =>
-    item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const [page, setPage] = useState(1);
+
+  const filteredStock = useMemo(() => stock.filter(item =>
+    item.productName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    item.sku.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    item.category.toLowerCase().includes(debouncedSearch.toLowerCase())
+  ), [stock, debouncedSearch]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredStock.length / PAGE_SIZE));
+  const paginatedStock = useMemo(
+    () => filteredStock.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredStock, page]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -418,7 +435,7 @@ export default function StockPage() {
 
                 <tbody className="divide-y divide-slate-50">
                   <AnimatePresence mode="popLayout">
-                    {filteredStock.map((row, idx) => (
+                    {paginatedStock.map((row, idx) => (
                       <motion.tr
                         layout
                         key={row.product_id}
@@ -529,6 +546,13 @@ export default function StockPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={page}
+              pageCount={pageCount}
+              totalItems={filteredStock.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
           </motion.div>
         )}
       </main>

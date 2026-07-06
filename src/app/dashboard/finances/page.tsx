@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Wallet,
@@ -93,6 +93,16 @@ export default function FinancesPage() {
     endDate: "",
   });
   const [dateRangeLabel, setDateRangeLabel] = useState("This Month");
+
+  // Stable reference so Recharts doesn't treat this as new data (and
+  // recompute its internal scales/layout) on every unrelated re-render.
+  const chartData = useMemo(() => [
+    { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
+    { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
+    { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
+    { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
+    { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
+  ], [stats?.total_sales_amount, stats?.total_purchase_amount, stats?.total_expenses, stats?.gross_profit, stats?.net_profit]);
 
   // Predefined date ranges
   const predefinedRanges = [
@@ -643,13 +653,7 @@ export default function FinancesPage() {
           <div className="w-full h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={[
-                  { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
-                  { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
-                  { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
-                  { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
-                  { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
-                ]}
+                data={chartData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -683,17 +687,9 @@ export default function FinancesPage() {
                   }}
                 />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {
-                    [
-                      { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
-                      { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
-                      { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
-                      { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
-                      { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
-                    ].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))
-                  }
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

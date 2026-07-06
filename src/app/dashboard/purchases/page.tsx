@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   RefreshCw,
@@ -35,6 +35,10 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Loader from "@/components/Loader";
+import Pagination from "@/components/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+
+const PAGE_SIZE = 50;
 
 interface Purchase {
   id: string;
@@ -258,8 +262,11 @@ export default function PurchasesPage() {
     slate: "bg-slate-500",
   };
 
-  const filteredPurchases = purchases.filter((p) => {
-    const q = searchQuery.toLowerCase();
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const [page, setPage] = useState(1);
+
+  const filteredPurchases = useMemo(() => purchases.filter((p) => {
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch =
       (p.purchase_number || "").toLowerCase().includes(q) ||
       (p.supplier_name || "").toLowerCase().includes(q) ||
@@ -267,7 +274,17 @@ export default function PurchasesPage() {
     const matchesStatus =
       statusFilter === "all" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+  }), [purchases, debouncedSearch, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredPurchases.length / PAGE_SIZE));
+  const paginatedPurchases = useMemo(
+    () => filteredPurchases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredPurchases, page]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   const totalSpent = purchases.reduce((s, p) => s + (p.total_amount || 0), 0);
   const pendingCount = purchases.filter(x => x.status === "ordered" || x.status === "receiving").length;
@@ -440,7 +457,7 @@ export default function PurchasesPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 <AnimatePresence mode="popLayout">
-                  {filteredPurchases.map((p, idx) => {
+                  {paginatedPurchases.map((p, idx) => {
                     const status = getStatusInfo(p.status);
                     return (
                       <motion.tr
@@ -563,7 +580,7 @@ export default function PurchasesPage() {
           {/* Mobile Card Layout */}
           <div className="md:hidden flex flex-col divide-y divide-slate-100/50">
             <AnimatePresence mode="popLayout">
-              {filteredPurchases.map((p, idx) => {
+              {paginatedPurchases.map((p, idx) => {
                 const status = getStatusInfo(p.status);
                 return (
                   <motion.div
@@ -672,6 +689,14 @@ export default function PurchasesPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={filteredPurchases.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </motion.div>
       </main>
 

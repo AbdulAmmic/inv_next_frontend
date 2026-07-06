@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Eye, Printer, ShoppingBag, RefreshCw, Download, Filter,
@@ -11,8 +11,12 @@ import {
 import { getSales, getSale, getUsers } from "@/apiCalls";
 import ReceiptComponent from "@/components/ReceiptComponent";
 import Loader from "@/components/Loader";
+import Pagination from "@/components/Pagination";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
+
+const PAGE_SIZE = 50;
 
 interface Sale {
   id: string;
@@ -148,11 +152,17 @@ export default function SalesPage() {
     }
   };
 
-  const filteredSales = sales.filter(sale => {
+  // Debounce only the expensive re-filter, not the input's own displayed
+  // value — typing stays instantly responsive, the ~549-row scan just
+  // trails behind by up to 300ms instead of running on every keystroke.
+  const debouncedSearch = useDebouncedValue(filters.search, 300);
+  const [page, setPage] = useState(1);
+
+  const filteredSales = useMemo(() => sales.filter(sale => {
     if (
-      filters.search &&
-      !(sale.sale_number || "").toLowerCase().includes(filters.search.toLowerCase()) &&
-      !(sale.customer_name || "").toLowerCase().includes(filters.search.toLowerCase())
+      debouncedSearch &&
+      !(sale.sale_number || "").toLowerCase().includes(debouncedSearch.toLowerCase()) &&
+      !(sale.customer_name || "").toLowerCase().includes(debouncedSearch.toLowerCase())
     ) return false;
     if (filters.customer !== "all") {
       if (filters.customer === "walk_in") {
@@ -175,15 +185,26 @@ export default function SalesPage() {
       }
     }
     return true;
-  });
+  }), [sales, debouncedSearch, filters.customer, filters.staff, filters.payment_method, filters.status, filters.startDate, filters.endDate]);
 
-  const sortedSales = [...filteredSales].sort((a, b) => {
+  const sortedSales = useMemo(() => [...filteredSales].sort((a, b) => {
     const dir = sortConfig.direction === 'asc' ? 1 : -1;
     if (sortConfig.key === 'amount') return (a.amount - b.amount) * dir;
     if (sortConfig.key === 'created_at') return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
     if (sortConfig.key === 'item_count') return (a.item_count - b.item_count) * dir;
     return 0;
-  });
+  }), [filteredSales, sortConfig]);
+
+  const pageCount = Math.max(1, Math.ceil(sortedSales.length / PAGE_SIZE));
+  const paginatedSales = useMemo(
+    () => sortedSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sortedSales, page]
+  );
+
+  // Reset to page 1 whenever the result set changes underneath the pager
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filters.customer, filters.staff, filters.payment_method, filters.status, filters.startDate, filters.endDate, sortConfig]);
 
   const totalSalesAmount = filteredSales.reduce((sum, sale) => sale.amount > 0 ? sum + sale.amount : sum, 0);
   const totalRefunds = filteredSales.reduce((sum, sale) => sale.amount < 0 ? sum + Math.abs(sale.amount) : sum, 0);
@@ -378,8 +399,8 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {sortedSales.length > 0 ? (
-                  sortedSales.map((sale, idx) => (
+                {paginatedSales.length > 0 ? (
+                  paginatedSales.map((sale, idx) => (
                     <motion.tr
                       key={sale.id}
                       initial={{ opacity: 0 }}
@@ -447,8 +468,8 @@ export default function SalesPage() {
           </div>
 
           <div className="lg:hidden divide-y divide-slate-100">
-            {sortedSales.length > 0 ? (
-              sortedSales.map((sale) => (
+            {paginatedSales.length > 0 ? (
+              paginatedSales.map((sale) => (
                 <motion.div
                   key={sale.id}
                   initial={{ opacity: 0 }}
@@ -517,6 +538,14 @@ export default function SalesPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={sortedSales.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
 
           <div className="px-4 sm:px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-bold text-slate-400">
             <span>SHOWING {filteredSales.length} OF {sales.length} RECORDS</span>

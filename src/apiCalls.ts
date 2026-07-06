@@ -1562,10 +1562,13 @@ export const getFullStats = async (params?: any) => {
 // #############################################################
 // 📊 AUDIT LOGS (ADMIN ONLY)
 // #############################################################
-export const getAuditLogs = async () => {
+export const getAuditLogs = async (limit = 200) => {
+  // Bounded to the most recent `limit` entries — this table only grows
+  // (3000+ rows and counting), and it was previously fetched in full and
+  // synchronously JSON.stringify'd into localStorage on every page visit.
   if (isOnline()) {
     try {
-      const res = await api.get(`/audit-logs`);
+      const res = await api.get(`/audit-logs`, { params: { limit } });
       if (typeof window !== "undefined" && res.data) {
         localStorage.setItem("cached_audit_logs", JSON.stringify(res.data));
       }
