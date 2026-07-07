@@ -1406,7 +1406,7 @@ export const receivePurchase = async (id: string, payload: any) => {
   // Atomic: keeps the purchase status, each purchase_item, the local stock
   // rows, and the sync queue entries consistent even if the app crashes
   // mid-sequence.
-  await db.transaction('rw', db.purchases, db.purchase_items, db.stocks, db.sync_queue, async () => {
+  await db.transaction('rw', [db.purchases, db.purchase_items, db.stocks, db.products, db.sync_queue], async () => {
     await db.purchases.update(id, { status: 'received', updated_at: now });
     await queueChange('purchases', id, 'UPDATE', { status: 'received' });
 
