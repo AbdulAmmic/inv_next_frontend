@@ -327,7 +327,13 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.clear();
+      // Clear ONLY auth keys. localStorage.clear() also wiped the sync
+      // watermark (last_sync_timestamp) and offline caches (shop settings,
+      // cached users), forcing a full re-pull and breaking offline receipts
+      // after every session expiry.
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
       window.location.href = "/";
     }
     return Promise.reject(error);
@@ -930,24 +936,31 @@ export const refundSale = async (id: string) => {
   const sale = await db.sales.get(id);
   if (!sale) throw new Error("Sale not found");
 
-  // Update sale status
-  await db.sales.update(id, { status: 'refunded', updated_at: now });
-  await queueChange('sales', id, 'UPDATE', { status: 'refunded' });
+  // Atomic: sale status flip, local stock restore, and the queued sync entry
+  // stay consistent even if the app crashes mid-sequence.
+  await db.transaction('rw', db.sales, db.sale_items, db.stocks, db.sync_queue, async () => {
+    await db.sales.update(id, { status: 'refunded', updated_at: now });
+    // The server restores stock itself when it sees the status flip to
+    // 'refunded' (see backend sync_push) — do NOT queue a raw absolute
+    // stock quantity here: the backend deliberately ignores those (they
+    // race against other offline changes), which is why refunds used to
+    // sync the status but silently never restore server stock.
+    await queueChange('sales', id, 'UPDATE', { status: 'refunded' });
 
-  // Reverse stock changes
-  const items = await db.sale_items.where('sale_id').equals(id).toArray();
-  for (const item of items) {
-    const stock = await db.stocks.where({ 
-      shop_id: sale.shop_id, 
-      product_id: item.product_id 
-    }).first();
+    // Local optimistic stock restore for instant UI feedback only
+    const items = await db.sale_items.where('sale_id').equals(id).toArray();
+    for (const item of items) {
+      const stock = await db.stocks.where({
+        shop_id: sale.shop_id,
+        product_id: item.product_id
+      }).first();
 
-    if (stock) {
-      const newQty = (stock.quantity || 0) + (item.quantity || 0);
-      await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
-      await queueChange('stocks', stock.id, 'UPDATE', { quantity: newQty });
+      if (stock) {
+        const newQty = (stock.quantity || 0) + (item.quantity || 0);
+        await db.stocks.update(stock.id, { quantity: newQty, updated_at: now });
+      }
     }
-  }
+  });
 
   return { data: { success: true } };
 };

@@ -61,15 +61,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             const { pushChanges, pullUpdates: pull } = await import("@/syncEngine");
 
-            // Push queued local changes first
-            const queueCount = await db.sync_queue
-                .where("status")
-                .anyOf(["pending", "failed"])
-                .count();
-
-            if (queueCount > 0) {
-                await pushChanges();
-            }
+            // Push queued local changes first — pushChanges itself picks up
+            // pending + retryable stuck entries and no-ops if there's nothing.
+            await pushChanges();
 
             // Pull fresh data from server
             await pull();

@@ -210,6 +210,9 @@ export interface SyncQueueEntry {
   timestamp: number;
   status: 'pending' | 'synced' | 'failed' | 'conflict_detected' | 'rate_limited';
   error?: string;
+  // How many push attempts this entry has been through — used to stop
+  // auto-retrying permanently-rejected entries (manual retry ignores it).
+  attempts?: number;
 }
 
 // ──────────────────────────────────────────────

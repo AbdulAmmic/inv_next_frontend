@@ -186,24 +186,31 @@ export function useSyncStatus() {
 
   // ── Manual trigger: pull from server ──
   const triggerPull = useCallback(async () => {
-    if (!navigator.onLine || isSyncing.current) return;
+    // No navigator.onLine gate — it's unreliable (especially in Electron);
+    // pullUpdates probes connectivity itself and no-ops cheaply if offline.
+    if (isSyncing.current) return;
     isSyncing.current = true;
     try {
       const { pullUpdates } = await import("@/syncEngine");
       await pullUpdates();
     } catch (err: any) {
-      isSyncing.current = false;
       setBanner((prev) => ({
         ...prev,
         state: "error",
         errorMsg: err?.message || "Pull failed. Check your connection.",
       }));
+    } finally {
+      // Always release — pullUpdates can return early (offline, sync lock
+      // held) without firing pull-complete, and leaving this flag set used
+      // to permanently block every future banner-driven sync until restart.
+      isSyncing.current = false;
     }
   }, []);
 
   // ── Manual trigger: push to server ──
   const pushToServer = useCallback(async (retryFailed = false) => {
-    if (!navigator.onLine || isSyncing.current) return;
+    // No navigator.onLine gate — pushChanges probes connectivity itself.
+    if (isSyncing.current) return;
     isSyncing.current = true;
 
     setBanner((prev) => ({
@@ -219,7 +226,7 @@ export function useSyncStatus() {
 
       const statuses = retryFailed
         ? ["pending", "failed", "rate_limited", "conflict_detected"]
-        : ["pending"];
+        : ["pending", "failed", "rate_limited"];
       const pendingCount = await db.sync_queue
         .where("status")
         .anyOf(statuses)
@@ -279,9 +286,7 @@ export function useSyncStatus() {
       await refreshPendingCount();
 
       // Also pull fresh data after push
-      if (navigator.onLine) {
-        setTimeout(() => triggerPull(), 1000);
-      }
+      setTimeout(() => triggerPull(), 1000);
     } catch (err: any) {
       isSyncing.current = false;
       setBanner((prev) => ({

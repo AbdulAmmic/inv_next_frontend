@@ -16,10 +16,8 @@ export default function SyncPage() {
   const [syncing, setSyncing] = useState(false);
 
   const handleManualSync = async () => {
-    if (!navigator.onLine) {
-      toast.error("No internet connection!");
-      return;
-    }
+    // Don't hard-block on navigator.onLine — it's unreliable (especially in
+    // Electron); the sync engine probes real connectivity itself.
     setSyncing(true);
     try {
       await pushChanges(true);
@@ -43,7 +41,7 @@ export default function SyncPage() {
           
           <button
             onClick={handleManualSync}
-            disabled={syncing || !navigator.onLine}
+            disabled={syncing}
             className="inline-flex items-center gap-2 bg-indigo-600 text-white rounded-xl px-6 py-2.5 text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100"
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />

@@ -24,6 +24,13 @@ const syncApi = axios.create({ baseURL: API_BASE, timeout: 120000 });
 const MAX_SYNC_RETRIES = 3;
 const RETRY_BASE_MS = 1500;
 
+// Failed / rate-limited entries keep auto-retrying on the normal sync cadence
+// until they've accumulated this many attempts; after that they only go out
+// again on a manual Retry (which resets the counter). This is what makes the
+// queue self-healing after transient server errors without letting a
+// permanently-rejected entry hot-loop forever.
+const MAX_AUTO_RETRY_ATTEMPTS = 8;
+
 // `navigator.onLine` is known to be unreliable (especially in Electron) — it
 // can report `false` while the network is actually fine, which would
 // otherwise make pushChanges/pullUpdates silently no-op forever, freezing
@@ -76,69 +83,171 @@ function dispatch(name: string, detail?: any) {
   window.dispatchEvent(new CustomEvent(name, { detail }));
 }
 
-// Attach Bearer token on every request
-syncApi.interceptors.request.use((config) => {
+// ─────────────────────────────────────────────
+// AUTH — the sync engine must survive an expired access token. Previously it
+// only attached whatever token was in localStorage; an expired token meant a
+// 401 that marked the ENTIRE queue as failed. Now it proactively refreshes
+// (like apiCalls does) and retries once on 401.
+// ─────────────────────────────────────────────
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return null;
+  }
+};
+
+// Single-flight refresh — concurrent 401s share one refresh request
+let _refreshPromise: Promise<string | null> | null = null;
+function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return Promise.resolve(null);
+
+  if (!_refreshPromise) {
+    _refreshPromise = axios
+      .post(`${API_BASE}/auth/refresh`, { refresh_token: refreshToken })
+      .then((res) => {
+        const token = res.data?.access_token || null;
+        if (token) localStorage.setItem('access_token', token);
+        return token;
+      })
+      .catch(() => null)
+      .finally(() => {
+        _refreshPromise = null;
+      });
+  }
+  return _refreshPromise;
+}
+
+// Attach Bearer token on every request, refreshing proactively if it's
+// about to expire (within 5 minutes)
+syncApi.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    let token = localStorage.getItem('access_token');
+    if (token) {
+      const payload = parseJwt(token);
+      const now = Date.now() / 1000;
+      if (payload?.exp && payload.exp - now < 300) {
+        token = (await refreshAccessToken()) || token;
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
+
+// On 401: refresh once and retry the request. If that fails too, the error
+// propagates and push/pull leave the queue untouched (entries stay pending
+// and go out on the next cycle) — they are NOT marked failed.
+syncApi.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const config = error.config as any;
+    if (error.response?.status === 401 && config && !config._retried) {
+      const token = await refreshAccessToken();
+      if (token) {
+        config._retried = true;
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+        return syncApi.request(config);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ─────────────────────────────────────────────
 // PUSH: Send queued local changes to server
 // ─────────────────────────────────────────────
 export async function pushChanges(includeFailed = false): Promise<{ pushed: number; failed: number; conflicts: number }> {
-  // A manual retry should also pick up items stuck as 'rate_limited' or
-  // 'conflict_detected' — otherwise those are permanently stranded with no
-  // way to recover once the transient condition (rate limit window, a
-  // resolved conflict) has passed.
-  const statuses = includeFailed
-    ? ['pending', 'failed', 'rate_limited', 'conflict_detected']
-    : ['pending'];
-  const pendingChanges = await db.sync_queue
-    .where('status')
-    .anyOf(statuses)
-    .toArray();
-
-  if (pendingChanges.length === 0) {
-    dispatch('tuhanas:push-complete', { pushed: 0, failed: 0, conflicts: 0 });
-    return { pushed: 0, failed: 0, conflicts: 0 };
-  }
-
-  if (!(await isOnline())) {
-    console.warn('⚠️ Offline — pushChanges skipped');
-    return { pushed: 0, failed: 0, conflicts: 0 };
-  }
+  const empty = { pushed: 0, failed: 0, conflicts: 0 };
+  if (typeof window === 'undefined') return empty;
 
   if (!acquireSyncLock()) {
     console.warn('⚠️ Sync already in progress — skipping this push');
-    return { pushed: 0, failed: 0, conflicts: 0 };
+    return empty;
   }
 
   try {
-    return await pushChangesLocked(pendingChanges);
+    // Read the queue INSIDE the lock so no other push can grab the same rows.
+    //  - auto mode: pending + stuck entries still under the auto-retry cap
+    //  - manual retry: everything, including conflicts, with counters reset
+    const statuses = includeFailed
+      ? ['pending', 'failed', 'rate_limited', 'conflict_detected']
+      : ['pending', 'failed', 'rate_limited'];
+    let pendingChanges = await db.sync_queue
+      .where('status')
+      .anyOf(statuses)
+      .toArray();
+
+    if (!includeFailed) {
+      pendingChanges = pendingChanges.filter(
+        (c) => c.status === 'pending' || (c.attempts ?? 0) < MAX_AUTO_RETRY_ATTEMPTS
+      );
+    }
+
+    // Push in the order changes were made — a CREATE must reach the server
+    // before its UPDATEs (queue ids are auto-increment).
+    pendingChanges.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+
+    if (pendingChanges.length === 0) {
+      dispatch('tuhanas:push-complete', empty);
+      return empty;
+    }
+
+    if (!(await isOnline())) {
+      console.warn('⚠️ Offline — pushChanges skipped');
+      return empty;
+    }
+
+    return await pushChangesLocked(pendingChanges, includeFailed);
   } finally {
     releaseSyncLock();
   }
 }
 
 async function pushChangesLocked(
-  pendingChanges: SyncQueueEntry[]
+  pendingChanges: SyncQueueEntry[],
+  includeFailed: boolean
 ): Promise<{ pushed: number; failed: number; conflicts: number }> {
   const mappedChanges = pendingChanges.map((c) => {
-    const change: any = {
+    const payload = c.payload ? { ...c.payload } : c.payload;
+    // Manual retry of a conflicted entry: strip the stale updated_at so the
+    // server applies it (last-write-wins by explicit user intent). Otherwise
+    // the same old timestamp re-conflicts forever and the entry can never
+    // be resolved.
+    if (includeFailed && c.status === 'conflict_detected' && payload?.updated_at) {
+      delete payload.updated_at;
+    }
+    return {
       entity: c.entity,
       entityId: c.entityId,
       operation: c.operation,
-      payload: c.payload,
+      payload,
       timestamp: c.timestamp,
     };
-    if (c.payload?.updated_at) {
-      change.payload.updated_at = c.payload.updated_at;
-    }
-    return change;
   });
+
+  const bumpAttempts = async (
+    status: SyncQueueEntry['status'] | null,
+    error?: string
+  ) => {
+    // Increment attempts on every entry in this batch; optionally force a
+    // status. Entries that blow past the auto-retry cap get parked as
+    // 'failed' so they stop hot-looping but stay visible for manual retry.
+    await db.sync_queue.bulkUpdate(
+      pendingChanges.map((c) => {
+        const attempts = (c.attempts ?? 0) + 1;
+        const nextStatus =
+          status ?? (attempts >= MAX_AUTO_RETRY_ATTEMPTS ? ('failed' as const) : c.status);
+        return {
+          key: c.id!,
+          changes: { attempts, status: nextStatus, ...(error ? { error } : {}) },
+        };
+      })
+    );
+  };
 
   let attempt = 0;
   while (attempt < MAX_SYNC_RETRIES) {
@@ -167,18 +276,22 @@ async function pushChangesLocked(
         // 100% robust index-based status resolution for the entire batch
         const updates = pendingChanges.map((c, index) => {
           if (conflictIndices.has(index)) {
-            return { key: c.id, changes: { status: 'conflict_detected' as const } };
+            return {
+              key: c.id!,
+              changes: { status: 'conflict_detected' as const, attempts: (c.attempts ?? 0) + 1 },
+            };
           } else if (failedIndices.has(index)) {
             const errDetail = otherErrors.find((e: any) => e.index === index);
             return {
-              key: c.id,
+              key: c.id!,
               changes: {
                 status: 'failed' as const,
+                attempts: (c.attempts ?? 0) + 1,
                 error: errDetail?.reason || 'Server sync failed',
               },
             };
           } else {
-            return { key: c.id, changes: { status: 'synced' as const } };
+            return { key: c.id!, changes: { status: 'synced' as const } };
           }
         });
 
@@ -199,16 +312,19 @@ async function pushChangesLocked(
           .delete();
 
         const result = {
-          pushed: processed.length,
-          failed: (response.data.errors || []).length - conflicts.length,
-          conflicts: conflicts.length,
+          pushed: pendingChanges.length - conflictIndices.size - failedIndices.size,
+          failed: failedIndices.size,
+          conflicts: conflictIndices.size,
         };
         dispatch('tuhanas:push-complete', result);
         return result;
       }
 
-      dispatch('tuhanas:push-complete', { pushed: 0, failed: pendingChanges.length, conflicts: 0 });
-      return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
+      // success: false without an HTTP error (shouldn't happen) — transient
+      await bumpAttempts(null, response.data?.error || 'Server rejected sync batch');
+      const failResult = { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
+      dispatch('tuhanas:push-complete', failResult);
+      return failResult;
     } catch (error: any) {
       if (isNetworkError(error)) {
         attempt += 1;
@@ -217,7 +333,17 @@ async function pushChangesLocked(
           await delay(RETRY_BASE_MS * attempt);
           continue;
         }
+        // Network gone — leave everything untouched; the next sync cycle
+        // picks the same entries up again.
         console.warn('⚠️ Push skipped — network unavailable');
+        return { pushed: 0, failed: 0, conflicts: 0 };
+      }
+
+      // Auth failure even after the interceptor's refresh+retry — leave the
+      // queue untouched (entries stay pending). Marking them failed here was
+      // how an expired token used to strand the entire queue.
+      if (error.response?.status === 401) {
+        console.warn('⚠️ Push skipped — authentication expired');
         return { pushed: 0, failed: 0, conflicts: 0 };
       }
 
@@ -231,11 +357,11 @@ async function pushChangesLocked(
         return { pushed: 0, failed: 0, conflicts: 0 };
       }
 
-      // Permanent failure — mark as failed
-      await db.sync_queue
-        .where('id')
-        .anyOf(pendingChanges.map((c) => c.id!))
-        .modify({ status: 'failed', error: error.message });
+      // Server error (5xx etc.) — treat as transient: bump attempt counters
+      // so a genuinely poisoned batch eventually parks as 'failed', but keep
+      // retrying automatically until then.
+      await bumpAttempts(null, error.message);
+      console.warn('⚠️ Push failed with server error — will retry:', error.message);
       return { pushed: 0, failed: pendingChanges.length, conflicts: 0 };
     }
   }
@@ -290,8 +416,13 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
       ) {
         console.warn('Resetting invalid sync timestamp');
         if (typeof window !== 'undefined') localStorage.removeItem(LAST_SYNC_KEY);
-        response = await syncApi.get('/sync/pull', { params: { lastSync: '' } });
-        break;
+        try {
+          response = await syncApi.get('/sync/pull', { params: { lastSync: '' } });
+          break;
+        } catch (err2: any) {
+          dispatch('tuhanas:pull-complete', { total: 0 });
+          return { total: 0 };
+        }
       }
 
       if (isNetworkError(err)) {
@@ -312,8 +443,11 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
         return { total: 0 };
       }
 
+      // Auth/server error — end the pull cleanly (never leave the UI
+      // hanging in "pulling" state) and try again on the next cycle.
+      console.warn('⚠️ Pull failed:', err?.message);
       dispatch('tuhanas:pull-complete', { total: 0 });
-      throw err;
+      return { total: 0 };
     }
   }
 
@@ -322,6 +456,20 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
   if (!updates) {
     dispatch('tuhanas:pull-complete', { total: 0 });
     return { total: 0 };
+  }
+
+  // Protect local rows that still have unsynced queued changes: a pull must
+  // never clobber an offline edit that hasn't reached the server yet
+  // (backgroundSync pushes before pulling, but a failed or conflicted push
+  // has to survive the pull that follows it).
+  const unsynced = await db.sync_queue
+    .where('status')
+    .anyOf(['pending', 'failed', 'rate_limited', 'conflict_detected'])
+    .toArray();
+  const protectedIds = new Map<string, Set<string>>();
+  for (const c of unsynced) {
+    if (!protectedIds.has(c.entity)) protectedIds.set(c.entity, new Set());
+    protectedIds.get(c.entity)!.add(c.entityId);
   }
 
   // Table order matters: shops first, then products, then dependents
@@ -344,6 +492,7 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
 
   let total = 0;
   let step = 0;
+  let hadTableErrors = false;
 
   for (const [backendKey, dexieTable] of tableOrder) {
     step++;
@@ -362,8 +511,11 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
     if (records.length === 0) continue;
 
     try {
-      const toUpsert = records.filter((r) => r.id && !r.is_deleted);
-      const toDelete = records.filter((r) => r.id && r.is_deleted).map((r) => r.id);
+      const guard = protectedIds.get(dexieTable);
+      const toUpsert = records.filter((r) => r.id && !r.is_deleted && !guard?.has(r.id));
+      const toDelete = records
+        .filter((r) => r.id && r.is_deleted && !guard?.has(r.id))
+        .map((r) => r.id);
 
       if (toUpsert.length > 0) {
         await (db as any)[dexieTable].bulkPut(toUpsert);
@@ -377,7 +529,9 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
         `  ✓ ${dexieTable}: ${toUpsert.length} upserted, ${toDelete.length} deleted`
       );
     } catch (err: any) {
-      // Don't let one bad table block the rest
+      // Don't let one bad table block the rest — but remember the failure so
+      // we don't advance the sync watermark past records we failed to apply.
+      hadTableErrors = true;
       console.warn(`⚠️ Could not sync table "${dexieTable}":`, err.message);
     }
   }
@@ -393,15 +547,16 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
           localStorage.setItem(`shop_settings_${shop.id}`, JSON.stringify(settings));
         }
       } catch {
-        // Non-critical � skip if this shop settings endpoint fails
+        // Non-critical — skip if this shop settings endpoint fails
       }
     }));
-    console.log('?? Shop settings cache warmed for offline use');
   } catch (e) {
     console.warn('Could not warm shop settings cache:', e);
   }
 
-  if (typeof window !== 'undefined' && timestamp) {
+  // Only advance the watermark when everything applied cleanly; otherwise the
+  // records in the failed table would be skipped forever on subsequent pulls.
+  if (typeof window !== 'undefined' && timestamp && !hadTableErrors) {
     localStorage.setItem(LAST_SYNC_KEY, timestamp);
   }
 
@@ -442,6 +597,7 @@ export async function queueChange(
     payload,
     timestamp: Date.now(),
     status: 'pending',
+    attempts: 0,
   });
 }
 
@@ -449,18 +605,19 @@ export async function queueChange(
 // STATS for the SyncBanner UI
 // ─────────────────────────────────────────────
 export async function getQueueStats() {
-  const [pending, failed, synced, conflicts] = await Promise.all([
+  const [pending, failed, rateLimited, synced, conflicts] = await Promise.all([
     db.sync_queue.where('status').equals('pending').count(),
     db.sync_queue.where('status').equals('failed').count(),
+    db.sync_queue.where('status').equals('rate_limited').count(),
     db.sync_queue.where('status').equals('synced').count(),
     db.sync_queue.where('status').equals('conflict_detected').count(),
   ]);
   return {
     pending,
-    failed,
+    failed: failed + rateLimited,
     synced,
     conflicts,
-    total: pending + failed + synced + conflicts,
+    total: pending + failed + rateLimited + synced + conflicts,
   };
 }
 
