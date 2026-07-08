@@ -129,24 +129,32 @@ export default function PurchasesPage() {
       const suppliersData = suppliersRes.data || [];
       const shopsData = shopsRes.data || [];
 
-      const transformed = (purchasesRes.data || []).map((p: any) => ({
-        id: p.id,
-        purchase_number: p.container_number
-          ? p.container_number
-          : `PO-${p.id.slice(0, 8)}`,
-        supplier_id: p.supplier_id,
-        supplier_name:
-          suppliersData.find((s: any) => s.id === p.supplier_id)?.name ||
-          "Unknown Supplier",
-        shop_id: p.shop_id,
-        shop_name:
-          shopsData.find((sh: any) => sh.id === p.shop_id)?.name ||
-          "Unknown Shop",
-        total_amount: p.total_amount ?? 0,
-        status: p.status || "ordered",
-        date: p.created_at || new Date().toISOString(),
-        items: p.items || [],
-      }));
+      // Maps instead of per-row .find() scans
+      const supplierById = new Map(suppliersData.map((s: any) => [s.id, s]));
+      const shopById = new Map(shopsData.map((sh: any) => [sh.id, sh]));
+
+      const transformed = (purchasesRes.data || [])
+        .filter((p: any) => p && p.id)
+        .map((p: any) => ({
+          id: p.id,
+          purchase_number: p.container_number
+            ? p.container_number
+            : `PO-${String(p.id).slice(0, 8)}`,
+          supplier_id: p.supplier_id,
+          supplier_name:
+            (supplierById.get(p.supplier_id) as any)?.name || "Unknown Supplier",
+          shop_id: p.shop_id,
+          shop_name: (shopById.get(p.shop_id) as any)?.name || "Unknown Shop",
+          total_amount: p.total_amount ?? 0,
+          status: p.status || "ordered",
+          date: p.created_at || new Date().toISOString(),
+          items: p.items || [],
+        }))
+        // Newest first, regardless of which data source produced the list
+        .sort(
+          (a: any, b: any) =>
+            (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0)
+        );
 
       setPurchases(transformed);
       setSuppliers(suppliersData);
@@ -194,7 +202,7 @@ export default function PurchasesPage() {
       setPurchases((prev) => [
         {
           id: p.id,
-          purchase_number: p.purchase_number || `PO-${p.id.slice(0, 8)}`,
+          purchase_number: p.container_number || p.purchase_number || `PO-${String(p.id).slice(0, 8)}`,
           supplier_id: p.supplier_id,
           supplier_name:
             suppliers.find((x) => x.id === p.supplier_id)?.name || "Unknown",
@@ -206,9 +214,17 @@ export default function PurchasesPage() {
           loss_amount: p.loss_amount,
           container_number: p.container_number,
           total_amount: p.total_amount,
-          status: p.status,
-          date: p.created_at,
-          items: p.items || [],
+          status: p.status || "ordered",
+          date: p.created_at || new Date().toISOString(),
+          // Attach product names so the new row's chips render immediately
+          // (the freshly queued items only carry product_id)
+          items: (p.items || []).map((it: any) => ({
+            ...it,
+            product_name:
+              it.product_name ||
+              products.find((x) => x.id === it.product_id)?.name ||
+              "Unknown",
+          })),
         },
         ...prev,
       ]);

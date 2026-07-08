@@ -1328,10 +1328,32 @@ export const getPurchases = async (shop_id?: string) => {
   }
   const purchases = shop_id ? await db.purchases.where('shop_id').equals(shop_id).toArray() : await db.purchases.toArray();
   const items = await db.purchase_items.toArray();
+
+  // Enrich items with product names — purchase_items rows only carry
+  // product_id, which left the purchases table showing "Unknown" for
+  // every product. One bulk lookup, not a read per row.
+  const productMap = await bulkGetProductMap(items.map((i: any) => i.product_id));
+  const itemsByPurchase = new Map<string, any[]>();
+  for (const item of items) {
+    if (item.is_deleted) continue;
+    const enriched = {
+      ...item,
+      product_name: item.product_name || productMap.get(item.product_id)?.name || 'Unknown',
+    };
+    const list = itemsByPurchase.get(item.purchase_id);
+    if (list) list.push(enriched);
+    else itemsByPurchase.set(item.purchase_id, [enriched]);
+  }
+
   return {
-    data: purchases.map((purchase: any) =>
-      normalizePurchase(purchase, items.filter((item: any) => item.purchase_id === purchase.id))
-    )
+    data: purchases
+      .filter((p: any) => !p.is_deleted)
+      .map((purchase: any) => normalizePurchase(purchase, itemsByPurchase.get(purchase.id) || []))
+      // Newest first — created_at is ISO, so string/parse ordering agree;
+      // records missing a date sink to the bottom instead of crashing.
+      .sort((a: any, b: any) =>
+        (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0)
+      )
   };
 };
 
@@ -1353,7 +1375,14 @@ export const getPurchase = async (id: string) => {
 
   const purchase = await db.purchases.get(id);
   const items = await db.purchase_items.where('purchase_id').equals(id).toArray();
-  return { data: normalizePurchase(purchase, items) as any };
+  const productMap = await bulkGetProductMap(items.map((i: any) => i.product_id));
+  const enriched = items
+    .filter((i: any) => !i.is_deleted)
+    .map((i: any) => ({
+      ...i,
+      product_name: i.product_name || productMap.get(i.product_id)?.name || 'Unknown',
+    }));
+  return { data: normalizePurchase(purchase, enriched) as any };
 };
 
 export const updatePurchase = async (id: string, data: any) => {
