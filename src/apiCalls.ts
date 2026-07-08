@@ -572,7 +572,11 @@ export const getProduct = async (id: string) => {
 
 export const createProduct = async (data: any) => {
   const id = data.id || crypto.randomUUID();
-  const record = { ...data, id, updated_at: new Date().toISOString() };
+  // Strip stock-only form fields — the product modal creates the stock row
+  // separately via createStock, and these keys on a `products` sync payload
+  // used to get the whole change rejected by the server's whitelist.
+  const { shop_id, quantity, min_quantity, max_quantity, ...productFields } = data;
+  const record = { ...productFields, id, updated_at: new Date().toISOString() };
 
   // Atomic: a crash between the Dexie write and queueChange would otherwise
   // leave a product that exists locally but never syncs (or vice versa).
