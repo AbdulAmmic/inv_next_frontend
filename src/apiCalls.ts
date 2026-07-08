@@ -444,8 +444,10 @@ export const updateShopSettings = async (shop_id: string, settings: any) => {
     if (existing) {
       const updated = { ...existing, settings, updated_at: new Date().toISOString() };
       await db.shops.put(updated);
-      // Queue for backend sync
-      await queueChange('shops', shop_id, 'UPDATE', { settings, updated_at: updated.updated_at });
+      // Queue for backend sync — no updated_at in the payload: device
+      // wall-clock time there triggers false conflict rejections on
+      // devices whose clock runs behind the server.
+      await queueChange('shops', shop_id, 'UPDATE', { settings });
     }
   } catch (e) {
     console.warn('Could not persist shop settings to Dexie:', e);
@@ -584,15 +586,27 @@ export const createProduct = async (data: any) => {
 
 export const updateProduct = async (id: string, data: any) => {
   const updated_at = new Date().toISOString();
-  await db.products.update(id, { ...data, updated_at });
-  await queueChange('products', id, 'UPDATE', data);
-  
+
+  // Atomic: a crash between the Dexie write and queueChange would otherwise
+  // leave a product that is updated locally but never syncs.
+  await db.transaction('rw', db.products, db.sync_queue, async () => {
+    await db.products.update(id, { ...data, updated_at });
+    await queueChange('products', id, 'UPDATE', data);
+  });
+
   return { data: { id, ...data } };
 };
 
 export const deleteProduct = async (id: string) => {
-  await db.products.delete(id);
-  await queueChange('products', id, 'DELETE', null);
+  const now = new Date().toISOString();
+
+  // Soft-delete locally so the record survives until the sync queue pushes
+  // the DELETE to the server. A hard-delete here meant a failed push would
+  // let the next pull resurrect the product (server still had it).
+  await db.transaction('rw', db.products, db.sync_queue, async () => {
+    await db.products.update(id, { is_deleted: true, updated_at: now });
+    await queueChange('products', id, 'DELETE', null);
+  });
   return { data: { success: true } };
 };
 
@@ -672,8 +686,13 @@ export const updateStock = async (id: string, data: any) => {
 };
 
 export const deleteStock = async (id: string) => {
-  await db.stocks.delete(id);
-  await queueChange('stocks', id, 'DELETE', null);
+  const now = new Date().toISOString();
+
+  // Soft-delete locally — same rationale as deleteProduct above.
+  await db.transaction('rw', db.stocks, db.sync_queue, async () => {
+    await db.stocks.update(id, { is_deleted: true, updated_at: now });
+    await queueChange('stocks', id, 'DELETE', null);
+  });
   return { data: { success: true } };
 };
 
@@ -1012,7 +1031,7 @@ export const getSuppliers = async () => {
       console.warn('getSuppliers API failed, falling back to cache:', e);
     }
   }
-  return { data: await db.suppliers.toArray() };
+  return { data: await db.suppliers.filter((s: any) => !s.is_deleted).toArray() };
 };
 
 export const createSupplier = async (data: any) => {
@@ -1024,8 +1043,14 @@ export const createSupplier = async (data: any) => {
   return { data: supplier };
 };
 export const deleteSupplier = async (id: string) => {
-  await db.suppliers.delete(id);
-  await queueChange('suppliers', id, 'DELETE', {});
+  const now = new Date().toISOString();
+
+  // Soft-delete locally — same rationale as deleteProduct above.
+  // Also fixed payload from {} to null for consistency with other deletes.
+  await db.transaction('rw', db.suppliers, db.sync_queue, async () => {
+    await db.suppliers.update(id, { is_deleted: true, updated_at: now });
+    await queueChange('suppliers', id, 'DELETE', null);
+  });
   return { data: { success: true } };
 };
 export const getSupplierTransactions = async (id: string) => {
@@ -1455,10 +1480,12 @@ export const receivePurchase = async (id: string, payload: any) => {
       // this syncs, and an absolute overwrite here would silently clobber
       // that. The server applies `received_quantity_delta` atomically to
       // both the purchase_item and the shop's stock (see backend sync_push).
+      // NO updated_at in the payload: it would be device wall-clock time,
+      // and a device with a slow clock then hits false 'conflict_detected'
+      // rejections on every receive (server compares it to its own clock).
       await queueChange('purchase_items', item.id, 'UPDATE', {
         received_quantity: receivedQty,
-        received_quantity_delta: diff,
-        updated_at: now
+        received_quantity_delta: diff
       });
 
       // Local optimistic stock update for instant UI feedback only — the
@@ -1539,7 +1566,9 @@ export const getExpenses = async (shop_id?: string) => {
       console.warn('getExpenses API failed, falling back to cache:', e);
     }
   }
-  const expenses = shop_id ? await db.expenses.where('shop_id').equals(shop_id).toArray() : await db.expenses.toArray();
+  const expenses = shop_id 
+    ? await db.expenses.where('shop_id').equals(shop_id).filter((e: any) => !e.is_deleted).toArray() 
+    : await db.expenses.filter((e: any) => !e.is_deleted).toArray();
   return { data: expenses };
 };
 
@@ -1553,8 +1582,13 @@ export const createExpense = async (data: any) => {
 };
 
 export const deleteExpense = async (id: string) => {
-  await db.expenses.delete(id);
-  await queueChange('expenses', id, 'DELETE', null);
+  const now = new Date().toISOString();
+
+  // Soft-delete locally — same rationale as deleteProduct above.
+  await db.transaction('rw', db.expenses, db.sync_queue, async () => {
+    await db.expenses.update(id, { is_deleted: true, updated_at: now });
+    await queueChange('expenses', id, 'DELETE', null);
+  });
   return { data: { success: true } };
 };
 

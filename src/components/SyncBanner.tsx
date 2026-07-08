@@ -169,18 +169,20 @@ export function useSyncStatus() {
       refreshPendingCount();
     };
 
+    const onBgSyncComplete = () => refreshPendingCount();
+
     window.addEventListener("tuhanas:pull-start", onPullStart as EventListener);
     window.addEventListener("tuhanas:pull-progress", onPullProgress as EventListener);
     window.addEventListener("tuhanas:pull-complete", onPullComplete as EventListener);
     window.addEventListener("tuhanas:push-complete", onPushComplete as EventListener);
-    window.addEventListener("tuhanas:bg-sync-complete", () => refreshPendingCount());
+    window.addEventListener("tuhanas:bg-sync-complete", onBgSyncComplete);
 
     return () => {
       window.removeEventListener("tuhanas:pull-start", onPullStart as EventListener);
       window.removeEventListener("tuhanas:pull-progress", onPullProgress as EventListener);
       window.removeEventListener("tuhanas:pull-complete", onPullComplete as EventListener);
       window.removeEventListener("tuhanas:push-complete", onPushComplete as EventListener);
-      window.removeEventListener("tuhanas:bg-sync-complete", () => refreshPendingCount());
+      window.removeEventListener("tuhanas:bg-sync-complete", onBgSyncComplete);
     };
   }, [refreshPendingCount]);
 
