@@ -1348,7 +1348,16 @@ export const getPurchases = async (shop_id?: string) => {
   return {
     data: purchases
       .filter((p: any) => !p.is_deleted)
-      .map((purchase: any) => normalizePurchase(purchase, itemsByPurchase.get(purchase.id) || []))
+      // Fall back to the purchase's embedded items (server pull stores them
+      // on the purchase row) when the purchase_items table has no rows for
+      // it — older pulls delivered items without a purchase_id, leaving
+      // them orphaned in that table.
+      .map((purchase: any) =>
+        normalizePurchase(
+          purchase,
+          itemsByPurchase.get(purchase.id) || purchase.items || []
+        )
+      )
       // Newest first — created_at is ISO, so string/parse ordering agree;
       // records missing a date sink to the bottom instead of crashing.
       .sort((a: any, b: any) =>
@@ -1374,7 +1383,10 @@ export const getPurchase = async (id: string) => {
   }
 
   const purchase = await db.purchases.get(id);
-  const items = await db.purchase_items.where('purchase_id').equals(id).toArray();
+  // Fall back to the purchase's embedded items (see getPurchases) when the
+  // purchase_items table has no rows linked to this purchase.
+  const tableItems = await db.purchase_items.where('purchase_id').equals(id).toArray();
+  const items = tableItems.length > 0 ? tableItems : ((purchase as any)?.items || []);
   const productMap = await bulkGetProductMap(items.map((i: any) => i.product_id));
   const enriched = items
     .filter((i: any) => !i.is_deleted)
