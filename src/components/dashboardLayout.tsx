@@ -8,8 +8,7 @@ import { seedDatabaseFromSQL, isDBSeeded } from "@/seedDB";
 import { pullUpdates } from "@/syncEngine";
 import { db } from "@/db";
 import { markSyncReady, isSyncReady } from "@/syncGate";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
+import { getApiBase, resolveApiBase } from "@/apiBase";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -36,9 +35,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             attempt++;
             setWakeAttempt(attempt);
             try {
-                await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(8000) });
+                await fetch(`${getApiBase()}/health`, { signal: AbortSignal.timeout(8000) });
                 return true;
             } catch {
+                // The baked-in URL may be a dead tunnel hostname — try to
+                // discover the current one before the next attempt.
+                await resolveApiBase();
                 await new Promise((r) => setTimeout(r, 4000));
             }
         }
@@ -85,6 +87,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         const init = async () => {
             try {
+                // Refresh the discovered API URL in the background at every
+                // app start — if the tunnel restarted while the app was
+                // closed, this repoints us before the first sync cycle.
+                resolveApiBase();
+
                 // Step 0: If Dexie already has data AND sync gate is open → ready immediately
                 const hasData =
                     (await db.products.count()) > 0 || (await db.shops.count()) > 0;

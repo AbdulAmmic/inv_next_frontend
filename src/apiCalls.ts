@@ -3,15 +3,15 @@ import axios from "axios";
 import { db } from "./db";
 import { queueChange, pushChanges, pullUpdates } from "./syncEngine";
 import { waitForSync } from "./syncGate";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
+import { getApiBase, resolveApiBase } from "./apiBase";
 
 // -------------------------------------------------------------
 // 🔧 AXIOS INSTANCE
 // -------------------------------------------------------------
+// baseURL is re-pinned per request from apiBase.ts (runtime tunnel-URL
+// discovery), so a changed tunnel hostname applies without an app restart.
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBase(),
   timeout: 15000, // Faster fallback to local cache
 });
 
@@ -287,6 +287,8 @@ export const buildLocalStats = async (shop_id?: string, start_date?: string, end
 // -------------------------------------------------------------
 api.interceptors.request.use(
   async (config) => {
+    // Pin to the currently-discovered API base on every request
+    config.baseURL = getApiBase();
     if (typeof window !== "undefined") {
       let token = localStorage.getItem("access_token");
       const refreshToken = localStorage.getItem("refresh_token");
@@ -299,7 +301,7 @@ api.interceptors.request.use(
         if (payload && payload.exp - now < 300) {
           try {
             console.log("🔄 Refreshing token...");
-            const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+            const res = await axios.post(`${getApiBase()}/auth/refresh`, {
               refresh_token: refreshToken,
             });
 
@@ -326,6 +328,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    // A network-level failure may mean the tunnel hostname changed — kick
+    // off discovery (rate-limited internally) so the next request heals.
+    if (isNetworkError(error)) {
+      resolveApiBase();
+    }
     if (error.response?.status === 401 && typeof window !== "undefined") {
       // Clear ONLY auth keys. localStorage.clear() also wiped the sync
       // watermark (last_sync_timestamp) and offline caches (shop settings,

@@ -13,13 +13,14 @@
 
 import axios from 'axios';
 import { db, SyncQueueEntry } from './db';
+import { getApiBase, resolveApiBase } from './apiBase';
 
 const LAST_SYNC_KEY = 'last_sync_timestamp';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://player-linear-mills-newcastle.trycloudflare.com';
-
-// Own axios instance — NO import from apiCalls.ts (avoids circular deps)
-const syncApi = axios.create({ baseURL: API_BASE, timeout: 120000 });
+// Own axios instance — NO import from apiCalls.ts (avoids circular deps).
+// baseURL is set per-request from apiBase.ts so a tunnel-URL change picked
+// up by discovery applies immediately, without an app restart.
+const syncApi = axios.create({ baseURL: getApiBase(), timeout: 120000 });
 
 const MAX_SYNC_RETRIES = 3;
 const RETRY_BASE_MS = 1500;
@@ -44,6 +45,9 @@ async function isOnline(): Promise<boolean> {
     await syncApi.get('/health', { timeout: 4000 });
     return true;
   } catch {
+    // Maybe the tunnel URL changed rather than the network being down —
+    // kick off discovery (rate-limited internally) for the next attempt.
+    resolveApiBase();
     return false;
   }
 }
@@ -106,7 +110,7 @@ function refreshAccessToken(): Promise<string | null> {
 
   if (!_refreshPromise) {
     _refreshPromise = axios
-      .post(`${API_BASE}/auth/refresh`, { refresh_token: refreshToken })
+      .post(`${getApiBase()}/auth/refresh`, { refresh_token: refreshToken })
       .then((res) => {
         const token = res.data?.access_token || null;
         if (token) localStorage.setItem('access_token', token);
@@ -121,8 +125,10 @@ function refreshAccessToken(): Promise<string | null> {
 }
 
 // Attach Bearer token on every request, refreshing proactively if it's
-// about to expire (within 5 minutes)
+// about to expire (within 5 minutes). Also pin the baseURL to the current
+// discovered API base on every request.
 syncApi.interceptors.request.use(async (config) => {
+  config.baseURL = getApiBase();
   if (typeof window !== 'undefined') {
     let token = localStorage.getItem('access_token');
     if (token) {
@@ -334,7 +340,9 @@ async function pushChangesLocked(
           continue;
         }
         // Network gone — leave everything untouched; the next sync cycle
-        // picks the same entries up again.
+        // picks the same entries up again. Also kick off URL discovery in
+        // case the tunnel hostname changed rather than the network dropping.
+        resolveApiBase();
         console.warn('⚠️ Push skipped — network unavailable');
         return { pushed: 0, failed: 0, conflicts: 0 };
       }
@@ -438,6 +446,9 @@ async function pullUpdatesLocked(): Promise<{ total: number }> {
           await delay(RETRY_BASE_MS * attempt);
           continue;
         }
+        // Same as push: the "network" failure may actually be a dead tunnel
+        // hostname — trigger discovery for the next cycle.
+        resolveApiBase();
         console.warn('⚠️ Pull skipped — network unavailable');
         dispatch('tuhanas:pull-complete', { total: 0 });
         return { total: 0 };

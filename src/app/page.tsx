@@ -13,6 +13,7 @@ import {
   verifyOfflineLogin,
   isNetworkError,
 } from "@/offlineAuth";
+import { getApiBase, resolveApiBase } from "@/apiBase";
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
@@ -54,7 +55,6 @@ export default function LoginPage() {
 
   // Wake server with /health pings, then retry login
   const wakeAndRetry = async (toastId: string): Promise<boolean> => {
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://player-linear-mills-newcastle.trycloudflare.com";
     setServerWaking(true);
     toast.loading("Server is starting up — please wait (up to 60s)...", { id: toastId });
 
@@ -65,7 +65,10 @@ export default function LoginPage() {
     while (Date.now() - start < maxWait) {
       attempt++;
       try {
-        await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(8000) });
+        // Re-discover the API URL first — a "sleeping server" is often
+        // actually a restarted tunnel with a new hostname.
+        await resolveApiBase();
+        await fetch(`${getApiBase()}/health`, { signal: AbortSignal.timeout(8000) });
         // Server is awake — retry login
         toast.loading(`Server ready, signing in...`, { id: toastId });
         setServerWaking(false);
