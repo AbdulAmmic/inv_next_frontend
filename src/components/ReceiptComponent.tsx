@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { ShoppingBag, MapPin, Phone, Mail, Printer, Download, Copy, X } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { getBusinessName } from '@/businessTheme';
 
 interface SaleItem {
     product_name: string;
@@ -35,6 +36,7 @@ interface ReceiptComponentProps {
 
 export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProps) {
     const receiptRef = useRef<HTMLDivElement>(null);
+    const businessName = getBusinessName(sale.shop_name || "Store");
 
     const handlePrint = () => {
         const printContent = receiptRef.current;
@@ -125,7 +127,7 @@ export default function ReceiptComponent({ sale, onClose }: ReceiptComponentProp
     const handleCopy = () => {
         const text = `
 Receipt: ${sale.sale_number}
-Shop: ${sale.shop_name}
+${businessName}${sale.shop_name && sale.shop_name !== businessName ? ` — ${sale.shop_name}` : ''}
 Date: ${new Date(sale.created_at).toLocaleString()}
 --------------------------------
 ${sale.items.map(item => `${item.product_name} x${item.quantity} - ₦${item.total_price.toLocaleString()}`).join('\n')}
@@ -161,7 +163,10 @@ Total: ₦${sale.total.toLocaleString()}
                             <div className="flex justify-center mb-2">
                                 <ShoppingBag className="w-8 h-8 text-black" />
                             </div>
-                            <h2 className="text-xl font-bold uppercase tracking-wider mb-1">{sale.shop_name}</h2>
+                            <h2 className="text-xl font-bold uppercase tracking-wider mb-1">{businessName}</h2>
+                            {sale.shop_name && sale.shop_name !== businessName && (
+                                <p className="text-xs text-gray-500 mb-1">{sale.shop_name}</p>
+                            )}
                             {sale.shop_address && <p className="text-xs text-gray-500 mb-1">{sale.shop_address}</p>}
                             {sale.shop_phone && <p className="text-xs text-gray-500">{sale.shop_phone}</p>}
                         </div>
@@ -238,7 +243,7 @@ Total: ₦${sale.total.toLocaleString()}
                                 </div>
                             )}
                             <div className="pt-4 opacity-50">
-                                <p>Powered by Tuhans Inventory</p>
+                                <p>Powered by Inventory System</p>
                             </div>
                         </div>
                     </div>

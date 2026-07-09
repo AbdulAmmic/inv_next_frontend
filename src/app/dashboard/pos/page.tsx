@@ -58,6 +58,8 @@ interface StockRow {
   category?: string;
   shelf_location?: string;
   unit?: string;
+  nearestExpiry?: string | null;
+  expiryStatus?: "expired" | "expiringSoon" | "ok" | null;
 }
 
 interface CartItem {
@@ -66,6 +68,8 @@ interface CartItem {
   sku?: string;
   shelf_location?: string;
   unit?: string;
+  nearestExpiry?: string | null;
+  expiryStatus?: "expired" | "expiringSoon" | "ok" | null;
   quantity: number;
   unitPrice: number;
   maxStock: number;
@@ -176,6 +180,10 @@ export default function POSPage() {
         currentStock: item.currentStock,
         sellingPrice: item.sellingPrice,
         category: item.category,
+        shelf_location: item.shelf_location,
+        unit: item.unit,
+        nearestExpiry: item.nearest_expiry ?? null,
+        expiryStatus: item.expiry_status ?? null,
       }));
       setStock(mapped);
     } catch (err) {
@@ -217,6 +225,8 @@ export default function POSPage() {
         sku: row.sku,
         shelf_location: row.shelf_location,
         unit: row.unit,
+        nearestExpiry: row.nearestExpiry,
+        expiryStatus: row.expiryStatus,
         quantity: 1,
         unitPrice: row.sellingPrice,
         maxStock: row.currentStock,
@@ -651,6 +661,13 @@ const ProductCard = ({ product, onAdd }: any) => (
     {product.shelf_location && (
       <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5">📍 {product.shelf_location}</p>
     )}
+    {product.nearestExpiry && (
+      <p className={`text-[10px] font-bold uppercase tracking-tight mt-0.5 ${
+        product.expiryStatus === "expired" ? "text-rose-600" : product.expiryStatus === "expiringSoon" ? "text-amber-600" : "text-slate-400"
+      }`}>
+        ⏱ {product.expiryStatus === "expired" ? "Expired" : "Exp"} {product.nearestExpiry}
+      </p>
+    )}
     <div className="mt-4 text-lg font-black text-blue-600">₦{product.sellingPrice.toLocaleString()}</div>
   </button>
 );
@@ -669,6 +686,13 @@ const CartItemRow = ({ item, onRemove, onUpdateQty }: any) => (
       </p>
       {item.shelf_location && (
         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
+      )}
+      {item.nearestExpiry && (
+        <p className={`text-[10px] font-bold uppercase tracking-tight ${
+          item.expiryStatus === "expired" ? "text-rose-600" : item.expiryStatus === "expiringSoon" ? "text-amber-600" : "text-slate-400"
+        }`}>
+          ⏱ {item.expiryStatus === "expired" ? "Expired" : "Exp"} {item.nearestExpiry}
+        </p>
       )}
     </div>
     <div className="flex flex-col items-end gap-2 shrink-0">
