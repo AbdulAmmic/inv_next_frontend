@@ -1,7 +1,7 @@
 {
-  "name": "Tuhanas Inventory",
-  "short_name": "Tuhanas",
-  "description": "Offline-first multi-shop inventory management for Tuhanas Kitchen & Scents.",
+  "name": "Inventory Manager",
+  "short_name": "Inventory",
+  "description": "Offline-first multi-shop inventory management.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
