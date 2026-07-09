@@ -51,6 +51,7 @@ export default function ProductFormModal({
     cost_price: 0,
     shop_id: initialShopId,
     shelf_location: "",
+    unit: "",
   });
 
   const [initialQuantity, setInitialQuantity] = useState(0);
@@ -92,6 +93,7 @@ export default function ProductFormModal({
         description: p.description ?? "",
         barcode: p.barcode ?? "",
         supplier_id: p.supplier_id ?? "",
+        unit: p.unit ?? "",
         quantity: initialQty,
         min_quantity: p.stock?.min_quantity ?? 0,
         max_quantity: p.stock?.max_quantity ?? undefined,
@@ -131,6 +133,7 @@ export default function ProductFormModal({
         barcode: formData.barcode || undefined,
         category: formData.category || undefined,
         description: formData.description || undefined,
+        unit: formData.unit || undefined,
         price: Number(formData.price) || 0,
         cost_price: Number(formData.cost_price) || 0,
         supplier_id: formData.supplier_id || undefined,
@@ -196,6 +199,8 @@ export default function ProductFormModal({
         stockQuantity: formData.quantity,
         min_quantity: formData.min_quantity,
         max_quantity: formData.max_quantity,
+        shelfLocation: formData.shelf_location || undefined,
+        unit: saved.unit ?? formData.unit,
         shop_id: formData.shop_id || null,
       };
 
@@ -265,18 +270,32 @@ export default function ProductFormModal({
             />
           </div>
 
-          {/* CATEGORY */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Category
-            </label>
-            <input
-              type="text"
-              value={formData.category}
-              onChange={(e) => updateField("category", e.target.value)}
-              placeholder="e.g. Drinks, Groceries"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
+          {/* CATEGORY + UNIT */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Category
+              </label>
+              <input
+                type="text"
+                value={formData.category}
+                onChange={(e) => updateField("category", e.target.value)}
+                placeholder="e.g. Drinks, Groceries"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Unit
+              </label>
+              <input
+                type="text"
+                value={formData.unit}
+                onChange={(e) => updateField("unit", e.target.value)}
+                placeholder="e.g. Pack, Piece, Tube"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
           </div>
 
           {/* PRICING */}

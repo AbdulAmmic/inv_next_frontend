@@ -19,7 +19,8 @@ import {
   ClipboardList,
   LayoutDashboard,
   RefreshCw,
-  ShieldAlert
+  ShieldAlert,
+  Bell
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -57,6 +58,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     { icon: Package, label: "Products", href: "/dashboard/products" },
     { icon: QrCode, label: "QR Labels", href: "/dashboard/products/labels" },
     { icon: DollarSign, label: "Stock", href: "/dashboard/stock" },
+    { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
     { icon: ShieldAlert, label: "Grievances", href: "/dashboard/grievances", key: "grievances" },
     { icon: Folder, label: "Categories", href: "/dashboard/categories" },
     { icon: Users, label: "Customers", href: "/dashboard/customers" },
@@ -81,7 +83,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
   if (role === "staff") {
     allowedMenu = allMenu.filter(item =>
-      ["Overview", "Products", "Stock", "Sales", "Grievances"].includes(item.label)
+      ["Overview", "Products", "Stock", "Alerts", "Sales", "Grievances"].includes(item.label)
     );
     allowedBottom = bottomMenu.filter(item => item.label === "Logout");
   } else if (role === "subadmin") {

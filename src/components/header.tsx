@@ -14,11 +14,18 @@ import {
   Store,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { getShops } from "@/apiCalls";
+import { getShops, getStocks } from "@/apiCalls";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-hot-toast";
 import SyncStatus from "./SyncStatus";
 import BrandMark from "./BrandMark";
-import { getBusinessName } from "@/businessTheme";
+import { getBusinessName, clearCachedBusiness } from "@/businessTheme";
+
+interface AlertSummaryItem {
+  productName: string;
+  detail: string;
+  kind: "lowStock" | "outOfStock" | "expiringSoon" | "expired";
+}
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -29,8 +36,12 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
   const router = useRouter();
   const pathname = usePathname();
   const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [alertItems, setAlertItems] = useState<AlertSummaryItem[]>([]);
+  const [alertCount, setAlertCount] = useState(0);
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -55,10 +66,81 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // Low-stock / expiry alerts — loaded once per shop, popped up as a
+  // toast the first time it's computed each session so staff notice it
+  // without having to visit the Alerts page.
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const loadAlerts = async () => {
+      try {
+        const shopId =
+          typeof window !== "undefined" ? localStorage.getItem("selected_shop_id") || "" : "";
+        const res = await getStocks(shopId);
+        const stockRows: any[] = Array.isArray(res.data) ? res.data : [];
+
+        const items: AlertSummaryItem[] = [];
+        for (const s of stockRows) {
+          if (s.status === "outOfStock") {
+            items.push({ productName: s.productName, detail: "Out of stock", kind: "outOfStock" });
+          } else if (s.status === "lowStock") {
+            items.push({ productName: s.productName, detail: `Only ${s.currentStock} left`, kind: "lowStock" });
+          }
+          if (s.expiry_status === "expired") {
+            items.push({ productName: s.productName, detail: `Expired ${s.nearest_expiry}`, kind: "expired" });
+          } else if (s.expiry_status === "expiringSoon") {
+            items.push({ productName: s.productName, detail: `Expires ${s.nearest_expiry}`, kind: "expiringSoon" });
+          }
+        }
+
+        setAlertItems(items.slice(0, 8));
+        setAlertCount(items.length);
+
+        // Fire the popup toast once per browser session, not on every
+        // dashboard navigation (header stays mounted across page changes).
+        const shownKey = "tuhanas_alerts_toast_shown";
+        if (items.length > 0 && !sessionStorage.getItem(shownKey)) {
+          sessionStorage.setItem(shownKey, "1");
+          const lowStock = items.filter((i) => i.kind === "lowStock" || i.kind === "outOfStock").length;
+          const expiring = items.filter((i) => i.kind === "expiringSoon" || i.kind === "expired").length;
+          const parts = [];
+          if (lowStock) parts.push(`${lowStock} low/out-of-stock item${lowStock === 1 ? "" : "s"}`);
+          if (expiring) parts.push(`${expiring} expiring/expired item${expiring === 1 ? "" : "s"}`);
+
+          toast(
+            (t) => (
+              <div className="flex items-start gap-3">
+                <span className="text-sm font-medium">⚠️ {parts.join(" and ")}. </span>
+                <button
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    router.push("/dashboard/alerts");
+                  }}
+                  className="text-sm font-bold text-amber-600 underline whitespace-nowrap"
+                >
+                  View
+                </button>
+              </div>
+            ),
+            { duration: 8000 }
+          );
+        }
+      } catch {
+        // Silent — alerts are a convenience, not critical path.
+      }
+    };
+
+    loadAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShop]);
 
   useEffect(() => {
     const saved = localStorage.getItem("selected_shop_id");
@@ -166,6 +248,85 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
               POS Terminal
             </motion.button>
 
+            {/* Alerts Bell */}
+            <div className="relative" ref={notifRef}>
+              <motion.button
+                onClick={() => setNotifOpen(!notifOpen)}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                className="relative p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-all"
+                title="Stock alerts"
+              >
+                <Bell className="w-4 h-4 text-amber-600" />
+                {alertCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-rose-500 text-white text-[9px] font-black rounded-full shadow-sm">
+                    {alertCount > 99 ? "99+" : alertCount}
+                  </span>
+                )}
+              </motion.button>
+
+              <AnimatePresence>
+                {notifOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-80 bg-white border border-amber-100 rounded-2xl shadow-2xl shadow-amber-100/50 overflow-hidden z-50"
+                  >
+                    <div className="px-4 py-3 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-amber-100 flex items-center justify-between">
+                      <p className="font-black text-slate-900 text-sm">Stock Alerts</p>
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full">
+                        {alertCount}
+                      </span>
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto">
+                      {alertItems.length === 0 ? (
+                        <p className="px-4 py-6 text-center text-sm text-slate-400 font-medium">
+                          Nothing needs attention right now.
+                        </p>
+                      ) : (
+                        alertItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 last:border-0"
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                item.kind === "expired"
+                                  ? "bg-rose-500"
+                                  : item.kind === "outOfStock"
+                                    ? "bg-rose-500"
+                                    : "bg-amber-500"
+                              }`}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">{item.productName}</p>
+                              <p className="text-[10px] text-slate-400">{item.detail}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="p-2 border-t border-slate-50">
+                      <button
+                        onClick={() => {
+                          setNotifOpen(false);
+                          router.push("/dashboard/alerts");
+                        }}
+                        className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+                      >
+                        View all alerts
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Profile */}
             <div className="relative" ref={profileRef}>
               <motion.button
@@ -236,7 +397,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                     {/* Sign Out */}
                     <div className="p-2 pt-0 border-t border-slate-50">
                       <button
-                        onClick={() => { localStorage.clear(); router.push("/"); }}
+                        onClick={() => { clearCachedBusiness(); localStorage.clear(); router.push("/"); }}
                         className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                       >
                         <LogOut className="w-4 h-4" />

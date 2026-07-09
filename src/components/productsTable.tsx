@@ -154,6 +154,7 @@ export default function ProductsTable({
               <div className="flex items-center gap-2">Product Name {sortIcon("name")}</div>
             </th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Category</th>
+            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Shelf</th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer text-center" onClick={() => toggleSort("stockQuantity")}>
               <div className="flex items-center justify-center gap-2">Inventory {sortIcon("stockQuantity")}</div>
             </th>
@@ -162,6 +163,7 @@ export default function ProductsTable({
             ) : null}
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Sale Price</th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
+            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Expiry</th>
             <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right">Actions</th>
           </tr>
         </thead>
@@ -201,9 +203,15 @@ export default function ProductsTable({
                     </span>
                   </td>
 
+                  <td className="px-6 py-4">
+                    <span className="font-mono text-xs font-bold text-slate-600">
+                      {product.shelfLocation || "—"}
+                    </span>
+                  </td>
+
                   <td className="px-6 py-4 text-center">
                     <div className="font-black text-slate-900 text-base">{product.stockQuantity}</div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">Units</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">{product.unit || "Units"}</div>
                   </td>
 
                   {userRole === "admin" || userRole === "subadmin" ? (
@@ -223,6 +231,22 @@ export default function ProductsTable({
                       <StatusIcon className="w-3 h-3" />
                       {status.label}
                     </span>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    {product.nearestExpiry ? (
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        product.expiryStatus === "expired"
+                          ? "bg-rose-100 text-rose-700"
+                          : product.expiryStatus === "expiringSoon"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {product.nearestExpiry}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-bold italic">—</span>
+                    )}
                   </td>
 
                   <td className="px-6 py-4 text-right">
@@ -250,7 +274,7 @@ export default function ProductsTable({
 
           {!products.length && (
             <tr>
-              <td colSpan={8} className="p-20 text-center">
+              <td colSpan={10} className="p-20 text-center">
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
                     <Package className="w-8 h-8 text-slate-200" />
@@ -278,6 +302,12 @@ export default function ProductsTable({
                   </div>
                   <p className="text-xs text-slate-500 mt-1">SKU: {product.sku || "No SKU"}</p>
                   <p className="text-xs text-slate-500 mt-1">Category: {product.category || "Uncategorized"}</p>
+                  <p className="text-xs text-slate-500 mt-1">Shelf: {product.shelfLocation || "—"}</p>
+                  {product.nearestExpiry && (
+                    <p className={`text-xs mt-1 font-semibold ${product.expiryStatus === "expired" ? "text-rose-600" : product.expiryStatus === "expiringSoon" ? "text-amber-600" : "text-slate-500"}`}>
+                      Expires: {product.nearestExpiry}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${status.badgeBg} ${status.badgeText}`}>
@@ -296,7 +326,9 @@ export default function ProductsTable({
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
                 <div className="rounded-2xl bg-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Stock</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">{product.stockQuantity}</p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {product.stockQuantity} <span className="text-xs font-medium text-slate-400">{product.unit || ""}</span>
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Sale Price</p>

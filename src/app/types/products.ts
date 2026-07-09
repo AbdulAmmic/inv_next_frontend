@@ -19,6 +19,9 @@ export interface Product {
   stockQuantity: number;
   min_quantity?: number;
   max_quantity?: number;
+  shelfLocation?: string;
+  nearestExpiry?: string | null;
+  expiryStatus?: "expired" | "expiringSoon" | "ok" | null;
 
   // Ownership / meta
   shop_id?: string | null;

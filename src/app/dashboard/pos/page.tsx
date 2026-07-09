@@ -57,6 +57,7 @@ interface StockRow {
   sellingPrice: number;
   category?: string;
   shelf_location?: string;
+  unit?: string;
 }
 
 interface CartItem {
@@ -64,6 +65,7 @@ interface CartItem {
   productName: string;
   sku?: string;
   shelf_location?: string;
+  unit?: string;
   quantity: number;
   unitPrice: number;
   maxStock: number;
@@ -214,6 +216,7 @@ export default function POSPage() {
         productName: row.productName,
         sku: row.sku,
         shelf_location: row.shelf_location,
+        unit: row.unit,
         quantity: 1,
         unitPrice: row.sellingPrice,
         maxStock: row.currentStock,
@@ -642,7 +645,9 @@ const ProductCard = ({ product, onAdd }: any) => (
       </div>
     </div>
     <h3 className="font-bold text-slate-900 text-sm leading-tight line-clamp-2">{product.productName}</h3>
-    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">{product.sku || 'No SKU'}</p>
+    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+      {product.sku || 'No SKU'}{product.unit ? ` · ${product.unit}` : ''}
+    </p>
     {product.shelf_location && (
       <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5">📍 {product.shelf_location}</p>
     )}
@@ -659,7 +664,9 @@ const CartItemRow = ({ item, onRemove, onUpdateQty }: any) => (
   >
     <div className="min-w-0 pr-4">
       <h4 className="font-bold text-slate-900 text-sm truncate">{item.productName}</h4>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">₦{item.unitPrice.toLocaleString()}</p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+        ₦{item.unitPrice.toLocaleString()}{item.unit ? ` / ${item.unit}` : ''}
+      </p>
       {item.shelf_location && (
         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
       )}

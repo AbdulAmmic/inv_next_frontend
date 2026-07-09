@@ -143,6 +143,10 @@ export default function ProductsPage() {
           stockQuantity: quantity,
           min_quantity: minQty,
           max_quantity: maxQty,
+          shelfLocation: stock.shelf_location ?? "",
+          nearestExpiry: stock.nearest_expiry ?? null,
+          expiryStatus: stock.expiry_status ?? null,
+          unit: p.unit ?? "",
           shop_id: shopId || null,
           status: getStockStatus(quantity, minQty),
         };
@@ -186,7 +190,9 @@ export default function ProductsPage() {
         (p) =>
           (p.name || "").toLowerCase().includes(term) ||
           (p.sku || "").toLowerCase().includes(term) ||
-          (p.category || "").toLowerCase().includes(term)
+          (p.category || "").toLowerCase().includes(term) ||
+          (p.shelfLocation || "").toLowerCase().includes(term) ||
+          (p.nearestExpiry || "").toLowerCase().includes(term)
       );
     }
 
@@ -321,7 +327,7 @@ export default function ProductsPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors w-4 h-4" />
             <input
               type="text"
-              placeholder="Search products by name, SKU, or category..."
+              placeholder="Search by name, SKU, category, shelf, or expiry..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-50/50 border border-slate-100 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all font-medium text-slate-700 placeholder:text-slate-400"

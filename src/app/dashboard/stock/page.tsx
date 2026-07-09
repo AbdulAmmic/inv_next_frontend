@@ -31,6 +31,9 @@ interface StockRow {
   lastUpdated: string | null;
   status: string;
   shop_id: string;
+  shelfLocation: string;
+  nearestExpiry: string | null;
+  expiryStatus: "expired" | "expiringSoon" | "ok" | null;
 }
 
 interface Shop {
@@ -108,6 +111,9 @@ export default function StockPage() {
         lastUpdated: item.lastUpdated ?? null,
         status: item.status ?? "inStock",
         shop_id: item.shop_id,
+        shelfLocation: item.shelf_location ?? "",
+        nearestExpiry: item.nearest_expiry ?? null,
+        expiryStatus: item.expiry_status ?? null,
       }));
 
       setStock(mapped);
@@ -236,11 +242,17 @@ export default function StockPage() {
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [page, setPage] = useState(1);
 
-  const filteredStock = useMemo(() => stock.filter(item =>
-    item.productName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    item.sku.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    item.category.toLowerCase().includes(debouncedSearch.toLowerCase())
-  ), [stock, debouncedSearch]);
+  const filteredStock = useMemo(() => {
+    const term = debouncedSearch.toLowerCase().trim();
+    if (!term) return stock;
+    return stock.filter(item =>
+      item.productName.toLowerCase().includes(term) ||
+      item.sku.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term) ||
+      (item.shelfLocation || "").toLowerCase().includes(term) ||
+      (item.nearestExpiry || "").toLowerCase().includes(term)
+    );
+  }, [stock, debouncedSearch]);
 
   const pageCount = Math.max(1, Math.ceil(filteredStock.length / PAGE_SIZE));
   const paginatedStock = useMemo(
@@ -320,7 +332,7 @@ export default function StockPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search stock..."
+                placeholder="Search by name, shelf, or expiry (YYYY-MM-DD)..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all w-full sm:w-64"
@@ -423,12 +435,14 @@ export default function StockPage() {
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Product</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">SKU / Barcode</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Category</th>
+                    <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Shelf</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-center">Quantity</th>
                     {userRole === "admin" || userRole === "subadmin" ? (
                       <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Cost</th>
                     ) : null}
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Price</th>
                     <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Status</th>
+                    <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Expiry</th>
                     {userRole !== "manager" && <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>}
                   </tr>
                 </thead>
@@ -456,6 +470,11 @@ export default function StockPage() {
                         <td className="px-6 py-4">
                           <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
                             {row.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-mono text-xs font-bold text-slate-600">
+                            {row.shelfLocation || "—"}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -487,6 +506,23 @@ export default function StockPage() {
                             <div className={`w-1.5 h-1.5 rounded-full ${row.status === "outOfStock" ? "bg-rose-500 animate-pulse" : row.status === "lowStock" ? "bg-amber-500" : "bg-emerald-500"}`} />
                             {row.status}
                           </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          {row.nearestExpiry ? (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              row.expiryStatus === "expired"
+                                ? "bg-rose-100 text-rose-700"
+                                : row.expiryStatus === "expiringSoon"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-100 text-slate-600"
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${row.expiryStatus === "expired" ? "bg-rose-500 animate-pulse" : row.expiryStatus === "expiringSoon" ? "bg-amber-500" : "bg-slate-400"}`} />
+                              {row.nearestExpiry}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-bold italic">No batch data</span>
+                          )}
                         </td>
 
                         {userRole !== "manager" && (
@@ -797,7 +833,8 @@ function EditStockModal({
     min_quantity: String(row.minStockLevel),
     max_quantity: row.maxStockLevel ? String(row.maxStockLevel) : "",
     shop_price: row.sellingPrice ? String(row.sellingPrice) : "",
-    shop_cost_price: row.costPrice ? String(row.costPrice) : ""
+    shop_cost_price: row.costPrice ? String(row.costPrice) : "",
+    shelf_location: row.shelfLocation || "",
   });
 
   const handleChange = (e: any) => {
@@ -811,6 +848,7 @@ function EditStockModal({
     payload.max_quantity = formData.max_quantity === "" ? null : Number(formData.max_quantity);
     payload.shop_price = formData.shop_price === "" ? null : Number(formData.shop_price);
     payload.shop_cost_price = formData.shop_cost_price === "" ? null : Number(formData.shop_cost_price);
+    payload.shelf_location = formData.shelf_location.trim() === "" ? null : formData.shelf_location.trim();
 
     onUpdate(payload);
   };
@@ -882,6 +920,17 @@ function EditStockModal({
               onChange={handleChange}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all font-bold text-slate-700"
               placeholder="Default"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Shelf / Location</label>
+            <input
+              type="text"
+              name="shelf_location"
+              value={formData.shelf_location}
+              onChange={handleChange}
+              placeholder='e.g. "A1" or "B24, B25"'
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all font-bold text-slate-700"
             />
           </div>
         </div>

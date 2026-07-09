@@ -29,6 +29,8 @@ export function getCachedBusiness(): BusinessInfo | null {
   }
 }
 
+const DEFAULT_TITLE = "Inventory Manager";
+
 export function applyBusinessTheme(b: BusinessInfo | null) {
   if (typeof window === "undefined") return;
   const color = b?.theme?.primary_color;
@@ -36,6 +38,7 @@ export function applyBusinessTheme(b: BusinessInfo | null) {
     document.documentElement.style.setProperty("--brand-600", color);
     document.documentElement.style.setProperty("--brand-500", color);
   }
+  document.title = b?.name ? `${b.name} — Inventory` : DEFAULT_TITLE;
 }
 
 export function cacheBusiness(b: BusinessInfo) {
@@ -47,6 +50,7 @@ export function cacheBusiness(b: BusinessInfo) {
 export function clearCachedBusiness() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(CACHE_KEY);
+  document.title = DEFAULT_TITLE;
 }
 
 /** Call once right after login, and once on dashboard boot, to refresh the cache. */
