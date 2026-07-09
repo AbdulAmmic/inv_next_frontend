@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Wallet,
   ArrowDownCircle,
-  ArrowUpCircle,
   TrendingUp,
   Store,
   Boxes,
@@ -16,9 +15,7 @@ import {
   Package,
   BarChart3,
   RefreshCw,
-  Download,
   Calendar,
-  MoreVertical,
   ChevronDown,
   Loader2
 } from "lucide-react";
@@ -38,6 +35,7 @@ interface FinancialStats {
   total_purchases_count?: number;
   total_expenses_count?: number;
   inventory_selling_value: number;
+  inventory_cost_value: number;
   products_count: number;
   customers_count: number;
   suppliers_count: number;
@@ -50,27 +48,27 @@ interface Shop {
   name: string;
 }
 
+type MetricColor = "emerald" | "blue" | "purple" | "rose" | "amber" | "orange" | "slate";
+
 interface MetricCardProps {
   title: string;
   value: string;
-  change?: number;
   icon: React.ReactNode;
-  color: "green" | "blue" | "purple" | "red" | "amber" | "orange";
-  compactValue: string;
+  color: MetricColor;
 }
 
 interface MiniMetricCardProps {
   title: string;
   value: number;
   icon: React.ReactNode;
-  color: "indigo" | "blue" | "green" | "purple";
+  color: MetricColor;
 }
 
 interface StockAlertCardProps {
   title: string;
   value: number;
   icon: React.ReactNode;
-  color: "orange" | "red";
+  color: "orange" | "rose";
   description: string;
 }
 
@@ -362,12 +360,6 @@ export default function FinancesPage() {
   const formatNaira = (n: number) =>
     "₦" + Number(n || 0).toLocaleString("en-NG");
 
-  const formatCompact = (n: number) => {
-    if (n >= 1000000) return `₦${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `₦${(n / 1000).toFixed(1)}K`;
-    return formatNaira(n);
-  };
-
   if (!roleChecked) {
     return (
       <>
@@ -397,7 +389,7 @@ export default function FinancesPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-2xl shadow-2xl flex flex-col items-center border border-white/50 mx-4 text-center"
           >
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+            <Loader2 className="w-10 h-10 text-amber-600 animate-spin mb-4" />
             <p className="text-slate-900 font-black text-xl tracking-tight">{loadingMessage}</p>
             <p className="text-slate-500 font-medium mt-1">Refining data points...</p>
           </motion.div>
@@ -412,7 +404,7 @@ export default function FinancesPage() {
             animate={{ opacity: 1, x: 0 }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <div className="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+              <div className="px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
                 Financials
               </div>
             </div>
@@ -431,9 +423,9 @@ export default function FinancesPage() {
             <div className="relative group/date">
               <button
                 onClick={() => setShowDatePicker(!showDatePicker)}
-                className="flex items-center gap-3 px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 w-full sm:min-w-[220px] justify-between group"
+                className="flex items-center gap-3 px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-amber-300 hover:shadow-amber-100 transition-all font-bold text-slate-700 w-full sm:min-w-[220px] justify-between group"
               >
-                <div className="flex items-center gap-3 text-slate-500 group-hover:text-indigo-600 transition-colors">
+                <div className="flex items-center gap-3 text-slate-500 group-hover:text-amber-600 transition-colors">
                   <Calendar className="w-4 h-4" />
                   <span className="text-sm tracking-tight">{dateRangeLabel}</span>
                 </div>
@@ -457,7 +449,7 @@ export default function FinancesPage() {
                               key={range.value}
                               onClick={() => handleTimeRangeChange(range.value)}
                               className={`px-3 py-2.5 text-xs font-bold rounded-xl transition-all ${timeRange === range.value
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                ? 'bg-amber-600 text-white shadow-lg shadow-amber-200'
                                 : 'text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-100'
                                 }`}
                             >
@@ -477,7 +469,7 @@ export default function FinancesPage() {
                                 type="date"
                                 value={customDateRange.startDate}
                                 onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200 transition-all"
                               />
                             </div>
                             <div>
@@ -486,7 +478,7 @@ export default function FinancesPage() {
                                 type="date"
                                 value={customDateRange.endDate}
                                 onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200 transition-all"
                               />
                             </div>
                           </div>
@@ -507,7 +499,7 @@ export default function FinancesPage() {
 
             <div className="relative group/select">
               <select
-                className="appearance-none px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-indigo-300 hover:shadow-indigo-100 transition-all font-bold text-slate-700 w-full sm:min-w-[180px] focus:outline-none cursor-pointer pr-10"
+                className="appearance-none px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-amber-300 hover:shadow-amber-100 transition-all font-bold text-slate-700 w-full sm:min-w-[180px] focus:outline-none cursor-pointer pr-10"
                 value={selectedShop}
                 onChange={(e) => {
                   setSelectedShop(e.target.value);
@@ -521,7 +513,7 @@ export default function FinancesPage() {
                   </option>
                 ))}
               </select>
-              <Store className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none group-hover/select:text-indigo-600 transition-colors" />
+              <Store className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none group-hover/select:text-amber-600 transition-colors" />
             </div>
 
             <button
@@ -550,7 +542,7 @@ export default function FinancesPage() {
             transition={{ delay: 0.1 }}
             className="flex flex-wrap items-center gap-3"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full shadow-sm shadow-indigo-100">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-100 text-amber-700 rounded-full shadow-sm shadow-amber-100">
               <Calendar className="w-3.5 h-3.5" />
               <span className="text-[11px] font-black uppercase tracking-wider">
                 {timeRange !== "custom" && <span className="mr-1 opacity-60 italic">{dateRangeLabel}:</span>}
@@ -559,94 +551,73 @@ export default function FinancesPage() {
             </div>
           </motion.div>
 
-          {/* Performance Indicators */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {/* Performance Ratios */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
             {[
-              { label: "Profit Margin", value: stats && stats.total_sales_amount > 0 ? `${((stats.net_profit / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: TrendingUp, gradient: "from-emerald-400 to-emerald-600", delay: 0.1 },
-              { label: "ROI", value: stats && stats.total_purchase_amount > 0 ? `${((stats.net_profit / stats.total_purchase_amount) * 100).toFixed(1)}%` : "0%", icon: BarChart3, gradient: "from-blue-400 to-blue-600", delay: 0.2 },
-              { label: "Expense Ratio", value: stats && stats.total_sales_amount > 0 ? `${((stats.total_expenses / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: Wallet, gradient: "from-indigo-400 to-indigo-600", delay: 0.3 },
-              { label: "Stock Health", value: stats && stats.products_count > 0 ? `${(100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)).toFixed(0)}%` : "100%", icon: Package, gradient: "from-rose-400 to-rose-600", delay: 0.4 }
-            ].map((pi, i) => (
-              <motion.div
-                key={pi.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: pi.delay }}
-                className={`bg-gradient-to-br ${pi.gradient} p-5 rounded-xl text-white shadow-none group relative overflow-hidden min-w-0 hover:opacity-95 transition-opacity`}
-              >
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/70">{pi.label}</p>
-                    <pi.icon className="w-5 h-5 opacity-40 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <p className="text-2xl md:text-3xl font-black">{pi.value}</p>
-                </div>
-                {/* Decorative blob */}
-                <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-              </motion.div>
+              { label: "Profit Margin", value: stats && stats.total_sales_amount > 0 ? `${((stats.net_profit / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: TrendingUp, color: "emerald" as MetricColor },
+              { label: "ROI", value: stats && stats.total_purchase_amount > 0 ? `${((stats.net_profit / stats.total_purchase_amount) * 100).toFixed(1)}%` : "0%", icon: BarChart3, color: "blue" as MetricColor },
+              { label: "Expense Ratio", value: stats && stats.total_sales_amount > 0 ? `${((stats.total_expenses / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: Wallet, color: "amber" as MetricColor },
+            ].map((pi) => (
+              <MetricCard key={pi.label} title={pi.label} value={pi.value} icon={<pi.icon className="w-5 h-5" />} color={pi.color} />
             ))}
           </div>
         </div>
 
         {/* Main Financial Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-          <MetricCard
-            title="Total Sales"
-            value={formatNaira(stats?.total_sales_amount || 0)}
-            change={12.5}
-            icon={<TrendingUp className="w-6 h-6" />}
-            color="green"
-            compactValue={formatCompact(stats?.total_sales_amount || 0)}
-          />
+        <div>
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Revenue &amp; Profit</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
+            <MetricCard
+              title="Total Sales"
+              value={formatNaira(stats?.total_sales_amount || 0)}
+              icon={<TrendingUp className="w-6 h-6" />}
+              color="emerald"
+            />
+            <MetricCard
+              title="Gross Profit"
+              value={formatNaira(stats?.gross_profit || 0)}
+              icon={<Wallet className="w-6 h-6" />}
+              color="blue"
+            />
+            <MetricCard
+              title="Net Profit"
+              value={formatNaira(stats?.net_profit || 0)}
+              icon={<CircleDollarSign className="w-6 h-6" />}
+              color="purple"
+            />
+            <MetricCard
+              title="Total Expenses"
+              value={formatNaira(stats?.total_expenses || 0)}
+              icon={<ArrowDownCircle className="w-6 h-6" />}
+              color="rose"
+            />
+            <MetricCard
+              title="Total Purchases"
+              value={formatNaira(stats?.total_purchase_amount || 0)}
+              icon={<Truck className="w-6 h-6" />}
+              color="orange"
+            />
+          </div>
 
-          <MetricCard
-            title="Gross Profit"
-            value={formatNaira(stats?.gross_profit || 0)}
-            change={8.2}
-            icon={<Wallet className="w-6 h-6" />}
-            color="blue"
-            compactValue={formatCompact(stats?.gross_profit || 0)}
-          />
-
-          <MetricCard
-            title="Net Profit"
-            value={formatNaira(stats?.net_profit || 0)}
-            change={15.3}
-            icon={<CircleDollarSign className="w-6 h-6" />}
-            color="purple"
-            compactValue={formatCompact(stats?.net_profit || 0)}
-          />
-
-          <MetricCard
-            title="Total Expenses"
-            value={formatNaira(stats?.total_expenses || 0)}
-            change={-3.2}
-            icon={<ArrowDownCircle className="w-6 h-6" />}
-            color="red"
-            compactValue={formatCompact(stats?.total_expenses || 0)}
-          />
-
-          <MetricCard
-            title="Inventory Value"
-            value={formatNaira(stats?.inventory_selling_value || 0)}
-            change={5.7}
-            icon={<Boxes className="w-6 h-6" />}
-            color="amber"
-            compactValue={formatCompact(stats?.inventory_selling_value || 0)}
-          />
-
-          <MetricCard
-            title="Total Purchases"
-            value={formatNaira(stats?.total_purchase_amount || 0)}
-            change={-2.1}
-            icon={<Truck className="w-6 h-6" />}
-            color="orange"
-            compactValue={formatCompact(stats?.total_purchase_amount || 0)}
-          />
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Inventory Valuation</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-8">
+            <MetricCard
+              title="Inventory Value (Selling Price)"
+              value={formatNaira(stats?.inventory_selling_value || 0)}
+              icon={<Boxes className="w-6 h-6" />}
+              color="amber"
+            />
+            <MetricCard
+              title="Inventory Cost (Cost Price)"
+              value={formatNaira(stats?.inventory_cost_value || 0)}
+              icon={<Package className="w-6 h-6" />}
+              color="slate"
+            />
+          </div>
         </div>
 
         {/* Financial Flow Chart */}
-        <div className="mb-8 bg-white rounded-xl border border-gray-100 p-5 w-full hover:border-gray-200 transition-colors">
+        <div className="glass-card mb-8 rounded-2xl p-5 w-full">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900">Financial Flow Overview</h3>
           </div>
@@ -697,101 +668,78 @@ export default function FinancesPage() {
         </div>
 
         {/* Business Overview Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Business Metrics */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Overview</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <MiniMetricCard
-                  title="Products"
-                  value={stats?.products_count || 0}
-                  icon={<Package className="w-5 h-5" />}
-                  color="indigo"
-                />
-                <MiniMetricCard
-                  title="Customers"
-                  value={stats?.customers_count || 0}
-                  icon={<Users className="w-5 h-5" />}
-                  color="blue"
-                />
-                <MiniMetricCard
-                  title="Suppliers"
-                  value={stats?.suppliers_count || 0}
-                  icon={<Truck className="w-5 h-5" />}
-                  color="green"
-                />
-                <MiniMetricCard
-                  title="Total Transactions"
-                  value={(stats?.total_sales_count || 0) + (stats?.total_purchases_count || 0) + (stats?.total_expenses_count || 0)}
-                  icon={<BarChart3 className="w-5 h-5" />}
-                  color="purple"
-                />
-              </div>
+          <div className="glass-card rounded-2xl p-5">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Business Overview</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <MiniMetricCard
+                title="Products"
+                value={stats?.products_count || 0}
+                icon={<Package className="w-5 h-5" />}
+                color="blue"
+              />
+              <MiniMetricCard
+                title="Customers"
+                value={stats?.customers_count || 0}
+                icon={<Users className="w-5 h-5" />}
+                color="purple"
+              />
+              <MiniMetricCard
+                title="Suppliers"
+                value={stats?.suppliers_count || 0}
+                icon={<Truck className="w-5 h-5" />}
+                color="emerald"
+              />
+              <MiniMetricCard
+                title="Total Transactions"
+                value={(stats?.total_sales_count || 0) + (stats?.total_purchases_count || 0) + (stats?.total_expenses_count || 0)}
+                icon={<BarChart3 className="w-5 h-5" />}
+                color="amber"
+              />
             </div>
           </div>
 
           {/* Right Column - Stock Status */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Status</h3>
-              <div className="space-y-4">
-                <StockAlertCard
-                  title="Low Stock Items"
-                  value={stats?.low_stock_count || 0}
-                  icon={<AlertTriangle className="w-5 h-5" />}
-                  color="orange"
-                  description="Items needing restock"
-                />
-                <StockAlertCard
-                  title="Out of Stock"
-                  value={stats?.out_of_stock_count || 0}
-                  icon={<AlertTriangle className="w-5 h-5" />}
-                  color="red"
-                  description="Urgent attention needed"
-                />
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Stock Health</span>
-                    <span className="text-sm font-bold text-green-600">
-                      {stats && stats.products_count > 0
-                        ? `${(100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)).toFixed(0)}%`
-                        : "100%"
-                      }
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                      style={{
-                        width: stats && stats.products_count > 0
-                          ? `${100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)}%`
-                          : '100%'
-                      }}
-                    ></div>
-                  </div>
+          <div className="glass-card rounded-2xl p-5">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Stock Status</h3>
+            <div className="space-y-4">
+              <StockAlertCard
+                title="Low Stock Items"
+                value={stats?.low_stock_count || 0}
+                icon={<AlertTriangle className="w-5 h-5" />}
+                color="orange"
+                description="Items needing restock"
+              />
+              <StockAlertCard
+                title="Out of Stock"
+                value={stats?.out_of_stock_count || 0}
+                icon={<AlertTriangle className="w-5 h-5" />}
+                color="rose"
+                description="Urgent attention needed"
+              />
+              <div className="bg-slate-50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-slate-600">Stock Health</span>
+                  <span className="text-sm font-bold text-emerald-600">
+                    {stats && stats.products_count > 0
+                      ? `${(100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)).toFixed(0)}%`
+                      : "100%"
+                    }
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{
+                      width: stats && stats.products_count > 0
+                        ? `${100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)}%`
+                        : '100%'
+                    }}
+                  ></div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mt-8 bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="flex flex-wrap gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition-colors">
-              <Download className="w-4 h-4" />
-              Export Report
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors">
-              <BarChart3 className="w-4 h-4" />
-              Detailed Analytics
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors">
-              <Calendar className="w-4 h-4" />
-              Schedule Report
-            </button>
           </div>
         </div>
       </main>
@@ -799,83 +747,46 @@ export default function FinancesPage() {
   );
 }
 
-// Enhanced Metric Card Component
-const MetricCard = ({
-  title,
-  value,
-  change,
-  icon,
-  color,
-  compactValue
-}: MetricCardProps) => {
-  const colorClasses = {
-    green: "from-green-500 to-green-600",
-    blue: "from-blue-500 to-blue-600",
-    purple: "from-purple-500 to-purple-600",
-    red: "from-red-500 to-red-600",
-    amber: "from-amber-500 to-amber-600",
-    orange: "from-orange-500 to-orange-600",
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 transition-colors duration-300 group">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} text-white`}>
-          {icon}
-        </div>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <MoreVertical className="w-5 h-5 text-gray-400" />
-        </div>
-      </div>
-
-      <div>
-        <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
-        <div className="flex items-end justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900">{compactValue}</h3>
-            <p className="text-gray-400 text-sm mt-1">{value}</p>
-          </div>
-          {change !== undefined && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${change >= 0
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
-              }`}>
-              {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+const metricColorClasses: Record<MetricColor, string> = {
+  emerald: "bg-emerald-50 text-emerald-600",
+  blue: "bg-blue-50 text-blue-600",
+  purple: "bg-purple-50 text-purple-600",
+  rose: "bg-rose-50 text-rose-600",
+  amber: "bg-amber-50 text-amber-600",
+  orange: "bg-orange-50 text-orange-600",
+  slate: "bg-slate-100 text-slate-600",
 };
 
-// Enhanced Mini Metric Card
-const MiniMetricCard = ({ title, value, icon, color }: MiniMetricCardProps) => {
-  const colorClasses = {
-    indigo: "bg-indigo-50 text-indigo-600",
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600",
-  };
-
-  return (
-    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-      <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className="text-lg font-semibold text-gray-900">{value.toLocaleString()}</p>
-      </div>
+// Flat stat card matching the app's glass-card theme — no gradients, no
+// fabricated trend numbers we can't actually back with historical data.
+const MetricCard = ({ title, value, icon, color }: MetricCardProps) => (
+  <div className="glass-card rounded-2xl p-5 flex items-center gap-4 hover:shadow-lg hover:shadow-slate-200/50 transition-all">
+    <div className={`p-3 rounded-xl ${metricColorClasses[color]} shrink-0`}>
+      {icon}
     </div>
-  );
-};
+    <div className="min-w-0">
+      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1 truncate">{title}</p>
+      <p className="text-xl font-black text-slate-900 truncate">{value}</p>
+    </div>
+  </div>
+);
 
-// Stock Alert Card
+const MiniMetricCard = ({ title, value, icon, color }: MiniMetricCardProps) => (
+  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+    <div className={`p-2 rounded-lg ${metricColorClasses[color]}`}>
+      {icon}
+    </div>
+    <div>
+      <p className="text-sm text-slate-500">{title}</p>
+      <p className="text-lg font-bold text-slate-900">{value.toLocaleString()}</p>
+    </div>
+  </div>
+);
+
 const StockAlertCard = ({ title, value, icon, color, description }: StockAlertCardProps) => {
   const colorClasses = {
     orange: "bg-orange-50 text-orange-600 border-orange-200",
-    red: "bg-red-50 text-red-600 border-red-200",
+    rose: "bg-rose-50 text-rose-600 border-rose-200",
   };
 
   return (
