@@ -9,6 +9,8 @@ import { pullUpdates } from "@/syncEngine";
 import { db } from "@/db";
 import { markSyncReady, isSyncReady } from "@/syncGate";
 import { getApiBase, resolveApiBase } from "@/apiBase";
+import { api } from "@/apiCalls";
+import { applyBusinessTheme, getCachedBusiness, refreshBusinessInfo } from "@/businessTheme";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -91,6 +93,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 // app start — if the tunnel restarted while the app was
                 // closed, this repoints us before the first sync cycle.
                 resolveApiBase();
+
+                // Apply whatever business theme is already cached immediately
+                // (no network wait), then refresh it in the background —
+                // covers a page reload on an already-logged-in session.
+                applyBusinessTheme(getCachedBusiness());
+                refreshBusinessInfo(api).catch(() => {});
 
                 // Step 0: If Dexie already has data AND sync gate is open → ready immediately
                 const hasData =

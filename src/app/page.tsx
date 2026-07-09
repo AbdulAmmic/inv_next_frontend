@@ -2,18 +2,17 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles, WifiOff, RefreshCw } from "lucide-react";
-import { loginUser } from "@/apiCalls";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles, WifiOff, RefreshCw, Boxes } from "lucide-react";
+import { loginUser, api } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import logoTuhanas from "../../public/logo_tuhanas.png";
 import {
   cacheLoginCredentials,
   verifyOfflineLogin,
   isNetworkError,
 } from "@/offlineAuth";
 import { getApiBase, resolveApiBase } from "@/apiBase";
+import { refreshBusinessInfo } from "@/businessTheme";
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
@@ -106,6 +105,11 @@ export default function LoginPage() {
           data.access_token,
           data.refresh_token
         );
+
+        // Best-effort — the dashboard's own theme (logo/name/color) so the
+        // very first paint after login already shows this tenant's
+        // branding, not a stale or empty cache.
+        refreshBusinessInfo(api).catch(() => {});
 
         setIsOfflineMode(false);
         toast.success("Welcome back!", { id: toastId });
@@ -229,16 +233,13 @@ export default function LoginPage() {
           className="text-center mb-8"
         >
           <div className="inline-flex flex-col items-center justify-center mb-4">
-            <div className="relative w-48 h-16">
-              <Image src={logoTuhanas} alt="Tuhanas Kitchen and Scents" fill className="object-contain" priority />
+            <div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-200">
+              <Boxes className="w-7 h-7 text-white" />
             </div>
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-amber-900">
-            Inventory Management
+            Login
           </h1>
-          <p className="text-amber-700/70 mt-1 text-sm font-medium">
-            Smart Multi-Shop Control System
-          </p>
 
           {isOfflineMode && (
             <motion.div
@@ -418,8 +419,7 @@ export default function LoginPage() {
         </motion.div>
 
         <p className="mt-8 text-center text-slate-400 text-xs font-medium">
-          Protected by industry standard encryption. <br />
-          © 2026 Tuhanas Inventory. v2.0
+          Protected by industry standard encryption.
         </p>
       </main>
     </div>

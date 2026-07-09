@@ -768,7 +768,7 @@ export const createSale = async (data: any) => {
   };
   
   // Fetch Shop Info from local Dexie database
-  let shopName = "Tuhanas Shop";
+  let shopName = "Store";
   let shopAddress = "";
   let shopPhone = "";
 

@@ -56,12 +56,14 @@ interface StockRow {
   currentStock: number;
   sellingPrice: number;
   category?: string;
+  shelf_location?: string;
 }
 
 interface CartItem {
   product_id: string;
   productName: string;
   sku?: string;
+  shelf_location?: string;
   quantity: number;
   unitPrice: number;
   maxStock: number;
@@ -211,6 +213,7 @@ export default function POSPage() {
         product_id: row.product_id,
         productName: row.productName,
         sku: row.sku,
+        shelf_location: row.shelf_location,
         quantity: 1,
         unitPrice: row.sellingPrice,
         maxStock: row.currentStock,
@@ -258,7 +261,7 @@ export default function POSPage() {
         toast.success("Transaction completed!");
         
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance("Thank you for doing business with Tuhanas!");
+          const utterance = new SpeechSynthesisUtterance("Thank you for your purchase!");
           window.speechSynthesis.speak(utterance);
         }
 
@@ -640,6 +643,9 @@ const ProductCard = ({ product, onAdd }: any) => (
     </div>
     <h3 className="font-bold text-slate-900 text-sm leading-tight line-clamp-2">{product.productName}</h3>
     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">{product.sku || 'No SKU'}</p>
+    {product.shelf_location && (
+      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5">📍 {product.shelf_location}</p>
+    )}
     <div className="mt-4 text-lg font-black text-blue-600">₦{product.sellingPrice.toLocaleString()}</div>
   </button>
 );
@@ -654,6 +660,9 @@ const CartItemRow = ({ item, onRemove, onUpdateQty }: any) => (
     <div className="min-w-0 pr-4">
       <h4 className="font-bold text-slate-900 text-sm truncate">{item.productName}</h4>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">₦{item.unitPrice.toLocaleString()}</p>
+      {item.shelf_location && (
+        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
+      )}
     </div>
     <div className="flex flex-col items-end gap-2 shrink-0">
       <div className="flex items-center gap-3 bg-slate-100 rounded-xl p-1">

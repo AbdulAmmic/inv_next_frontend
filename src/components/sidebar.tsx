@@ -22,12 +22,11 @@ import {
   ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import logoImg from "../../public/logo.png";
-import logoTuhanasImg from "../../public/logo_tuhanas.png";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import SyncStatus from "./SyncStatus";
+import BrandMark from "./BrandMark";
+import { getBusinessName } from "@/businessTheme";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,6 +36,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProps) {
   const [role, setRole] = useState<string>("");
+  const [businessName, setBusinessName] = useState("Inventory Manager");
   const pathname = usePathname();
 
   useEffect(() => {
@@ -49,6 +49,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     } catch (err) {
       console.error("Failed to parse user:", err);
     }
+    setBusinessName(getBusinessName());
   }, []);
 
   const allMenu = [
@@ -149,16 +150,16 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
             {isOpen ? (
               <div className="flex items-center gap-3">
                 <div className="relative w-10 h-10 flex-shrink-0">
-                  <Image src={logoImg} alt="Tuhanas Logo" fill className="object-contain" />
+                  <BrandMark size={40} />
                 </div>
                 <div className="overflow-hidden whitespace-nowrap">
-                  <Image src={logoTuhanasImg} alt="Tuhanas" width={120} height={28} className="object-contain h-6 w-auto" />
+                  <p className="text-sm font-black text-slate-800 truncate max-w-[140px]">{businessName}</p>
                   <p className="text-[9px] text-amber-700 font-black uppercase tracking-[0.2em] leading-none mt-0.5">Management System</p>
                 </div>
               </div>
             ) : (
               <div className="relative w-10 h-10">
-                <Image src={logoImg} alt="Tuhanas" fill className="object-contain" />
+                <BrandMark size={40} />
               </div>
             )}
           </div>

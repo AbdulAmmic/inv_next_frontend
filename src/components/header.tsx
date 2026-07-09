@@ -16,10 +16,9 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { getShops } from "@/apiCalls";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import SyncStatus from "./SyncStatus";
-import logoImg from "../../public/logo.png";
-import logoTuhanasImg from "../../public/logo_tuhanas.png";
+import BrandMark from "./BrandMark";
+import { getBusinessName } from "@/businessTheme";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -35,12 +34,14 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [businessName, setBusinessName] = useState("Inventory Manager");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const raw = localStorage.getItem("user");
       if (raw) setUser(JSON.parse(raw));
     }
+    setBusinessName(getBusinessName());
   }, []);
 
   const fullName = user?.full_name || "User";
@@ -118,15 +119,10 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
           {/* LEFT: Logo */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="relative w-8 h-8">
-              <Image src={logoImg} alt="Tuhanas" fill className="object-contain" />
+              <BrandMark size={32} rounded="rounded-lg" />
             </div>
             <div className="hidden sm:block">
-              <div className="relative h-5 w-[100px]">
-                <Image src={logoTuhanasImg} alt="Tuhanas" fill className="object-contain object-left" />
-              </div>
-              <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.18em] leading-none -mt-0.5">
-                Kitchen & Scents
-              </p>
+              <p className="text-sm font-black text-slate-800 leading-none truncate max-w-[160px]">{businessName}</p>
             </div>
           </div>
 

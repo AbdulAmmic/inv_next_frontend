@@ -50,6 +50,7 @@ export default function ProductFormModal({
     price: 0,
     cost_price: 0,
     shop_id: initialShopId,
+    shelf_location: "",
   });
 
   const [initialQuantity, setInitialQuantity] = useState(0);
@@ -97,6 +98,7 @@ export default function ProductFormModal({
         price: p.stock?.price ?? p.price ?? 0,
         cost_price: p.stock?.cost_price ?? p.cost_price ?? 0,
         shop_id: p.stock?.shop_id ?? initialShopId,
+        shelf_location: p.stock?.shelf_location ?? "",
       }));
     } catch (e) {
       toast.error("Failed to load product details");
@@ -159,6 +161,7 @@ export default function ProductFormModal({
           ...productPayload,
           shop_id: formData.shop_id, // backend may use this to attach default stock
           quantity: formData.quantity || 0,
+          shelf_location: formData.shelf_location || undefined,
         });
         saved = res.data.product || res.data;
       }
@@ -172,6 +175,7 @@ export default function ProductFormModal({
             quantity: formData.quantity,
             min_quantity: formData.min_quantity,
             max_quantity: formData.max_quantity,
+            shelf_location: formData.shelf_location || undefined,
           });
         } catch (err) {
           console.warn("Stock creation failed/skipped:", err);
@@ -354,6 +358,18 @@ export default function ProductFormModal({
                       e.target.value ? Number(e.target.value) : undefined
                     )
                   }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="col-span-3">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Shelf / location (e.g. "A1")
+                </label>
+                <input
+                  type="text"
+                  value={formData.shelf_location}
+                  onChange={(e) => updateField("shelf_location", e.target.value)}
+                  placeholder="Where this item is physically kept"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>

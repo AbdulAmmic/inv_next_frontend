@@ -347,7 +347,7 @@ export default function QRLabelsPage() {
                                                 <div className="text-[6px] font-bold leading-tight truncate">{product.name}</div>
                                                 <div className="text-[5px] font-mono text-gray-600 truncate">{product.sku || "NO CODE"}</div>
                                                 <div className="text-[6px] font-bold text-black mt-0.5">₦{(product.price || 0).toLocaleString()}</div>
-                                                <div className="text-[4px] text-gray-400 mt-0.5 scale-75">Tuhanas System v.1.0</div>
+                                                <div className="text-[4px] text-gray-400 mt-0.5 scale-75">Inventory System</div>
                                             </div>
                                         </div>
                                     ))}

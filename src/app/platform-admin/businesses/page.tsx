@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { getApiBase } from "@/apiBase";
@@ -43,6 +43,9 @@ export default function PlatformBusinessesPage() {
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [newCreds, setNewCreds] = useState<{ email: string; temp_password: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", admin_email: "", primary_color: "#6366f1", logo_url: "" });
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +119,36 @@ export default function PlatformBusinessesPage() {
     localStorage.removeItem("platform_token");
     localStorage.removeItem("platform_admin");
     router.replace("/platform-admin");
+  };
+
+  const startEdit = (b: Business) => {
+    setEditingId(b.id);
+    setEditForm({
+      name: b.name,
+      admin_email: b.admin_email,
+      primary_color: b.theme?.primary_color || "#6366f1",
+      logo_url: b.theme?.logo_url || "",
+    });
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    setSaving(true);
+    setError("");
+    try {
+      await platformApi().put(`/platform/businesses/${editingId}`, {
+        name: editForm.name,
+        admin_email: editForm.admin_email,
+        theme: { primary_color: editForm.primary_color, logo_url: editForm.logo_url || undefined },
+      });
+      setEditingId(null);
+      load();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Could not save changes.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -270,38 +303,106 @@ export default function PlatformBusinessesPage() {
                 </tr>
               ) : (
                 businesses.map((b) => (
-                  <tr key={b.id} className="border-t border-slate-800">
-                    <td className="px-4 py-3 font-semibold">{b.name}</td>
-                    <td className="px-4 py-3 text-slate-300">{b.admin_email}</td>
-                    <td className="px-4 py-3 text-slate-300 capitalize">{b.plan}</td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        min={1}
-                        defaultValue={b.shop_capacity}
-                        onBlur={(e) => updateCapacity(b, Number(e.target.value))}
-                        className="w-16 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs"
-                      />
-                      <span className="text-slate-500 text-xs ml-1">/ {b.shop_count} used</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          b.is_active ? "bg-emerald-950 text-emerald-400" : "bg-red-950 text-red-400"
-                        }`}
-                      >
-                        {b.is_active ? "Active" : "Suspended"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleActive(b)}
-                        className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
-                      >
-                        {b.is_active ? "Suspend" : "Reactivate"}
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={b.id}>
+                    <tr className="border-t border-slate-800">
+                      <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full inline-block flex-shrink-0"
+                          style={{ backgroundColor: b.theme?.primary_color || "#6366f1" }}
+                        />
+                        {b.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">{b.admin_email}</td>
+                      <td className="px-4 py-3 text-slate-300 capitalize">{b.plan}</td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min={1}
+                          defaultValue={b.shop_capacity}
+                          onBlur={(e) => updateCapacity(b, Number(e.target.value))}
+                          className="w-16 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs"
+                        />
+                        <span className="text-slate-500 text-xs ml-1">/ {b.shop_count} used</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            b.is_active ? "bg-emerald-950 text-emerald-400" : "bg-red-950 text-red-400"
+                          }`}
+                        >
+                          {b.is_active ? "Active" : "Suspended"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 flex gap-3">
+                        <button
+                          onClick={() => (editingId === b.id ? setEditingId(null) : startEdit(b))}
+                          className="text-xs font-bold text-slate-300 hover:text-white"
+                        >
+                          {editingId === b.id ? "Cancel" : "Edit"}
+                        </button>
+                        <button
+                          onClick={() => toggleActive(b)}
+                          className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                        >
+                          {b.is_active ? "Suspend" : "Reactivate"}
+                        </button>
+                      </td>
+                    </tr>
+                    {editingId === b.id && (
+                      <tr className="border-t border-slate-800 bg-slate-900/60">
+                        <td colSpan={6} className="px-4 py-4">
+                          <form onSubmit={saveEdit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-400 mb-1">Name</label>
+                              <input
+                                required
+                                value={editForm.name}
+                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-400 mb-1">Admin email</label>
+                              <input
+                                type="email"
+                                required
+                                value={editForm.admin_email}
+                                onChange={(e) => setEditForm({ ...editForm, admin_email: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-400 mb-1">Logo URL</label>
+                              <input
+                                placeholder="https://..."
+                                value={editForm.logo_url}
+                                onChange={(e) => setEditForm({ ...editForm, logo_url: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 mb-1">Color</label>
+                                <input
+                                  type="color"
+                                  value={editForm.primary_color}
+                                  onChange={(e) => setEditForm({ ...editForm, primary_color: e.target.value })}
+                                  className="w-16 h-9 rounded-lg bg-slate-800 border border-slate-700"
+                                />
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={saving}
+                                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-bold transition-colors disabled:opacity-60"
+                              >
+                                {saving ? "Saving..." : "Save"}
+                              </button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))
               )}
             </tbody>
