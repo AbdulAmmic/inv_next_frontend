@@ -28,6 +28,13 @@ export function markSyncReady(): void {
   }
 }
 
+/** Called when the local cache is wiped for a tenant switch — the next
+ * dashboard boot must not take the "already has data" fast path until a
+ * fresh pull for the new business has actually completed. */
+export function resetSyncReady(): void {
+  _ready = false;
+}
+
 /**
  * Wait until sync is ready (or up to timeoutMs).
  * Returns immediately if already ready.

@@ -12,7 +12,7 @@ import {
   isNetworkError,
 } from "@/offlineAuth";
 import { getApiBase, resolveApiBase } from "@/apiBase";
-import { refreshBusinessInfo } from "@/businessTheme";
+import { refreshBusinessInfo, ensureLocalDataMatchesBusiness } from "@/businessTheme";
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
@@ -96,6 +96,12 @@ export default function LoginPage() {
         localStorage.setItem("refresh_token", data.refresh_token);
         localStorage.setItem("user", JSON.stringify(data.user));
         localStorage.removeItem("offline_session");
+
+        // This device's local cache (IndexedDB) may hold a different
+        // tenant's data from a previous login — wipe it before anything
+        // else touches local storage if this login is for a different
+        // business, so the dashboard never shows cross-tenant leftovers.
+        await ensureLocalDataMatchesBusiness(data.user?.business_id);
 
         // Cache uses the already-clean email + password
         await cacheLoginCredentials(

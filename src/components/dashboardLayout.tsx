@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { markSyncReady, isSyncReady } from "@/syncGate";
 import { getApiBase, resolveApiBase } from "@/apiBase";
 import { api } from "@/apiCalls";
-import { applyBusinessTheme, getCachedBusiness, refreshBusinessInfo } from "@/businessTheme";
+import { applyBusinessTheme, getCachedBusiness, refreshBusinessInfo, ensureLocalDataMatchesBusiness } from "@/businessTheme";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -99,6 +99,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 // covers a page reload on an already-logged-in session.
                 applyBusinessTheme(getCachedBusiness());
                 refreshBusinessInfo(api).catch(() => {});
+
+                // Defensive re-check on every boot (not just fresh logins) —
+                // covers a page reload on a device whose local cache still
+                // belongs to a different tenant than the current session.
+                try {
+                    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+                    await ensureLocalDataMatchesBusiness(storedUser?.business_id);
+                } catch { }
 
                 // Step 0: If Dexie already has data AND sync gate is open → ready immediately
                 const hasData =
