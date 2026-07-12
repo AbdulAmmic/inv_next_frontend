@@ -8,6 +8,9 @@ import { getBusinessName } from '@/businessTheme';
 interface SaleItem {
     product_name: string;
     quantity: number;
+    // Human description of what was sold when using pharmacy sub-units,
+    // e.g. "3 card" — shown instead of the raw (fractional) base quantity.
+    unit_label?: string;
     unit_price: number;
     total_price: number;
 }
@@ -130,7 +133,7 @@ Receipt: ${sale.sale_number}
 ${businessName}${sale.shop_name && sale.shop_name !== businessName ? ` — ${sale.shop_name}` : ''}
 Date: ${new Date(sale.created_at).toLocaleString()}
 --------------------------------
-${sale.items.map(item => `${item.product_name} x${item.quantity} - ₦${item.total_price.toLocaleString()}`).join('\n')}
+${sale.items.map(item => `${item.product_name} ${item.unit_label ? `(${item.unit_label})` : `x${item.quantity}`} - ₦${item.total_price.toLocaleString()}`).join('\n')}
 --------------------------------
 Total: ₦${sale.total.toLocaleString()}
         `.trim();
@@ -202,7 +205,7 @@ Total: ₦${sale.total.toLocaleString()}
                                 {sale.items.map((item, idx) => (
                                     <div key={idx} className="grid grid-cols-12 gap-2 text-xs">
                                         <div className="col-span-6 break-words">{item.product_name}</div>
-                                        <div className="col-span-2 text-center">x{item.quantity}</div>
+                                        <div className="col-span-2 text-center">{item.unit_label || `x${item.quantity}`}</div>
                                         <div className="col-span-4 text-right font-medium">₦{item.total_price.toLocaleString()}</div>
                                     </div>
                                 ))}

@@ -56,6 +56,10 @@ export default function ProductFormModal({
 
   const [initialQuantity, setInitialQuantity] = useState(0);
 
+  // Pharmacy-style sub-unit selling: one base unit (e.g. pack) contains
+  // `per_base` of this unit (e.g. 10 cards), each sold at `price`.
+  const [subUnits, setSubUnits] = useState<{ name: string; per_base: number; price: number }[]>([]);
+
   // -------------------------------------------
   // Load shops + for edit mode load product
   // -------------------------------------------
@@ -102,6 +106,7 @@ export default function ProductFormModal({
         shop_id: p.stock?.shop_id ?? initialShopId,
         shelf_location: p.stock?.shelf_location ?? "",
       }));
+      setSubUnits(Array.isArray(p.sub_units) ? p.sub_units : []);
     } catch (e) {
       toast.error("Failed to load product details");
     }
@@ -134,6 +139,7 @@ export default function ProductFormModal({
         category: formData.category || undefined,
         description: formData.description || undefined,
         unit: formData.unit || undefined,
+        sub_units: subUnits.filter((u) => u.name.trim() && u.per_base > 0),
         price: Number(formData.price) || 0,
         cost_price: Number(formData.cost_price) || 0,
         supplier_id: formData.supplier_id || undefined,
@@ -330,6 +336,71 @@ export default function ProductFormModal({
                 required
               />
             </div>
+          </div>
+
+          {/* SUB-UNITS (pharmacy: sell tablets/cards out of a pack) */}
+          <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Sell in smaller units{formData.unit ? ` (per ${formData.unit})` : ""}
+              </label>
+              <button
+                type="button"
+                onClick={() => setSubUnits((prev) => [...prev, { name: "", per_base: 0, price: 0 }])}
+                className="text-xs font-bold text-blue-600 hover:underline"
+              >
+                + Add unit
+              </button>
+            </div>
+            {subUnits.length === 0 && (
+              <p className="text-xs text-gray-400">
+                Optional — e.g. a {formData.unit || "pack"} contains 10 cards sold at ₦200 each.
+              </p>
+            )}
+            {subUnits.map((u, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                <div>
+                  <label className="mb-1 block text-[11px] text-gray-500">Unit name</label>
+                  <input
+                    type="text"
+                    value={u.name}
+                    onChange={(e) => setSubUnits((prev) => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))}
+                    placeholder="e.g. Card"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-gray-500">Per {formData.unit || "base unit"}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={u.per_base || ""}
+                    onChange={(e) => setSubUnits((prev) => prev.map((s, i) => i === idx ? { ...s, per_base: Number(e.target.value) || 0 } : s))}
+                    placeholder="10"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] text-gray-500">Price each</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={u.price || ""}
+                    onChange={(e) => setSubUnits((prev) => prev.map((s, i) => i === idx ? { ...s, price: Number(e.target.value) || 0 } : s))}
+                    placeholder="200"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSubUnits((prev) => prev.filter((_, i) => i !== idx))}
+                  className="p-2 mb-0.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50"
+                  title="Remove unit"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* STOCK – only when shop selected */}

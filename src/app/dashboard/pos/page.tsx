@@ -49,6 +49,12 @@ const QrReader = dynamic(() => import("react-qr-reader").then((mod) => mod.QrRea
 /* -------------------------
    Types
 ------------------------- */
+interface SubUnit {
+  name: string;
+  per_base: number; // how many of this unit in one base stock unit
+  price: number;    // price per one of this unit
+}
+
 interface StockRow {
   product_id: string;
   productName: string;
@@ -58,21 +64,39 @@ interface StockRow {
   category?: string;
   shelf_location?: string;
   unit?: string;
+  subUnits?: SubUnit[];
   nearestExpiry?: string | null;
   expiryStatus?: "expired" | "expiringSoon" | "ok" | null;
 }
 
 interface CartItem {
+  // One line per product+unit — the same product can be in the cart twice
+  // (e.g. 1 pack AND 3 cards), so lines are keyed by product+unit.
+  key: string;
   product_id: string;
   productName: string;
   sku?: string;
   shelf_location?: string;
-  unit?: string;
   nearestExpiry?: string | null;
   expiryStatus?: "expired" | "expiringSoon" | "ok" | null;
-  quantity: number;
-  unitPrice: number;
-  maxStock: number;
+  unitName: string;   // unit this line sells in ("Pack", "Card", ...)
+  perBase: number;    // how many of unitName per base stock unit (1 = base)
+  unitCount: number;  // how many of unitName
+  unitPrice: number;  // price per one unitName
+  baseUnitName: string;
+  baseUnitPrice: number;
+  subUnits?: SubUnit[];
+}
+
+interface HeldCart {
+  id: string;
+  heldAt: string;
+  customerId: string | null;
+  customerName: string;
+  discountType: "flat" | "percent";
+  discountValue: number;
+  otherCharges: number;
+  items: CartItem[];
 }
 
 interface Customer {
@@ -80,6 +104,15 @@ interface Customer {
   name: string;
   phone?: string;
 }
+
+const HELD_CARTS_KEY = "pos_held_carts";
+
+/** Base stock units consumed by a cart line (3 cards of a 10-card pack → 0.3). */
+const lineBaseQty = (i: CartItem) => i.unitCount / i.perBase;
+const lineTotal = (i: CartItem) => Math.round(i.unitCount * i.unitPrice * 100) / 100;
+const round4 = (n: number) => Math.round(n * 10000) / 10000;
+/** Show fractional stock nicely: 12 → "12", 12.7 → "12.7" */
+const formatQty = (n: number) => (Number.isInteger(n) ? n.toString() : n.toFixed(2).replace(/\.?0+$/, ""));
 
 export default function POSPage() {
   const [stock, setStock] = useState<StockRow[]>([]);
@@ -109,14 +142,26 @@ export default function POSPage() {
   const [shopId, setShopId] = useState<string>("");
   const [user, setUser] = useState<any>(null);
 
+  // Held (parked) carts — persisted so they survive reloads/crashes.
+  const [heldCarts, setHeldCarts] = useState<HeldCart[]>([]);
+  const [showHeldPanel, setShowHeldPanel] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedShopId = localStorage.getItem("selected_shop_id") || "";
       setShopId(storedShopId);
       const storedUser = localStorage.getItem("user");
       if (storedUser) setUser(JSON.parse(storedUser));
+      try {
+        setHeldCarts(JSON.parse(localStorage.getItem(HELD_CARTS_KEY) || "[]"));
+      } catch { /* corrupted — start fresh */ }
     }
   }, []);
+
+  const persistHeldCarts = (carts: HeldCart[]) => {
+    setHeldCarts(carts);
+    try { localStorage.setItem(HELD_CARTS_KEY, JSON.stringify(carts)); } catch { /* full */ }
+  };
 
   const handleAddCustomer = async () => {
     if (!newCustomer.name) {
@@ -155,17 +200,18 @@ export default function POSPage() {
     }
   }, [shopId]);
 
-  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
+  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + lineTotal(i), 0), [cart]);
 
   const discountAmount = useMemo(() => {
     if (!discountValue) return 0;
-    if (discountType === "flat") return discountValue;
-    return (subtotal * discountValue) / 100;
+    const amount = discountType === "flat" ? discountValue : (subtotal * discountValue) / 100;
+    // A discount can never exceed what's being bought
+    return Math.min(Math.round(amount * 100) / 100, subtotal);
   }, [discountValue, discountType, subtotal]);
 
   const total = useMemo(() => {
-    const raw = subtotal - discountAmount + (otherCharges || 0);
-    return raw < 0 ? 0 : raw;
+    const raw = subtotal - discountAmount + (Number(otherCharges) || 0);
+    return Math.max(0, Math.round(raw * 100) / 100);
   }, [subtotal, discountAmount, otherCharges]);
 
   const loadStock = async () => {
@@ -177,11 +223,12 @@ export default function POSPage() {
         product_id: item.product_id,
         productName: item.productName,
         sku: item.sku,
-        currentStock: item.currentStock,
+        currentStock: Number(item.currentStock) || 0,
         sellingPrice: item.sellingPrice,
         category: item.category,
         shelf_location: item.shelf_location,
         unit: item.unit,
+        subUnits: Array.isArray(item.sub_units) ? item.sub_units : undefined,
         nearestExpiry: item.nearest_expiry ?? null,
         expiryStatus: item.expiry_status ?? null,
       }));
@@ -204,44 +251,169 @@ export default function POSPage() {
   };
 
 
+  /** Base units of this product still available (display stock already nets out the cart) */
+  const availableBase = (product_id: string) =>
+    stock.find((s) => s.product_id === product_id)?.currentStock ?? 0;
+
+  const adjustDisplayStock = (product_id: string, deltaBase: number) => {
+    setStock((prev) => prev.map((s) =>
+      s.product_id === product_id
+        ? { ...s, currentStock: round4(s.currentStock + deltaBase) }
+        : s
+    ));
+  };
+
   const addToCart = (row: StockRow) => {
-    if (row.currentStock <= 0) {
-      toast.error("Out of stock");
+    const baseUnitName = row.unit || "Unit";
+    const key = `${row.product_id}::${baseUnitName}`;
+    const existing = cart.find((p) => p.key === key);
+
+    // Adding 1 base unit needs 1 base unit of stock
+    if (availableBase(row.product_id) < 1) {
+      toast.error(row.currentStock <= 0 ? "Out of stock" : "Not enough stock left");
       return;
     }
 
-    setCart((prev) => {
-      const found = prev.find((p) => p.product_id === row.product_id);
-      if (found) {
-        if (found.quantity >= found.maxStock) {
-          toast.error("Inventory limit reached");
-          return prev;
-        }
-        return prev.map((p) => p.product_id === row.product_id ? { ...p, quantity: p.quantity + 1 } : p);
-      }
-      return [...prev, {
+    if (existing) {
+      setCart((prev) => prev.map((p) => p.key === key ? { ...p, unitCount: p.unitCount + 1 } : p));
+    } else {
+      setCart((prev) => [...prev, {
+        key,
         product_id: row.product_id,
         productName: row.productName,
         sku: row.sku,
         shelf_location: row.shelf_location,
-        unit: row.unit,
         nearestExpiry: row.nearestExpiry,
         expiryStatus: row.expiryStatus,
-        quantity: 1,
+        unitName: baseUnitName,
+        perBase: 1,
+        unitCount: 1,
         unitPrice: row.sellingPrice,
-        maxStock: row.currentStock,
-      }];
-    });
+        baseUnitName,
+        baseUnitPrice: row.sellingPrice,
+        subUnits: row.subUnits,
+      }]);
+    }
 
-    setStock((prev) => prev.map((s) => s.product_id === row.product_id ? { ...s, currentStock: s.currentStock - 1 } : s));
+    adjustDisplayStock(row.product_id, -1);
   };
 
-  const removeItem = (id: string) => {
-    const removed = cart.find((i) => i.product_id === id);
+  const removeItem = (key: string) => {
+    const removed = cart.find((i) => i.key === key);
     if (removed) {
-      setStock((prev) => prev.map((s) => s.product_id === id ? { ...s, currentStock: s.currentStock + removed.quantity } : s));
+      adjustDisplayStock(removed.product_id, lineBaseQty(removed));
     }
-    setCart((prev) => prev.filter((c) => c.product_id !== id));
+    setCart((prev) => prev.filter((c) => c.key !== key));
+  };
+
+  const updateLineCount = (key: string, newCount: number) => {
+    const line = cart.find((i) => i.key === key);
+    if (!line || newCount <= 0) return;
+
+    const deltaBase = (newCount - line.unitCount) / line.perBase;
+    if (deltaBase > 0 && availableBase(line.product_id) < deltaBase) {
+      toast.error("Not enough stock left");
+      return;
+    }
+
+    setCart((prev) => prev.map((i) => i.key === key ? { ...i, unitCount: newCount } : i));
+    adjustDisplayStock(line.product_id, -deltaBase);
+  };
+
+  /** Switch a cart line to a different selling unit (base ↔ card ↔ tablet …). Resets count to 1. */
+  const switchLineUnit = (key: string, unitName: string) => {
+    const line = cart.find((i) => i.key === key);
+    if (!line || line.unitName === unitName) return;
+
+    const isBase = unitName === line.baseUnitName;
+    const sub = line.subUnits?.find((u) => u.name === unitName);
+    if (!isBase && !sub) return;
+
+    const perBase = isBase ? 1 : sub!.per_base;
+    const unitPrice = isBase ? line.baseUnitPrice : sub!.price;
+    const newKey = `${line.product_id}::${unitName}`;
+
+    if (cart.some((i) => i.key === newKey)) {
+      toast.error(`${unitName} is already in the cart for this item — adjust that line instead`);
+      return;
+    }
+
+    // Give back the old line's stock, then take 1 of the new unit
+    const oldBase = lineBaseQty(line);
+    const newBase = 1 / perBase;
+    if (availableBase(line.product_id) + oldBase < newBase) {
+      toast.error("Not enough stock left");
+      return;
+    }
+
+    setCart((prev) => prev.map((i) =>
+      i.key === key ? { ...i, key: newKey, unitName, perBase, unitPrice, unitCount: 1 } : i
+    ));
+    adjustDisplayStock(line.product_id, oldBase - newBase);
+  };
+
+  /* -------------------------
+     HOLD / RESUME parked sales
+  ------------------------- */
+  const holdCart = () => {
+    if (cart.length === 0) return;
+    const customerName = customers.find((c) => c.id === customerId)?.name || "Walk-in";
+    const held: HeldCart = {
+      id: crypto.randomUUID(),
+      heldAt: new Date().toISOString(),
+      customerId,
+      customerName,
+      discountType,
+      discountValue,
+      otherCharges,
+      items: cart,
+    };
+    persistHeldCarts([held, ...heldCarts]);
+
+    // Release the display stock the cart was holding — availability is
+    // re-validated when the held cart is resumed.
+    cart.forEach((i) => adjustDisplayStock(i.product_id, lineBaseQty(i)));
+    setCart([]);
+    setDiscountValue(0);
+    setOtherCharges(0);
+    setCustomerId(null);
+    toast.success("Sale held — resume it any time");
+  };
+
+  const resumeHeldCart = (held: HeldCart) => {
+    if (cart.length > 0) {
+      toast.error("Finish or hold the current sale first");
+      return;
+    }
+
+    // Re-validate against live stock: quantities may have been sold while held
+    const adjusted: CartItem[] = [];
+    let clamped = false;
+    for (const item of held.items) {
+      const avail = availableBase(item.product_id);
+      const wantBase = lineBaseQty(item);
+      if (avail <= 0) { clamped = true; continue; }
+      let count = item.unitCount;
+      if (wantBase > avail) {
+        count = Math.max(1, Math.floor(avail * item.perBase));
+        clamped = true;
+      }
+      adjusted.push({ ...item, unitCount: count });
+    }
+    if (clamped) toast("Some quantities were reduced — stock changed while held", { icon: "⚠️" });
+
+    setCart(adjusted);
+    adjusted.forEach((i) => adjustDisplayStock(i.product_id, -lineBaseQty(i)));
+    setCustomerId(held.customerId);
+    setDiscountType(held.discountType);
+    setDiscountValue(held.discountValue);
+    setOtherCharges(held.otherCharges);
+    persistHeldCarts(heldCarts.filter((h) => h.id !== held.id));
+    setShowHeldPanel(false);
+  };
+
+  const discardHeldCart = (id: string) => {
+    persistHeldCarts(heldCarts.filter((h) => h.id !== id));
   };
 
   const completeSale = async () => {
@@ -254,12 +426,22 @@ export default function POSPage() {
         customer_id: customerId,
         payment_method: paymentMethod,
         discount_amount: discountAmount,
-        other_charges: otherCharges,
-        items: cart.map((i) => ({
-          product_id: i.product_id,
-          quantity: i.quantity,
-          unit_price: i.unitPrice,
-        })),
+        other_charges: Number(otherCharges) || 0,
+        items: cart.map((i) => {
+          const baseQty = round4(lineBaseQty(i));
+          const totalPrice = lineTotal(i);
+          return {
+            product_id: i.product_id,
+            // quantity is in BASE stock units (fractional for sub-unit
+            // sales) — that's what stock math and COGS run on. The exact
+            // charged amount travels as total_price, and unit_label keeps
+            // the human description for the receipt.
+            quantity: baseQty,
+            unit_price: Math.round((totalPrice / baseQty) * 100) / 100,
+            total_price: totalPrice,
+            unit_label: `${i.unitCount} ${i.unitName}`,
+          };
+        }),
       };
       const res = await createSale(payload);
       if (res.data) {
@@ -388,14 +570,71 @@ export default function POSPage() {
                     </p>
                   </div>
                 </div>
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setCart([])}
-                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-xl"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="flex items-center gap-1">
+                  {/* Held sales */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowHeldPanel((v) => !v)}
+                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 ${heldCarts.length > 0 ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'text-slate-300'}`}
+                      disabled={heldCarts.length === 0}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      Held ({heldCarts.length})
+                    </button>
+                    {showHeldPanel && heldCarts.length > 0 && (
+                      <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 max-h-80 overflow-y-auto">
+                        {heldCarts.map((h) => (
+                          <div key={h.id} className="p-3 rounded-xl hover:bg-slate-50 border border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-900 truncate">{h.customerName}</p>
+                                <p className="text-[10px] font-bold text-slate-400">
+                                  {h.items.length} item{h.items.length !== 1 ? 's' : ''} · ₦{h.items.reduce((s, i) => s + lineTotal(i), 0).toLocaleString()} · {new Date(h.heldAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => resumeHeldCart(h)}
+                                  className="px-2.5 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700"
+                                >
+                                  Resume
+                                </button>
+                                <button
+                                  onClick={() => discardHeldCart(h.id)}
+                                  className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg"
+                                  title="Discard held sale"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {cart.length > 0 && (
+                    <>
+                      <button
+                        onClick={holdCart}
+                        className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all rounded-xl"
+                        title="Hold this sale and start a new one"
+                      >
+                        Hold
+                      </button>
+                      <button
+                        onClick={() => {
+                          cart.forEach((i) => adjustDisplayStock(i.product_id, lineBaseQty(i)));
+                          setCart([]);
+                        }}
+                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-xl"
+                        title="Clear cart"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Cart Items List */}
@@ -403,14 +642,11 @@ export default function POSPage() {
                 <AnimatePresence>
                   {cart.map((item) => (
                     <CartItemRow
-                      key={item.product_id}
+                      key={item.key}
                       item={item}
-                      onRemove={() => removeItem(item.product_id)}
-                      onUpdateQty={(q: any) => {
-                        if (q <= item.maxStock && q > 0) {
-                          setCart(prev => prev.map(i => i.product_id === item.product_id ? { ...i, quantity: q } : i));
-                        }
-                      }}
+                      onRemove={() => removeItem(item.key)}
+                      onUpdateQty={(q: number) => updateLineCount(item.key, q)}
+                      onSwitchUnit={(unitName: string) => switchLineUnit(item.key, unitName)}
                     />
                   ))}
                 </AnimatePresence>
@@ -459,12 +695,30 @@ export default function POSPage() {
                         <button onClick={() => setDiscountType("percent")} className={`px-2 py-0.5 text-[9px] font-black rounded-md transition-all ${discountType === "percent" ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}>%</button>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {discountAmount > 0 && (
+                        <span className="text-rose-400 text-[10px]">−₦{discountAmount.toLocaleString()}</span>
+                      )}
+                      <input
+                        type="number"
+                        min={0}
+                        value={discountValue || ""}
+                        onChange={(e) => setDiscountValue(Math.max(0, Number(e.target.value)))}
+                        placeholder="0"
+                        className="w-20 text-right bg-slate-50 border-none rounded-lg text-rose-500 outline-none focus:ring-1 focus:ring-rose-200 transition-all px-2 py-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                    <span>Other Charges</span>
                     <input
                       type="number"
-                      value={discountValue || ""}
-                      onChange={(e) => setDiscountValue(Number(e.target.value))}
+                      min={0}
+                      value={otherCharges || ""}
+                      onChange={(e) => setOtherCharges(Math.max(0, Number(e.target.value)))}
                       placeholder="0"
-                      className="w-20 text-right bg-slate-50 border-none rounded-lg text-rose-500 outline-none focus:ring-1 focus:ring-rose-200 transition-all px-2 py-1"
+                      className="w-20 text-right bg-slate-50 border-none rounded-lg text-slate-700 outline-none focus:ring-1 focus:ring-blue-200 transition-all px-2 py-1"
                     />
                   </div>
 
@@ -651,13 +905,18 @@ const ProductCard = ({ product, onAdd }: any) => (
       </div>
       <div className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${product.currentStock <= 5 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'
         }`}>
-        {product.currentStock} in stock
+        {formatQty(product.currentStock)} in stock
       </div>
     </div>
     <h3 className="font-bold text-slate-900 text-sm leading-tight line-clamp-2">{product.productName}</h3>
     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
       {product.sku || 'No SKU'}{product.unit ? ` · ${product.unit}` : ''}
     </p>
+    {Array.isArray(product.subUnits) && product.subUnits.length > 0 && (
+      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mt-0.5">
+        💊 Also per {product.subUnits.map((u: any) => u.name).join(", ")}
+      </p>
+    )}
     {product.shelf_location && (
       <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5">📍 {product.shelf_location}</p>
     )}
@@ -672,39 +931,66 @@ const ProductCard = ({ product, onAdd }: any) => (
   </button>
 );
 
-const CartItemRow = ({ item, onRemove, onUpdateQty }: any) => (
-  <motion.div
-    initial={{ opacity: 0, x: -10 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, scale: 0.95 }}
-    className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between group"
-  >
-    <div className="min-w-0 pr-4">
-      <h4 className="font-bold text-slate-900 text-sm truncate">{item.productName}</h4>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-        ₦{item.unitPrice.toLocaleString()}{item.unit ? ` / ${item.unit}` : ''}
-      </p>
-      {item.shelf_location && (
-        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
-      )}
-      {item.nearestExpiry && (
-        <p className={`text-[10px] font-bold uppercase tracking-tight ${
-          item.expiryStatus === "expired" ? "text-rose-600" : item.expiryStatus === "expiringSoon" ? "text-amber-600" : "text-slate-400"
-        }`}>
-          ⏱ {item.expiryStatus === "expired" ? "Expired" : "Exp"} {item.nearestExpiry}
+const CartItemRow = ({ item, onRemove, onUpdateQty, onSwitchUnit }: any) => {
+  const hasSubUnits = Array.isArray(item.subUnits) && item.subUnits.length > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between group"
+    >
+      <div className="min-w-0 pr-4">
+        <h4 className="font-bold text-slate-900 text-sm truncate">{item.productName}</h4>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+          ₦{item.unitPrice.toLocaleString()} / {item.unitName}
         </p>
-      )}
-    </div>
-    <div className="flex flex-col items-end gap-2 shrink-0">
-      <div className="flex items-center gap-3 bg-slate-100 rounded-xl p-1">
-        <button onClick={() => onUpdateQty(item.quantity - 1)} className="p-1 hover:bg-white rounded-lg transition-all"><Minus className="w-3 h-3" /></button>
-        <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
-        <button onClick={() => onUpdateQty(item.quantity + 1)} className="p-1 hover:bg-white rounded-lg transition-all"><Plus className="w-3 h-3" /></button>
+        {hasSubUnits && (
+          <select
+            value={item.unitName}
+            onChange={(e) => onSwitchUnit(e.target.value)}
+            className="mt-1 text-[10px] font-black uppercase tracking-tight bg-blue-50 text-blue-600 border-none rounded-lg px-2 py-1 outline-none cursor-pointer"
+          >
+            <option value={item.baseUnitName}>{item.baseUnitName} — ₦{item.baseUnitPrice.toLocaleString()}</option>
+            {item.subUnits.map((u: any) => (
+              <option key={u.name} value={u.name}>{u.name} — ₦{u.price.toLocaleString()}</option>
+            ))}
+          </select>
+        )}
+        {item.shelf_location && (
+          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
+        )}
+        {item.nearestExpiry && (
+          <p className={`text-[10px] font-bold uppercase tracking-tight ${
+            item.expiryStatus === "expired" ? "text-rose-600" : item.expiryStatus === "expiringSoon" ? "text-amber-600" : "text-slate-400"
+          }`}>
+            ⏱ {item.expiryStatus === "expired" ? "Expired" : "Exp"} {item.nearestExpiry}
+          </p>
+        )}
       </div>
-      <div className="text-xs font-black text-slate-900">₦{(item.unitPrice * item.quantity).toLocaleString()}</div>
-    </div>
-  </motion.div>
-);
+      <div className="flex flex-col items-end gap-2 shrink-0">
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3 bg-slate-100 rounded-xl p-1">
+            <button onClick={() => onUpdateQty(item.unitCount - 1)} className="p-1 hover:bg-white rounded-lg transition-all"><Minus className="w-3 h-3" /></button>
+            <span className="text-xs font-black w-6 text-center">{item.unitCount}</span>
+            <button onClick={() => onUpdateQty(item.unitCount + 1)} className="p-1 hover:bg-white rounded-lg transition-all"><Plus className="w-3 h-3" /></button>
+          </div>
+          <button
+            onClick={onRemove}
+            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+            title="Remove from cart"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="text-xs font-black text-slate-900">
+          {item.unitCount} {item.unitName} · ₦{(Math.round(item.unitCount * item.unitPrice * 100) / 100).toLocaleString()}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const PaymentBtn = ({ active, onClick, icon, label }: any) => (
   <button

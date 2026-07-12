@@ -634,12 +634,15 @@ export const getStocks = async (shop_id?: string) => {
       // Backend already enriches with productName etc., but enrich from local if missing.
       // Single bulk lookup instead of one Dexie read per row (was 600+ individual
       // awaited reads on a full stock list).
-      const needsLookup = stocks.filter((s: any) => !s.productName);
-      const productMap = await bulkGetProductMap(needsLookup.map((s: any) => s.product_id));
+      // Always look up the local product too: server-enriched rows carry
+      // productName but not sub_units/unit, which the POS needs for
+      // pharmacy sub-unit selling.
+      const productMap = await bulkGetProductMap(stocks.map((s: any) => s.product_id));
       const enriched = stocks.map((s: any) => {
-        if (s.productName) return { ...s, currentStock: s.quantity ?? s.currentStock ?? 0 };
         const product = productMap.get(s.product_id);
-        return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
+        const unitFields = { unit: s.unit ?? product?.unit, sub_units: s.sub_units ?? product?.sub_units };
+        if (s.productName) return { ...s, ...unitFields, currentStock: s.quantity ?? s.currentStock ?? 0 };
+        return { ...s, ...unitFields, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
       });
       return { data: enriched };
     } catch (e) {
@@ -654,7 +657,7 @@ export const getStocks = async (shop_id?: string) => {
   const productMap = await bulkGetProductMap(stocks.map((s: any) => s.product_id));
   const enriched = stocks.map((s) => {
     const product = productMap.get(s.product_id);
-    return { ...s, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
+    return { ...s, unit: product?.unit, sub_units: product?.sub_units, productName: product?.name || 'Unknown', sku: product?.sku || '', sellingPrice: s.shop_price || product?.price || 0, currentStock: s.quantity ?? s.currentStock ?? 0 };
   });
   return { data: enriched };
 };
@@ -751,8 +754,10 @@ export const createSale = async (data: any) => {
     id: item.id || crypto.randomUUID(),
   }));
 
-  // Calculate total, subtotal, discount
-  const subtotal = items.reduce((acc: number, item: any) => acc + (item.quantity * item.unit_price), 0);
+  // Calculate total, subtotal, discount. Prefer an explicit total_price
+  // (sub-unit sales send the exact charged amount; quantity × derived
+  // per-base price can carry rounding).
+  const subtotal = items.reduce((acc: number, item: any) => acc + Number(item.total_price ?? (item.quantity * item.unit_price)), 0);
   const discount = data.discount_amount || 0;
   const total = subtotal - discount + (data.other_charges || 0);
 
@@ -832,8 +837,9 @@ export const createSale = async (data: any) => {
       itemsList.push({
         product_name: productName,
         quantity: item.quantity,
+        unit_label: item.unit_label,
         unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price
+        total_price: Number(item.total_price ?? (item.quantity * item.unit_price))
       });
 
       // Local optimistic decrement for instant UI feedback only. The
