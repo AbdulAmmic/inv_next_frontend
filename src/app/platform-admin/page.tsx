@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { getApiBase } from "@/apiBase";
+import { resolveApiBase } from "@/apiBase";
 
 export default function PlatformAdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -12,12 +12,23 @@ export default function PlatformAdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // This page is reachable without ever visiting the dashboard, so it can't
+  // rely on anything else having run URL discovery — on a fresh browser the
+  // synchronous getApiBase() would still be the built-in fallback (a dead
+  // tunnel hostname) and login would fail with "could not reach the server".
+  useEffect(() => {
+    resolveApiBase(true).catch(() => {});
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await axios.post(`${getApiBase()}/platform/auth/login`, {
+      // Always resolve (coalesced/rate-limited internally) so we post to the
+      // live API URL even if discovery hadn't finished when the page loaded.
+      const base = await resolveApiBase();
+      const res = await axios.post(`${base}/platform/auth/login`, {
         email: email.trim().toLowerCase(),
         password,
       });

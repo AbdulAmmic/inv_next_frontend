@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { getApiBase } from "@/apiBase";
+import { getApiBase, resolveApiBase } from "@/apiBase";
 
 type Business = {
   id: string;
@@ -70,6 +70,8 @@ export default function PlatformBusinessesPage() {
       router.replace("/platform-admin");
       return;
     }
+    // Heal a stale cached API URL (tunnel may have moved since last visit)
+    resolveApiBase().catch(() => {});
     load();
   }, [load, router]);
 

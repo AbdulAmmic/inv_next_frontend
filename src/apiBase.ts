@@ -16,9 +16,11 @@
  * endpoint answers.
  */
 
+// Last known tunnel URL at build time — only used before the first
+// successful TXT discovery on a fresh device.
 const FALLBACK =
   process.env.NEXT_PUBLIC_API_URL ||
-  'https://player-linear-mills-newcastle.trycloudflare.com';
+  'https://commentary-photographer-petroleum-eagle.trycloudflare.com';
 
 const CACHE_KEY = 'tuhanas_api_base';
 const DISCOVERY_HOST = 'tuhanas-api.duckdns.org';
