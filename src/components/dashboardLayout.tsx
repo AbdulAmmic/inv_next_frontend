@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import SyncBanner from "@/components/SyncBanner";
+import AIAssistant from "@/components/AIAssistant";
 import { seedDatabaseFromSQL, isDBSeeded } from "@/seedDB";
 import { pullUpdates } from "@/syncEngine";
 import { db } from "@/db";
@@ -301,6 +302,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300">
                 <SyncBanner />
+                <AIAssistant />
                 <div className="flex-shrink-0 z-20">
                     <Header onMenuClick={toggleSidebar} showMenuButton={isMobile} />
                 </div>

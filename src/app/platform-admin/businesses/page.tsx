@@ -14,6 +14,7 @@ type Business = {
   shop_count: number;
   plan: string;
   is_active: boolean;
+  ai_enabled: boolean;
   created_at: string;
 };
 
@@ -102,6 +103,15 @@ export default function PlatformBusinessesPage() {
       load();
     } catch {
       setError("Could not update business.");
+    }
+  };
+
+  const toggleAI = async (b: Business) => {
+    try {
+      await platformApi().put(`/platform/businesses/${b.id}`, { ai_enabled: !b.ai_enabled });
+      load();
+    } catch {
+      setError("Could not update AI setting.");
     }
   };
 
@@ -332,6 +342,14 @@ export default function PlatformBusinessesPage() {
                         >
                           {b.is_active ? "Active" : "Suspended"}
                         </span>
+                        <span
+                          className={`ml-2 px-2 py-1 rounded-full text-xs font-bold ${
+                            b.ai_enabled ? "bg-violet-950 text-violet-300" : "bg-slate-800 text-slate-500"
+                          }`}
+                          title="AI assistant availability for this tenant"
+                        >
+                          {b.ai_enabled ? "AI on" : "AI off"}
+                        </span>
                       </td>
                       <td className="px-4 py-3 flex gap-3">
                         <button
@@ -345,6 +363,12 @@ export default function PlatformBusinessesPage() {
                           className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
                         >
                           {b.is_active ? "Suspend" : "Reactivate"}
+                        </button>
+                        <button
+                          onClick={() => toggleAI(b)}
+                          className="text-xs font-bold text-violet-400 hover:text-violet-300"
+                        >
+                          {b.ai_enabled ? "Disable AI" : "Enable AI"}
                         </button>
                       </td>
                     </tr>

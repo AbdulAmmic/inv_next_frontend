@@ -14,6 +14,8 @@ export type BusinessInfo = {
   id: string;
   name: string;
   theme?: { primary_color?: string; logo_url?: string };
+  // Platform admin gates the AI assistant per tenant
+  ai_enabled?: boolean;
 };
 
 const CACHE_KEY = "business_info";
@@ -49,6 +51,16 @@ export function cacheBusiness(b: BusinessInfo) {
 
 const ACTIVE_BUSINESS_KEY = "active_business_id";
 
+async function hasAnyLocalData(db: any): Promise<boolean> {
+  const counts = await Promise.all([
+    db.products.count(),
+    db.customers.count(),
+    db.suppliers.count(),
+    db.sales.count(),
+  ]);
+  return counts.some((c) => c > 0);
+}
+
 /**
  * This is an offline-first app: everything (products, suppliers, sales, ...)
  * is cached in one shared IndexedDB per browser/device, not scoped by
@@ -65,11 +77,21 @@ const ACTIVE_BUSINESS_KEY = "active_business_id";
 export async function ensureLocalDataMatchesBusiness(newBusinessId: string | null | undefined): Promise<void> {
   if (typeof window === "undefined" || !newBusinessId) return;
   const active = localStorage.getItem(ACTIVE_BUSINESS_KEY);
-  if (active && active !== newBusinessId) {
-    const [{ db }, { resetSyncReady }] = await Promise.all([
-      import("./db"),
-      import("./syncGate"),
-    ]);
+
+  const [{ db }, { resetSyncReady }] = await Promise.all([
+    import("./db"),
+    import("./syncGate"),
+  ]);
+
+  // Every device that existed before this check shipped has no marker at
+  // all yet — but may still be sitting on another tenant's cached data
+  // from before. Without a marker we can't tell whose data it is, so a
+  // device with anything cached locally gets wiped once, defensively,
+  // rather than trusting it. A genuinely fresh device just has nothing to
+  // clear either way.
+  const mismatched = active ? active !== newBusinessId : await hasAnyLocalData(db);
+
+  if (mismatched) {
     await db.transaction("rw", db.tables, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
     });
@@ -108,4 +130,9 @@ export function getBusinessLogoUrl(): string | null {
 export function getBusinessInitial(): string {
   const name = getBusinessName("I");
   return name.trim().charAt(0).toUpperCase() || "I";
+}
+
+/** True when the platform admin has enabled the AI assistant for this tenant. */
+export function isAIEnabled(): boolean {
+  return getCachedBusiness()?.ai_enabled === true;
 }

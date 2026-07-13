@@ -9,6 +9,8 @@ import {
 } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import ReceiptComponent from "@/components/ReceiptComponent";
+import { askAboutProduct } from "@/ai";
+import { isAIEnabled } from "@/businessTheme";
 
 import {
   ShoppingCart,
@@ -29,7 +31,9 @@ import {
   Package,
   ArrowRight,
   UserPlus,
-  Clock
+  Clock,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
@@ -145,6 +149,39 @@ export default function POSPage() {
   // Held (parked) carts — persisted so they survive reloads/crashes.
   const [heldCarts, setHeldCarts] = useState<HeldCart[]>([]);
   const [showHeldPanel, setShowHeldPanel] = useState(false);
+
+  // AI product briefing (gated per tenant by the platform admin)
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiProduct, setAiProduct] = useState<string | null>(null);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    setAiEnabled(isAIEnabled());
+  }, []);
+
+  const askProductAI = async (item: CartItem) => {
+    const stockRow = stock.find((s) => s.product_id === item.product_id);
+    setAiProduct(item.productName);
+    setAiText("");
+    setAiLoading(true);
+    try {
+      const text = await askAboutProduct({
+        productName: item.productName,
+        category: stockRow?.category,
+        sellingPrice: item.baseUnitPrice,
+        unit: item.baseUnitName,
+        currentStock: stockRow?.currentStock,
+        subUnits: item.subUnits,
+        nearestExpiry: item.nearestExpiry,
+      });
+      setAiText(text);
+    } catch (e: any) {
+      setAiText(e?.message || "Could not get product info — check your connection.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -647,6 +684,7 @@ export default function POSPage() {
                       onRemove={() => removeItem(item.key)}
                       onUpdateQty={(q: number) => updateLineCount(item.key, q)}
                       onSwitchUnit={(unitName: string) => switchLineUnit(item.key, unitName)}
+                      onAskAI={aiEnabled ? () => askProductAI(item) : undefined}
                     />
                   ))}
                 </AnimatePresence>
@@ -755,6 +793,38 @@ export default function POSPage() {
         <AnimatePresence>
           {receipt && (
             <ReceiptComponent sale={receipt} onClose={() => setReceipt(null)} />
+          )}
+
+          {aiProduct && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-violet-50 text-violet-600 rounded-xl">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 leading-tight">{aiProduct}</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI product briefing</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setAiProduct(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <X className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+                {aiLoading ? (
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 py-6 justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Getting product info...
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{aiText}</p>
+                )}
+              </motion.div>
+            </div>
           )}
 
           {showConfirmModal && (
@@ -931,7 +1001,7 @@ const ProductCard = ({ product, onAdd }: any) => (
   </button>
 );
 
-const CartItemRow = ({ item, onRemove, onUpdateQty, onSwitchUnit }: any) => {
+const CartItemRow = ({ item, onRemove, onUpdateQty, onSwitchUnit, onAskAI }: any) => {
   const hasSubUnits = Array.isArray(item.subUnits) && item.subUnits.length > 0;
 
   return (
@@ -976,6 +1046,15 @@ const CartItemRow = ({ item, onRemove, onUpdateQty, onSwitchUnit }: any) => {
             <span className="text-xs font-black w-6 text-center">{item.unitCount}</span>
             <button onClick={() => onUpdateQty(item.unitCount + 1)} className="p-1 hover:bg-white rounded-lg transition-all"><Plus className="w-3 h-3" /></button>
           </div>
+          {onAskAI && (
+            <button
+              onClick={onAskAI}
+              className="p-1.5 text-violet-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all"
+              title="Ask AI about this product"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={onRemove}
             className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
