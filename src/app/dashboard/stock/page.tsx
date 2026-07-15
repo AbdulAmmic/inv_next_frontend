@@ -648,13 +648,22 @@ function AdjustModal({
   onClose: () => void;
   onAdjust: (qty: number) => Promise<void> | void;
 }) {
+  // "delta": adjust by a +/- difference. "exact": type the real counted
+  // quantity (stocktake) and we compute the difference — much less
+  // error-prone when correcting a wrong figure.
+  const [mode, setMode] = useState<"delta" | "exact">("delta");
   const [qty, setQty] = useState(0);
   const [isAdjusting, setIsAdjusting] = useState(false);
 
+  const effectiveDelta = mode === "exact"
+    ? Math.round((qty - (row.currentStock || 0)) * 1000) / 1000
+    : qty;
+
   const handleSubmit = async () => {
+    if (mode === "exact" && effectiveDelta === 0) return;
     setIsAdjusting(true);
     try {
-      await onAdjust(qty);
+      await onAdjust(effectiveDelta);
     } finally {
       setIsAdjusting(false);
     }
@@ -686,15 +695,41 @@ function AdjustModal({
         </div>
 
         <div className="space-y-4">
+          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+            <button
+              onClick={() => { setMode("delta"); setQty(0); }}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${mode === "delta" ? "bg-white shadow-sm text-blue-600" : "text-slate-400"}`}
+            >
+              Adjust by ±
+            </button>
+            <button
+              onClick={() => { setMode("exact"); setQty(row.currentStock || 0); }}
+              className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${mode === "exact" ? "bg-white shadow-sm text-blue-600" : "text-slate-400"}`}
+            >
+              Set exact count
+            </button>
+          </div>
+
           <div>
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Quantity Adjustment</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+              {mode === "delta" ? "Quantity Adjustment" : "Counted quantity on shelf"}
+            </label>
             <input
               type="number"
+              step="any"
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all font-bold text-lg"
-              placeholder="e.g. +10 or -5"
+              placeholder={mode === "delta" ? "e.g. +10 or -5 (decimals OK)" : `currently ${row.currentStock}`}
               value={qty}
               onChange={(e) => setQty(Number(e.target.value))}
             />
+            {mode === "exact" && (
+              <p className="text-[11px] font-bold mt-1.5 ml-1 text-slate-400">
+                System shows {row.currentStock} — this will record an adjustment of{" "}
+                <span className={effectiveDelta === 0 ? "text-slate-400" : effectiveDelta > 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {effectiveDelta > 0 ? "+" : ""}{effectiveDelta}
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
