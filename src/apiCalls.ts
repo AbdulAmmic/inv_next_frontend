@@ -629,6 +629,30 @@ export const getStocks = async (shop_id?: string) => {
           quantity: s.quantity ?? s.currentStock ?? 0,
           updated_at: s.updated_at || new Date().toISOString()
         }))).catch(() => {});
+
+        // Ghost cleanup: this response is the server's FULL stock list for
+        // the scope, so any local row the server doesn't know about is a
+        // stale ghost (e.g. from the old double-create bug) — delete it,
+        // EXCEPT rows still waiting to be pushed (created offline).
+        (async () => {
+          const serverIds = new Set(allStocks.map((s: any) => s.id));
+          const pendingCreates = new Set(
+            (await db.sync_queue
+              .where('status').anyOf(['pending', 'failed', 'rate_limited'])
+              .filter((q) => q.entity === 'stocks')
+              .toArray()).map((q) => q.entityId)
+          );
+          const locals = shop_id
+            ? await db.stocks.where('shop_id').equals(shop_id).toArray()
+            : await db.stocks.toArray();
+          const ghosts = locals
+            .filter((s: any) => !serverIds.has(s.id) && !pendingCreates.has(s.id))
+            .map((s: any) => s.id);
+          if (ghosts.length > 0) {
+            await db.stocks.bulkDelete(ghosts);
+            console.log(`🧹 Removed ${ghosts.length} ghost stock row(s) not present on server`);
+          }
+        })().catch(() => { /* cleanup is best-effort */ });
       }
       const stocks = shop_id ? allStocks.filter((s: any) => s.shop_id === shop_id) : allStocks;
       // Backend already enriches with productName etc., but enrich from local if missing.
@@ -663,8 +687,27 @@ export const getStocks = async (shop_id?: string) => {
 };
 
 export const createStock = async (data: any) => {
-  const id = crypto.randomUUID();
   const now = new Date().toISOString();
+
+  // Upsert by (shop, product): the server enforces one stock row per
+  // shop+product, but this used to blind-add a fresh id every time —
+  // creating a local ghost duplicate (and a doomed CREATE in the sync
+  // queue) whenever a row already existed, e.g. right after createProduct
+  // made one server-side.
+  const existing = await db.stocks
+    .where({ shop_id: data.shop_id, product_id: data.product_id })
+    .first();
+
+  if (existing) {
+    const changes: any = { ...data, updated_at: now };
+    delete changes.id;
+    delete changes.quantity; // quantity only moves via adjustments/sales
+    await db.stocks.update(existing.id, changes);
+    await queueChange('stocks', existing.id, 'UPDATE', changes);
+    return { data: { ...existing, ...changes } };
+  }
+
+  const id = crypto.randomUUID();
   const stock = { ...data, id, updated_at: now };
   await db.stocks.add(stock);
   await queueChange('stocks', id, 'CREATE', stock);
