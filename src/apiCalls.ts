@@ -1044,6 +1044,25 @@ export const refundSale = async (id: string) => {
   return { data: { success: true } };
 };
 
+// Settle a credit sale — record which method the customer actually paid
+// with, once payment comes in. payment_method is already sync-whitelisted
+// for sale UPDATEs, so this follows the same offline-first queue pattern
+// as refundSale: it applies locally immediately and works offline, syncing
+// to the server whenever connectivity is back.
+export const markSalePaid = async (id: string, paymentMethod: "cash" | "pos" | "transfer") => {
+  const sale = await db.sales.get(id);
+  if (!sale) throw new Error("Sale not found");
+  if (sale.payment_method !== "credit") throw new Error("Sale is not on credit");
+
+  const now = new Date().toISOString();
+  await db.transaction("rw", db.sales, db.sync_queue, async () => {
+    await db.sales.update(id, { payment_method: paymentMethod, updated_at: now });
+    await queueChange("sales", id, "UPDATE", { payment_method: paymentMethod });
+  });
+
+  return { data: { success: true } };
+};
+
 // #############################################################
 // 🧍 CUSTOMERS
 // #############################################################

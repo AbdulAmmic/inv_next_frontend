@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { getSale, refundSale } from "@/apiCalls";
+import { getSale, refundSale, markSalePaid } from "@/apiCalls";
+import { toast } from "react-hot-toast";
 import {
   ArrowLeft,
   User,
@@ -10,6 +11,7 @@ import {
   ShoppingCart,
   Receipt,
   RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
 
 function SaleDetailContent() {
@@ -21,6 +23,9 @@ function SaleDetailContent() {
   const [loading, setLoading] = useState(true);
   const [refundLoading, setRefundLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
+  const [settleMethod, setSettleMethod] = useState<"cash" | "pos" | "transfer">("cash");
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   /** ---------------------------
    *  FETCH SALE DETAILS
@@ -71,6 +76,24 @@ function SaleDetailContent() {
       alert("Failed to refund sale.");
     } finally {
       setRefundLoading(false);
+    }
+  };
+
+  /** ---------------------------
+   *  MARK CREDIT SALE AS PAID
+   * --------------------------- */
+  const handleMarkPaid = async () => {
+    try {
+      setMarkingPaid(true);
+      await markSalePaid(id as string, settleMethod);
+      setSale((prev: any) => prev && { ...prev, payment_method: settleMethod });
+      toast.success(`Marked as paid via ${settleMethod}`);
+      setShowMarkPaid(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to mark sale as paid");
+    } finally {
+      setMarkingPaid(false);
     }
   };
 
@@ -161,9 +184,9 @@ function SaleDetailContent() {
 
               {/* Payment */}
               <InfoCard
-                icon={<ShoppingCart className="w-5 h-5 text-gray-500" />}
+                icon={<ShoppingCart className={`w-5 h-5 ${sale.payment_method === "credit" ? "text-amber-500" : "text-gray-500"}`} />}
                 label="Payment"
-                value={sale.payment_method}
+                value={sale.payment_method === "credit" ? "Credit (unpaid)" : sale.payment_method}
               />
 
               {/* Total */}
@@ -242,13 +265,56 @@ function SaleDetailContent() {
 
               <button
                 onClick={handleRefund}
-                disabled={refundLoading}
+                disabled={refundLoading || sale.status === "refunded"}
                 className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <RotateCcw className="w-4 h-4" />
                 {refundLoading ? "Processing..." : "Refund Sale"}
               </button>
+
+              {sale.payment_method === "credit" && (
+                <button
+                  onClick={() => setShowMarkPaid(true)}
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Mark as Paid
+                </button>
+              )}
             </div>
+
+            {/* MARK AS PAID PANEL */}
+            {showMarkPaid && (
+              <div className="border border-emerald-200 bg-emerald-50 rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold text-emerald-900">
+                  This sale was made on credit. How did the customer pay?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <select
+                    value={settleMethod}
+                    onChange={(e) => setSettleMethod(e.target.value as any)}
+                    className="border border-emerald-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="pos">POS</option>
+                    <option value="transfer">Bank Transfer</option>
+                  </select>
+                  <button
+                    onClick={handleMarkPaid}
+                    disabled={markingPaid}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {markingPaid ? "Saving..." : "Confirm Payment"}
+                  </button>
+                  <button
+                    onClick={() => setShowMarkPaid(false)}
+                    className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 rounded-lg hover:bg-emerald-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
     </main>
   );
