@@ -24,7 +24,7 @@ import {
   Loader2
 } from "lucide-react";
 
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 
 function PurchaseDetailsContent() {
   const router = useRouter();

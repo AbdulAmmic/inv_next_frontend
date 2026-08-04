@@ -10,7 +10,7 @@ import {
   createAdjustment,
 } from "@/apiCalls";
 import type { Product } from "@/app/types/products";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 
 interface Shop {
   id: string;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createTransfer, getShops } from "@/apiCalls";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 
 interface StockRow {
   id?: string;

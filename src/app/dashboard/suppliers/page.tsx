@@ -11,7 +11,7 @@ import {
   getSupplierTransactions,
 } from "@/apiCalls";
 
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import {
   Plus,
   User,

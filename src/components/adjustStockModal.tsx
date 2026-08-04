@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adjustStock } from "@/apiCalls";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 
 interface StockRow {
   id?: string;

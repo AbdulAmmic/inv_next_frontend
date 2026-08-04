@@ -9,7 +9,7 @@ import {
   getShops,
   deleteExpense,
 } from "@/apiCalls";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast";
 import {
   Plus,
   Search,
@@ -41,6 +41,17 @@ interface Shop {
   name: string;
 }
 
+// Local yyyy-mm-dd, not UTC — .toISOString() shifts to the wrong calendar
+// day near midnight for any timezone ahead of UTC (e.g. an expense logged
+// at 00:30 WAT defaults to the previous day instead of today).
+const todayLocal = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -71,7 +82,7 @@ export default function ExpensesPage() {
     amount: "",
     description: "",
     reference: "",
-    date: new Date().toISOString().split("T")[0],
+    date: todayLocal(),
   });
 
   /* ---------------- LOAD DATA ---------------- */
@@ -153,7 +164,7 @@ export default function ExpensesPage() {
         amount: "",
         description: "",
         reference: "",
-        date: new Date().toISOString().split("T")[0],
+        date: todayLocal(),
       });
 
       // Reload to get perfect data
