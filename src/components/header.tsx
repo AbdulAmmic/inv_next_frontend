@@ -20,6 +20,7 @@ import { toast } from "react-hot-toast";
 import SyncStatus from "./SyncStatus";
 import BrandMark from "./BrandMark";
 import { getBusinessName, clearCachedBusiness } from "@/businessTheme";
+import { db } from "@/db";
 
 interface AlertSummaryItem {
   productName: string;
@@ -174,6 +175,24 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
   const navigate = (path: string) => {
     router.push(path);
     setProfileOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    // Logging out clears the token needed to push queued offline changes —
+    // if the device is offline right now, those changes have nowhere to go
+    // until the same account logs back in. Block rather than risk stranding
+    // real sales/expenses that were never confirmed on the server.
+    const pendingCount = await db.sync_queue.where("status").anyOf(["pending", "failed"]).count();
+    if (pendingCount > 0 && !navigator.onLine) {
+      toast.error(
+        `${pendingCount} change${pendingCount === 1 ? "" : "s"} still need${pendingCount === 1 ? "s" : ""} to sync and you're offline. Connect to the internet first, or your unsynced data won't be saved.`,
+        { duration: 6000 }
+      );
+      return;
+    }
+    clearCachedBusiness();
+    localStorage.clear();
+    router.push("/");
   };
 
   const currentShopName = shops.find(s => s.id === selectedShop)?.name || "All Shops";
@@ -397,7 +416,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                     {/* Sign Out */}
                     <div className="p-2 pt-0 border-t border-slate-50">
                       <button
-                        onClick={() => { clearCachedBusiness(); localStorage.clear(); router.push("/"); }}
+                        onClick={handleSignOut}
                         className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                       >
                         <LogOut className="w-4 h-4" />

@@ -92,6 +92,20 @@ export async function ensureLocalDataMatchesBusiness(newBusinessId: string | nul
   const mismatched = active ? active !== newBusinessId : await hasAnyLocalData(db);
 
   if (mismatched) {
+    // Never wipe over unpushed offline work — e.g. someone signed out on
+    // this device without connecting to the internet first, and a
+    // different tenant is now logging in on the same device. Clearing the
+    // tables would permanently destroy sales/expenses that were never
+    // saved to the server. Leave the stale data in place (wrong, but
+    // recoverable) rather than lose real transactions (unrecoverable).
+    const pendingCount = await db.sync_queue.where("status").anyOf(["pending", "failed"]).count();
+    if (pendingCount > 0) {
+      console.warn(
+        `[businessTheme] Skipped wiping local cache for tenant switch — ${pendingCount} unsynced change(s) present.`
+      );
+      return;
+    }
+
     await db.transaction("rw", db.tables, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
     });

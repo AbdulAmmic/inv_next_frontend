@@ -23,11 +23,13 @@ import {
   Bell
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import SyncStatus from "./SyncStatus";
 import BrandMark from "./BrandMark";
-import { getBusinessName } from "@/businessTheme";
+import { getBusinessName, clearCachedBusiness } from "@/businessTheme";
+import { db } from "@/db";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -39,6 +41,25 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   const [role, setRole] = useState<string>("");
   const [businessName, setBusinessName] = useState("Inventory Manager");
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    // Same guard as the header's Sign Out — logging out clears the token
+    // needed to push queued offline changes, so if we're offline right now
+    // those changes have nowhere to go until this same account logs back
+    // in. Block rather than risk stranding real sales/expenses.
+    const pendingCount = await db.sync_queue.where("status").anyOf(["pending", "failed"]).count();
+    if (pendingCount > 0 && !navigator.onLine) {
+      toast.error(
+        `${pendingCount} change${pendingCount === 1 ? "" : "s"} still need${pendingCount === 1 ? "s" : ""} to sync and you're offline. Connect to the internet first, or your unsynced data won't be saved.`,
+        { duration: 6000 }
+      );
+      return;
+    }
+    clearCachedBusiness();
+    localStorage.clear();
+    router.push("/");
+  };
 
   useEffect(() => {
     try {
@@ -114,6 +135,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     return (
       <Link
         href={item.href}
+        onClick={item.isLogout ? (e) => { e.preventDefault(); handleSignOut(); } : undefined}
         className={`
           flex items-center group transition-all duration-200 py-3 rounded-2xl px-4 mb-1
           ${isActive
