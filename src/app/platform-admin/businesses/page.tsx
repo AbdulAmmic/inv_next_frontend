@@ -26,6 +26,14 @@ function platformApi() {
   });
 }
 
+type TenantUser = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+};
+
 const emptyForm = {
   name: "",
   admin_email: "",
@@ -47,6 +55,13 @@ export default function PlatformBusinessesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", admin_email: "", primary_color: "#6366f1", logo_url: "" });
   const [saving, setSaving] = useState(false);
+  const [usersFor, setUsersFor] = useState<string | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [resetTarget, setResetTarget] = useState<TenantUser | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +111,48 @@ export default function PlatformBusinessesPage() {
       setError(err?.response?.data?.error || "Could not create business.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const toggleUsers = async (b: Business) => {
+    if (usersFor === b.id) {
+      setUsersFor(null);
+      return;
+    }
+    setUsersFor(b.id);
+    setEditingId(null);
+    setTenantUsers([]);
+    setUsersLoading(true);
+    try {
+      const res = await platformApi().get(`/platform/businesses/${b.id}/users`);
+      setTenantUsers(res.data);
+    } catch {
+      setError("Could not load users for this business.");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const submitReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTarget) return;
+    if (resetPassword && resetPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setResetting(true);
+    setError("");
+    try {
+      const res = await platformApi().post(`/platform/users/${resetTarget.id}/reset-password`, {
+        password: resetPassword || undefined,
+      });
+      setResetResult({ email: resetTarget.email, password: res.data.temp_password || resetPassword });
+      setResetTarget(null);
+      setResetPassword("");
+    } catch (err: any) {
+      setError(err?.response?.data?.error === "password_too_short" ? "Password must be at least 8 characters." : "Could not reset password.");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -186,6 +243,22 @@ export default function PlatformBusinessesPage() {
             </button>
           </div>
         </div>
+
+        {resetResult && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-950 border border-amber-800 text-sm flex items-start justify-between gap-4">
+            <div>
+              <p className="font-bold text-amber-300 mb-1">Password reset.</p>
+              <p className="text-amber-100">
+                <span className="font-mono">{resetResult.email}</span> can now sign in with{" "}
+                <span className="font-mono font-bold">{resetResult.password}</span>
+              </p>
+              <p className="text-amber-400/80 text-xs mt-1">Shown once — share it with the user and ask them to change it.</p>
+            </div>
+            <button onClick={() => setResetResult(null)} className="text-xs font-bold text-amber-300 hover:text-white">
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {newCreds && (
           <div className="mb-6 p-4 rounded-xl bg-emerald-950 border border-emerald-800 text-sm">
@@ -361,6 +434,12 @@ export default function PlatformBusinessesPage() {
                           {editingId === b.id ? "Cancel" : "Edit"}
                         </button>
                         <button
+                          onClick={() => toggleUsers(b)}
+                          className="text-xs font-bold text-amber-400 hover:text-amber-300"
+                        >
+                          {usersFor === b.id ? "Hide users" : "Users"}
+                        </button>
+                        <button
                           onClick={() => toggleActive(b)}
                           className="text-xs font-bold text-indigo-400 hover:text-indigo-300"
                         >
@@ -374,6 +453,66 @@ export default function PlatformBusinessesPage() {
                         </button>
                       </td>
                     </tr>
+                    {usersFor === b.id && (
+                      <tr className="border-t border-slate-800 bg-slate-900/60">
+                        <td colSpan={6} className="px-4 py-4">
+                          {usersLoading ? (
+                            <p className="text-sm text-slate-400">Loading users...</p>
+                          ) : tenantUsers.length === 0 ? (
+                            <p className="text-sm text-slate-400">No users in this business.</p>
+                          ) : (
+                            <div className="divide-y divide-slate-800 rounded-lg border border-slate-800 overflow-hidden">
+                              {tenantUsers.map((u) => (
+                                <div key={u.id} className="flex flex-col md:flex-row md:items-center gap-3 px-3 py-2.5">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-white truncate">
+                                      {u.full_name}
+                                      {!u.is_active && <span className="ml-2 text-[10px] font-bold text-red-400 uppercase">Inactive</span>}
+                                    </p>
+                                    <p className="text-xs text-slate-400 truncate">
+                                      {u.email} · <span className="uppercase tracking-wide">{u.role}</span>
+                                    </p>
+                                  </div>
+                                  {resetTarget?.id === u.id ? (
+                                    <form onSubmit={submitReset} className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        autoComplete="new-password"
+                                        placeholder="New password (blank = generate)"
+                                        value={resetPassword}
+                                        onChange={(e) => setResetPassword(e.target.value)}
+                                        className="w-60 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm outline-none focus:border-amber-500"
+                                      />
+                                      <button
+                                        type="submit"
+                                        disabled={resetting}
+                                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold transition-colors disabled:opacity-60"
+                                      >
+                                        {resetting ? "Resetting..." : "Confirm"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setResetTarget(null); setResetPassword(""); }}
+                                        className="text-xs font-bold text-slate-400 hover:text-white"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </form>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setResetTarget(u); setResetPassword(""); }}
+                                      className="self-start md:self-auto px-3 py-1.5 rounded-lg border border-slate-700 hover:border-amber-500 hover:text-amber-300 text-xs font-bold text-slate-300 transition-colors"
+                                    >
+                                      Reset password
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
                     {editingId === b.id && (
                       <tr className="border-t border-slate-800 bg-slate-900/60">
                         <td colSpan={6} className="px-4 py-4">
