@@ -147,7 +147,7 @@ export function useSyncStatus() {
         ...prev,
         state: "synced",
         progress: 100,
-        progressLabel: total > 0 ? `✓ Pulled ${total} records` : "Already up to date",
+        progressLabel: total > 0 ? `Pulled ${total} records` : "Already up to date",
         errorMsg: null,
         lastSyncedAt: nowISO,
         pulledCount: total,
@@ -277,7 +277,7 @@ export function useSyncStatus() {
           progress: 100,
           progressLabel:
             result.pushed > 0
-              ? `✓ Pushed ${result.pushed} change${result.pushed !== 1 ? "s" : ""}`
+              ? `Pushed ${result.pushed} change${result.pushed !== 1 ? "s" : ""}`
               : "All up to date",
           errorMsg: null,
           lastSyncedAt: nowISO,
@@ -344,15 +344,15 @@ export default function SyncBanner() {
     showProgress: boolean;
   }> = {
     unsynced: {
-      bg: "bg-amber-500",
+      bg: "bg-amber-50 text-amber-600",
       icon: <CloudUpload className="w-4 h-4 flex-shrink-0" />,
       text: `${banner.pendingCount} change${banner.pendingCount !== 1 ? "s" : ""} waiting to sync`,
       action: "Sync Now",
-      actionStyle: "bg-white text-amber-700 hover:bg-amber-50",
+      actionStyle: "bg-amber-500 text-white hover:bg-amber-600",
       showProgress: false,
     },
     syncing: {
-      bg: "bg-blue-600",
+      bg: "bg-sky-50 text-sky-600",
       icon: <CloudUpload className="w-4 h-4 flex-shrink-0 animate-pulse" />,
       text: banner.progressLabel || "Pushing changes...",
       action: null,
@@ -360,7 +360,7 @@ export default function SyncBanner() {
       showProgress: true,
     },
     pulling: {
-      bg: "bg-indigo-600",
+      bg: "bg-sky-50 text-sky-600",
       icon: <CloudDownload className="w-4 h-4 flex-shrink-0 animate-pulse" />,
       text: banner.progressLabel || "Pulling latest data...",
       action: null,
@@ -368,7 +368,7 @@ export default function SyncBanner() {
       showProgress: true,
     },
     error: {
-      bg: "bg-red-500",
+      bg: "bg-rose-50 text-rose-600",
       icon: <AlertCircle className="w-4 h-4 flex-shrink-0" />,
       text:
         banner.errorMsg ||
@@ -376,11 +376,11 @@ export default function SyncBanner() {
           ? `${banner.stuckCount} change${banner.stuckCount !== 1 ? "s" : ""} stuck — tap to retry`
           : "Sync error — tap to retry"),
       action: "Retry",
-      actionStyle: "bg-white text-red-600 hover:bg-red-50",
+      actionStyle: "bg-rose-600 text-white hover:bg-rose-700",
       showProgress: false,
     },
     synced: {
-      bg: "bg-emerald-500",
+      bg: "bg-emerald-50 text-emerald-600",
       icon: <CheckCircle2 className="w-4 h-4 flex-shrink-0" />,
       text: banner.progressLabel
         ? banner.progressLabel
@@ -404,19 +404,17 @@ export default function SyncBanner() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-32px)] bg-slate-800/95 text-white rounded-2xl shadow-xl border border-white/10 backdrop-blur-md overflow-hidden"
+            className="fixed bottom-5 right-5 z-[9999] w-[340px] max-w-[calc(100vw-32px)] bg-white text-slate-900 rounded-xl shadow-lg border border-slate-200/80 overflow-hidden"
           >
             <div className="p-4 flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/10 rounded-xl">
-                    <WifiOff className="w-4 h-4 text-slate-300 animate-pulse" />
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <WifiOff className="w-4 h-4 text-slate-500" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest leading-none mb-1">
-                      Network Status
-                    </p>
-                    <p className="text-xs font-bold leading-tight">
+                    <p className="text-[11px] text-slate-500 leading-none mb-1">Network status</p>
+                    <p className="text-[13px] font-medium leading-tight">
                       {banner.pendingCount > 0
                         ? `Offline · ${banner.pendingCount} pending changes`
                         : "Offline Mode"}
@@ -425,13 +423,13 @@ export default function SyncBanner() {
                 </div>
                 <button
                   onClick={() => setDismissed(true)}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                  className="p-1 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0"
                   title="Dismiss"
                 >
-                  <X className="w-3.5 h-3.5 text-white/80" />
+                  <X className="w-3.5 h-3.5 text-slate-400" />
                 </button>
               </div>
-              <p className="text-[11px] text-white/70 leading-normal">
+              <p className="text-xs text-slate-500 leading-normal">
                 {banner.pendingCount > 0
                   ? "Your changes are saved locally. They will automatically sync to the server when your internet connection is restored."
                   : "Using locally cached database. You can continue creating sales, adding stock, and printing receipts offline."}
@@ -454,44 +452,42 @@ export default function SyncBanner() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-32px)] ${cfg.bg} text-white rounded-2xl shadow-xl overflow-hidden border border-white/10 backdrop-blur-md bg-opacity-95 transition-colors duration-300`}
+          className="fixed bottom-5 right-5 z-[9999] w-[340px] max-w-[calc(100vw-32px)] bg-white text-slate-900 rounded-xl shadow-lg border border-slate-200/80 overflow-hidden"
         >
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-xl">
+                <div className={`p-2 rounded-lg ${cfg.bg}`}>
                   {cfg.icon}
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest leading-none mb-1">
-                    Sync Status
-                  </p>
-                  <p className="text-xs font-bold leading-tight">{cfg.text}</p>
+                  <p className="text-[11px] text-slate-500 leading-none mb-1">Sync status</p>
+                  <p className="text-[13px] font-medium leading-tight">{cfg.text}</p>
                 </div>
               </div>
               
               {/* Close button */}
               <button
                 onClick={() => setDismissed(true)}
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                className="p-1 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0"
                 title="Dismiss"
               >
-                <X className="w-3.5 h-3.5 text-white/80" />
+                <X className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
 
             {/* Progress bar — shown during syncing or pulling */}
             {cfg.showProgress && (
               <div className="space-y-1">
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-white rounded-full"
+                    className="h-full bg-amber-500 rounded-full"
                     initial={{ width: "0%" }}
                     animate={{ width: `${banner.progress}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-white/70 font-semibold">
+                <div className="flex justify-between text-[11px] text-slate-500">
                   <span>{banner.state === "pulling" ? "Pulling updates..." : "Pushing changes..."}</span>
                   <span className="tabular-nums">{banner.progress}%</span>
                 </div>
@@ -506,7 +502,7 @@ export default function SyncBanner() {
                     ? () => pushToServer(true)
                     : () => pushToServer(false)
                 }
-                className={`w-full py-2 rounded-xl text-xs font-black transition-all active:scale-[0.98] ${cfg.actionStyle}`}
+                className={`w-full py-2 rounded-lg text-xs font-semibold transition-colors ${cfg.actionStyle}`}
               >
                 {cfg.action}
               </button>

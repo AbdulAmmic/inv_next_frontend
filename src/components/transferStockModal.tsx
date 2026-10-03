@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 import { createTransfer, getShops } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 
@@ -129,7 +130,7 @@ export default function TransferStockModal({
         <form onSubmit={handleSubmit} className="p-4 space-y-4 text-sm">
           {!navigator.onLine && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-700 text-xs font-bold animate-pulse">
-              <span className="text-lg">⚠️</span>
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               Make sure you have internet to sync things properly!
             </div>
           )}

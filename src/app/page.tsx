@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, Sparkles, WifiOff, RefreshCw, Boxes } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Send, WifiOff, RefreshCw, Boxes } from "lucide-react";
 import { loginUser, api } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -193,7 +193,7 @@ export default function LoginPage() {
           localStorage.setItem("offline_session", "true");
 
           setIsOfflineMode(true);
-          toast.success("✈️ Signed in offline — cached session restored.", { id: toastId });
+          toast.success("Signed in offline. Cached session restored.", { id: toastId });
           setTimeout(() => router.replace("/dashboard"), 800);
         } else {
           toast.error(
@@ -234,27 +234,25 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full grid lg:grid-cols-[1.05fr_1fr] bg-white">
       {/* ── Brand panel ─────────────────────────────── */}
-      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#17110a] text-white p-12">
-        <div className="absolute inset-0 opacity-[0.35] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.09)_1px,transparent_0)] [background-size:22px_22px]" />
-        <div className="absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full bg-amber-500/25 blur-[120px]" />
-        <div className="absolute -bottom-48 right-[-120px] w-[460px] h-[460px] rounded-full bg-orange-600/20 blur-[120px]" />
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#f8f8f7] text-slate-900 border-r border-slate-200/80 p-12">
+        <div className="absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.07)_1px,transparent_0)] [background-size:22px_22px]" />
 
         <div className="relative flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-900/40">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-sm">
             <Boxes className="w-5 h-5 text-white" />
           </div>
           <div>
             <p className="font-semibold tracking-tight">Inventory Manager</p>
-            <p className="text-[11px] text-white/50 uppercase tracking-[0.18em]">Multi-shop · Offline-first</p>
+            <p className="text-xs text-slate-500">Multi-shop · Works offline</p>
           </div>
         </div>
 
         <div className="relative max-w-md">
-          <h2 className="text-[40px] leading-[1.1] font-semibold tracking-tight">
+          <h2 className="text-[38px] leading-[1.15] font-semibold tracking-tight text-slate-900">
             Every shelf, sale and expiry date —{" "}
-            <span className="bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">in one calm place.</span>
+            <span className="text-amber-600">in one calm place.</span>
           </h2>
-          <p className="mt-4 text-white/60 text-[15px] leading-relaxed">
+          <p className="mt-4 text-slate-500 text-[15px] leading-relaxed">
             Run your shops even when the internet drops. Everything syncs the moment you&apos;re back online.
           </p>
 
@@ -263,13 +261,13 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-10 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-5"
+            className="mt-10 rounded-xl border border-slate-200 bg-white shadow-sm p-5"
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs text-white/50">Today&apos;s sales</p>
-              <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-400/10 px-2 py-0.5 rounded-full">+12.4%</span>
+              <p className="text-xs text-slate-500">Today&apos;s sales</p>
+              <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">+12.4%</span>
             </div>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">₦486,200</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">₦486,200</p>
             <div className="mt-4 flex items-end gap-1.5 h-16">
               {[38, 52, 44, 63, 58, 72, 66, 84, 78, 92, 86, 100].map((h, i) => (
                 <motion.div
@@ -277,23 +275,23 @@ export default function LoginPage() {
                   initial={{ height: 0 }}
                   animate={{ height: `${h}%` }}
                   transition={{ duration: 0.6, delay: 0.35 + i * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                  className={`flex-1 rounded-sm ${i === 11 ? "bg-amber-400" : "bg-white/15"}`}
+                  className={`flex-1 rounded-sm ${i === 11 ? "bg-amber-500" : "bg-slate-100"}`}
                 />
               ))}
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 pt-4 border-t border-white/10 text-xs">
-              <div><p className="text-white/40">Low stock</p><p className="font-semibold mt-0.5">7 items</p></div>
-              <div><p className="text-white/40">Expiring</p><p className="font-semibold mt-0.5">3 batches</p></div>
-              <div><p className="text-white/40">Sync</p><p className="font-semibold mt-0.5 text-emerald-300">Up to date</p></div>
+            <div className="mt-4 grid grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-xs">
+              <div><p className="text-slate-400">Low stock</p><p className="font-medium text-slate-800 mt-0.5">7 items</p></div>
+              <div><p className="text-slate-400">Expiring</p><p className="font-medium text-slate-800 mt-0.5">3 batches</p></div>
+              <div><p className="text-slate-400">Sync</p><p className="font-medium mt-0.5 text-emerald-600">Up to date</p></div>
             </div>
           </motion.div>
         </div>
 
-        <p className="relative text-xs text-white/35">© {new Date().getFullYear()} Inventory Manager</p>
+        <p className="relative text-xs text-slate-400">© {new Date().getFullYear()} Inventory Manager</p>
       </aside>
 
       {/* ── Form ───────────────────────────────────── */}
-      <main className="relative flex items-center justify-center px-6 py-12 bg-[var(--background)] lg:bg-white">
+      <main className="relative flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-[380px]">
           <div className="lg:hidden mb-8 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
@@ -395,15 +393,12 @@ export default function LoginPage() {
                   <button
                     onClick={handleLogin}
                     disabled={loading}
-                    className="w-full h-11 mt-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                    className="w-full h-11 mt-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 shadow-sm shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-70"
                   >
                     {loading ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>
-                        Sign in
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      </>
+                      "Sign in"
                     )}
                   </button>
                 </div>
@@ -437,7 +432,7 @@ export default function LoginPage() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full h-11 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 flex items-center justify-center gap-2"
+                    className="w-full h-11 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 flex items-center justify-center gap-2"
                   >
                     <Send size={15} />
                     Send reset link

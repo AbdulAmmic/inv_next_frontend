@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import {
   createProduct,
   updateProduct,
@@ -237,7 +238,7 @@ export default function ProductFormModal({
             disabled={loading}
             className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -397,7 +398,7 @@ export default function ProductFormModal({
                   className="p-2 mb-0.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50"
                   title="Remove unit"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             ))}

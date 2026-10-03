@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
+import { AlertTriangle,
   ChevronDown,
   Settings,
   LogOut,
@@ -143,7 +143,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
           toast(
             (t) => (
               <div className="flex items-start gap-3">
-                <span className="text-sm font-medium">⚠️ {parts.join(" and ")}. </span>
+                <span className="text-sm font-medium inline-flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />{parts.join(" and ")}.</span>
                 <button
                   onClick={() => {
                     toast.dismiss(t.id);

@@ -17,7 +17,7 @@ export default function BrandMark({ size = 40, rounded = "rounded-xl" }: { size?
   }, []);
 
   const logoUrl = business?.theme?.logo_url;
-  const color = business?.theme?.primary_color || "#6366f1";
+  const color = business?.theme?.primary_color || "var(--brand-500)";
   const initial = (business?.name || "I").trim().charAt(0).toUpperCase();
 
   if (logoUrl) {

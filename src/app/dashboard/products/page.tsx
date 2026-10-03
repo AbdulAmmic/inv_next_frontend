@@ -213,7 +213,7 @@ export default function ProductsPage() {
     const outOfStockProducts = products.filter((p) => p.stockQuantity === 0);
     setFilteredProducts(outOfStockProducts);
     setStockFilter("outOfStock");
-    toast(`Showing ${outOfStockProducts.length} out-of-stock products`, { icon: '📦' });
+    toast(`Showing ${outOfStockProducts.length} out-of-stock products`);
   };
 
   // ------------------------------------------------

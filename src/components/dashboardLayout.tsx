@@ -274,7 +274,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         )}
                         {stage === "offline" && (
                             <p className="text-xs text-amber-500 font-semibold">
-                                ✈️ Offline mode — using locally cached data
+                                Offline mode: using locally cached data
                             </p>
                         )}
                     </div>

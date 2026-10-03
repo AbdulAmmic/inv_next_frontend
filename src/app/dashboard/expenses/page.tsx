@@ -10,7 +10,7 @@ import {
   deleteExpense,
 } from "@/apiCalls";
 import { toast } from "react-hot-toast";
-import {
+import { Receipt,
   Plus,
   Search,
   Loader2,
@@ -396,7 +396,7 @@ export default function ExpensesPage() {
             {filteredExpenses.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center">
                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="text-3xl">🧾</span>
+                  <Receipt className="w-7 h-7 text-gray-400" />
                 </div>
                 <h3 className="font-bold text-gray-900">No expenses found</h3>
                 <p className="text-gray-500 text-xs mt-2">Try adjusting your filters.</p>

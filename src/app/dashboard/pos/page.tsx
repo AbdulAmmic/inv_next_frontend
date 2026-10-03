@@ -15,7 +15,7 @@ import { useBarcodeWedge } from "@/hooks/useBarcodeWedge";
 import { askAboutProduct } from "@/ai";
 import { isAIEnabled } from "@/businessTheme";
 
-import {
+import { MapPin,
   ShoppingCart,
   RefreshCw,
   Plus,
@@ -480,7 +480,7 @@ export default function POSPage() {
       }
       adjusted.push({ ...item, unitCount: count });
     }
-    if (clamped) toast("Some quantities were reduced — stock changed while held", { icon: "⚠️" });
+    if (clamped) toast("Some quantities were reduced because stock changed while the cart was held.");
 
     setCart(adjusted);
     adjusted.forEach((i) => adjustDisplayStock(i.product_id, -lineBaseQty(i)));
@@ -992,11 +992,11 @@ const ProductCard = ({ product, onAdd }: any) => (
     </p>
     {Array.isArray(product.subUnits) && product.subUnits.length > 0 && (
       <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-tight mt-0.5">
-        💊 Also per {product.subUnits.map((u: any) => u.name).join(", ")}
+        Also sold per {product.subUnits.map((u: any) => u.name).join(", ")}
       </p>
     )}
     {product.shelf_location && (
-      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5">📍 {product.shelf_location}</p>
+      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tight mt-0.5 inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{product.shelf_location}</p>
     )}
     {product.nearestExpiry && (
       <p className={`text-[10px] font-bold uppercase tracking-tight mt-0.5 ${
@@ -1037,7 +1037,7 @@ const CartItemRow = ({ item, onRemove, onUpdateQty, onSwitchUnit, onAskAI }: any
           </select>
         )}
         {item.shelf_location && (
-          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">📍 {item.shelf_location}</p>
+          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{item.shelf_location}</p>
         )}
         {item.nearestExpiry && (
           <p className={`text-[10px] font-bold uppercase tracking-tight ${

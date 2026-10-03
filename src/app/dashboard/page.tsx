@@ -488,7 +488,7 @@ const MetricCard = ({
   const colorMap: Record<string, string> = {
     blue: "bg-blue-50 text-blue-600 ring-blue-100",
     emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-    indigo: "bg-indigo-50 text-indigo-600 ring-indigo-100",
+    indigo: "bg-sky-50 text-sky-600 ring-sky-100",
     rose: "bg-rose-50 text-rose-600 ring-rose-100",
   };
 
