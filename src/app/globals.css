@@ -26,9 +26,9 @@
   --default-transition-duration: 180ms;
   --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --animate-fade-in: fade-in 0.25s var(--ease-smooth) both;
-  --animate-fade-up: fade-up 0.35s var(--ease-smooth) both;
-  --animate-scale-in: scale-in 0.2s var(--ease-smooth) both;
+  --animate-fade-in: fade-in 0.25s var(--ease-smooth) backwards;
+  --animate-fade-up: fade-up 0.35s var(--ease-smooth) backwards;
+  --animate-scale-in: scale-in 0.2s var(--ease-smooth) backwards;
 }
 
 @keyframes fade-in {
@@ -182,23 +182,28 @@
   }
 
   /* Page content entrance (applied by DashboardLayout on route change) */
+  /* Opacity only: a transform animation here would turn this wrapper into
+     the containing block for every position:fixed modal on the page,
+     trapping them inside the scroll area and under the header. */
   .page-enter {
-    animation: fade-up 0.35s var(--ease-smooth) both;
+    animation: fade-in 0.3s var(--ease-smooth) backwards;
   }
 }
 
 /* Modal overlays: backdrop fades, panel eases up into place */
 .modal-overlay {
-  animation: fade-in 0.2s var(--ease-smooth) both;
+  animation: fade-in 0.2s var(--ease-smooth) backwards;
 }
 
 .modal-overlay > * {
-  animation: modal-in 0.28s var(--ease-smooth) both;
+  animation: modal-in 0.28s var(--ease-smooth) backwards;
 }
 
+/* Opacity only, for the same containing-block reason as .page-enter —
+   modals often nest their own fixed confirm dialogs and dropdowns. */
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Respect users who prefer less motion */
