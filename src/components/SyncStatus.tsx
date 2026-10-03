@@ -1,102 +1,121 @@
 "use client";
 
-// SyncStatus.tsx — legacy component kept for header compatibility
-// Now delegates to the new SyncBanner approach via syncEngine (no startSync timer)
+// Header sync pill: the one place sync state is shown (online/offline,
+// syncing, pending, failed, synced). Clicking it pushes now; when changes
+// are stuck it retries them. The automatic background sync itself runs in
+// SyncBanner's useSyncStatus hook, mounted once by DashboardLayout.
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
-import { Wifi, WifiOff, RefreshCw, CheckCircle2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, CloudUpload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { pushChanges, pullUpdates } from "../syncEngine";
 import { toast } from "react-hot-toast";
 
 export default function SyncStatus() {
   const [isOnline, setIsOnline] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const pendingCount = useLiveQuery(() =>
-    db.sync_queue.where("status").anyOf(["pending", "failed"]).count()
-  );
+  const [busy, setBusy] = useState(false);       // user-triggered sync
+  const [bgActive, setBgActive] = useState(false); // engine pull/push in progress
+  const bgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pendingCount = useLiveQuery(() => db.sync_queue.where("status").equals("pending").count()) ?? 0;
+  const stuckCount =
+    useLiveQuery(() => db.sync_queue.where("status").anyOf(["failed", "rate_limited", "conflict_detected"]).count()) ?? 0;
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setLastSync(localStorage.getItem("last_push_at"));
-    }
+    setLastSync(localStorage.getItem("last_push_at"));
     setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+
+    const start = () => {
+      setBgActive(true);
+      // Safety: a pull that exits early never fires "complete"
+      if (bgTimer.current) clearTimeout(bgTimer.current);
+      bgTimer.current = setTimeout(() => setBgActive(false), 60000);
+    };
+    const done = () => {
+      setBgActive(false);
+      if (bgTimer.current) clearTimeout(bgTimer.current);
+      setLastSync(localStorage.getItem("last_push_at") || new Date().toISOString());
+    };
+
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    window.addEventListener("tuhanas:pull-start", start);
+    window.addEventListener("tuhanas:pull-complete", done);
+    window.addEventListener("tuhanas:push-complete", done);
+    window.addEventListener("tuhanas:bg-sync-complete", done);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+      window.removeEventListener("tuhanas:pull-start", start);
+      window.removeEventListener("tuhanas:pull-complete", done);
+      window.removeEventListener("tuhanas:push-complete", done);
+      window.removeEventListener("tuhanas:bg-sync-complete", done);
+      if (bgTimer.current) clearTimeout(bgTimer.current);
     };
   }, []);
 
-  const handleForceSync = async () => {
+  const handleSync = async () => {
     if (!isOnline) {
-      toast.error("Cannot sync while offline");
+      toast.error("You're offline. Changes will sync when you reconnect.");
       return;
     }
-    setIsSyncing(true);
-    const loadingToast = toast.loading("Pushing changes to server...");
+    if (busy) return;
+    setBusy(true);
+    const retry = stuckCount > 0;
+    const id = toast.loading(retry ? "Retrying failed changes..." : "Syncing...");
     try {
-      await pushChanges();
-      const nowISO = new Date().toISOString();
-      if (typeof window !== 'undefined') {
-        localStorage.setItem("last_push_at", nowISO);
-        setLastSync(nowISO);
-      }
-      toast.success("All changes pushed!", { id: loadingToast });
-    } catch (error) {
-      console.error(error);
-      toast.error("Sync failed. Check connection.", { id: loadingToast });
+      const result = await pushChanges(retry);
+      await pullUpdates().catch(() => {});
+      const now = new Date().toISOString();
+      localStorage.setItem("last_push_at", now);
+      setLastSync(now);
+      if (result.failed > 0) toast.error(`${result.failed} change${result.failed === 1 ? "" : "s"} couldn't sync`, { id });
+      else toast.success(result.pushed > 0 ? `Synced ${result.pushed} change${result.pushed === 1 ? "" : "s"}` : "Up to date", { id });
+    } catch {
+      toast.error("Sync failed. Check your connection.", { id });
     } finally {
-      setIsSyncing(false);
+      setBusy(false);
     }
   };
 
+  const syncing = busy || bgActive;
+  const state = !isOnline ? "offline" : syncing ? "syncing" : stuckCount > 0 ? "error" : pendingCount > 0 ? "pending" : "synced";
+
+  const view = {
+    offline: { icon: <CloudUpload className="w-3.5 h-3.5 text-slate-400" />, text: pendingCount ? `${pendingCount} waiting` : "Saved offline", cls: "text-slate-500" },
+    syncing: { icon: <RefreshCw className="w-3.5 h-3.5 text-sky-500 animate-spin" />, text: "Syncing...", cls: "text-sky-700" },
+    error: { icon: <AlertCircle className="w-3.5 h-3.5 text-rose-500" />, text: `${stuckCount} failed · retry`, cls: "text-rose-600" },
+    pending: { icon: <CloudUpload className="w-3.5 h-3.5 text-amber-500" />, text: `${pendingCount} pending`, cls: "text-amber-700" },
+    synced: { icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />, text: "Synced", cls: "text-slate-600" },
+  }[state];
+
+  const title =
+    state === "error"
+      ? "Some changes were rejected by the server. Click to retry."
+      : lastSync
+        ? `Last synced ${new Date(lastSync).toLocaleString()}. Click to sync now.`
+        : "Click to sync now.";
+
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-100">
-      <div className="flex items-center gap-2">
-        {isOnline ? (
-          <Wifi className="w-4 h-4 text-emerald-500" />
-        ) : (
-          <WifiOff className="w-4 h-4 text-rose-500" />
-        )}
-        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-          {isOnline ? "Online" : "Offline"}
-        </span>
+    <div className="flex items-center h-9 bg-white rounded-full border border-slate-200 overflow-hidden">
+      <div className={`flex items-center gap-1.5 pl-3 pr-2.5 text-xs font-semibold ${isOnline ? "text-emerald-700" : "text-rose-600"}`}>
+        {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+        {isOnline ? "Online" : "Offline"}
       </div>
-
       <div className="h-4 w-px bg-slate-200" />
-
       <button
-        onClick={handleForceSync}
-        disabled={isSyncing || !isOnline}
-        title="Push changes to server"
-        className="flex items-center gap-2 hover:bg-slate-50 p-1 rounded transition-colors disabled:opacity-50"
+        onClick={handleSync}
+        disabled={busy}
+        title={title}
+        className={`flex items-center gap-1.5 h-full pl-2.5 pr-3 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-70 ${view.cls}`}
       >
-        {isSyncing ? (
-          <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
-        ) : (pendingCount ?? 0) > 0 ? (
-          <RefreshCw className="w-4 h-4 text-amber-500" />
-        ) : (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-        )}
-        <span className="text-xs font-bold text-slate-600">
-          {isSyncing ? "Syncing..." : (pendingCount ?? 0) === 0 ? "Synced" : `${pendingCount} Pending`}
-        </span>
+        {view.icon}
+        <span className="whitespace-nowrap">{view.text}</span>
       </button>
-
-      {lastSync && (
-        <>
-          <div className="h-4 w-px bg-slate-200" />
-          <span className="text-[10px] text-slate-400 font-medium">
-            Last: {new Date(lastSync).toLocaleTimeString()}
-          </span>
-        </>
-      )}
     </div>
   );
 }

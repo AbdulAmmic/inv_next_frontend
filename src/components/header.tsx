@@ -36,7 +36,7 @@ interface HeaderProps {
 const PAGE_TITLES: Record<string, [string, string]> = {
   "/dashboard": ["", "Overview"],
   "/dashboard/products": ["Inventory", "Products"],
-  "/dashboard/products/labels": ["Inventory", "QR Labels"],
+  "/dashboard/products/labels": ["Inventory", "Barcode Labels"],
   "/dashboard/stock": ["Inventory", "Stock"],
   "/dashboard/alerts": ["Inventory", "Alerts"],
   "/dashboard/out-of-stock": ["Inventory", "Out of Stock"],
@@ -288,7 +288,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center gap-2">
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <SyncStatus />
             </div>
 
