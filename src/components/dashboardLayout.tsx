@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import SyncBanner from "@/components/SyncBanner";
@@ -27,6 +28,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const [pullPct, setPullPct] = useState(0);
     const [pullLabel, setPullLabel] = useState("Syncing latest data...");
     const initDone = useRef(false);
+    const pathname = usePathname();
 
     // ─────────────────────────────────────────────────────────────
     // Wake up Render server — pings /health until it responds
@@ -254,8 +256,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         };
 
         return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-50">
-                <div className="flex flex-col items-center gap-5 text-gray-500 px-6 text-center max-w-sm">
+            <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
+                <div className="flex flex-col items-center gap-5 text-gray-500 px-6 text-center max-w-sm animate-fade-up">
                     <div className="relative w-14 h-14">
                         <div className="w-14 h-14 border-4 border-amber-100 border-t-amber-500 rounded-full animate-spin" />
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -297,17 +299,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     return (
-        <div className="flex min-h-screen bg-gray-50 overflow-hidden">
+        <div className="flex min-h-screen bg-[var(--background)] overflow-hidden">
             <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} isMobile={isMobile} />
 
-            <div className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300">
+            <div className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
                 <SyncBanner />
                 <AIAssistant />
                 <div className="flex-shrink-0 z-20">
                     <Header onMenuClick={toggleSidebar} showMenuButton={isMobile} />
                 </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50">
-                    <div className="min-h-full max-w-[1600px] mx-auto w-full">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--background)] [scrollbar-gutter:stable]">
+                    <div key={pathname} className="page-enter min-h-full max-w-[1600px] mx-auto w-full">
                         {children}
                     </div>
                 </div>

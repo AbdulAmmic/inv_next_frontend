@@ -7,13 +7,13 @@ interface LoaderProps {
 
 export default function Loader({ text = "Loading...", subText = "Please wait a moment" }: LoaderProps) {
     return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center p-4">
-            <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
-                <div className="w-16 h-16 border-4 border-transparent border-t-blue-600 rounded-full animate-spin absolute top-0 left-0"></div>
+        <div className="min-h-[400px] flex flex-col items-center justify-center p-4 animate-fade-in">
+            <div className="relative w-11 h-11">
+                <div className="absolute inset-0 rounded-full border-[3px] border-amber-100" />
+                <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-amber-500 animate-spin" />
             </div>
-            <p className="mt-6 text-gray-600 font-medium">{text}</p>
-            {subText && <p className="text-sm text-gray-400 mt-2">{subText}</p>}
+            <p className="mt-5 text-sm text-slate-700 font-semibold">{text}</p>
+            {subText && <p className="text-xs text-slate-400 mt-1">{subText}</p>}
         </div>
     );
 }

@@ -1,5 +1,57 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Design tokens (Tailwind v4 theme overrides)
+   Tighter radius scale, softer layered shadows and one shared
+   easing curve so every transition in the app feels the same.
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --radius-xs: 0.125rem;   /* 2px */
+  --radius-sm: 0.1875rem;  /* 3px */
+  --radius-md: 0.3125rem;  /* 5px */
+  --radius-lg: 0.375rem;   /* 6px */
+  --radius-xl: 0.5rem;     /* 8px */
+  --radius-2xl: 0.625rem;  /* 10px */
+  --radius-3xl: 0.75rem;   /* 12px */
+
+  --shadow-xs: 0 1px 2px 0 rgb(26 18 8 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(26 18 8 / 0.05), 0 1px 3px 0 rgb(26 18 8 / 0.04);
+  --shadow: 0 1px 3px 0 rgb(26 18 8 / 0.06), 0 1px 2px -1px rgb(26 18 8 / 0.05);
+  --shadow-md: 0 4px 10px -2px rgb(26 18 8 / 0.06), 0 2px 4px -2px rgb(26 18 8 / 0.04);
+  --shadow-lg: 0 10px 20px -6px rgb(26 18 8 / 0.08), 0 4px 8px -4px rgb(26 18 8 / 0.04);
+  --shadow-xl: 0 18px 32px -10px rgb(26 18 8 / 0.10), 0 8px 12px -6px rgb(26 18 8 / 0.05);
+  --shadow-2xl: 0 28px 56px -16px rgb(26 18 8 / 0.16);
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-fade-in: fade-in 0.25s var(--ease-smooth) both;
+  --animate-fade-up: fade-up 0.35s var(--ease-smooth) both;
+  --animate-scale-in: scale-in 0.2s var(--ease-smooth) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Used by transferStockModal's animate-[fadeIn_0.2s_ease] */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
 :root {
   --background: #faf8f5;
   --foreground: #1a1208;
@@ -7,8 +59,6 @@
   --card-foreground: #1a1208;
   --popover: #ffffff;
   --popover-foreground: #1a1208;
-  /* scale: 1;
-  zoom: 0.8; */
 
   /* Tuhanas Brand Colors - Golden Amber */
   --brand-50: #fdf9ef;
@@ -36,20 +86,134 @@
   --border: #e8dcc8;
   --input: #e8dcc8;
   --ring: #d4940a;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 }
 
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 
-* {
-  border-color: var(--border);
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+
+  ::selection {
+    background: #faf0d0;
+    color: #4d2e0f;
+  }
+
+  /* Numbers line up in tables and stat cards */
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     Interaction polish
+     ───────────────────────────────────────────────────────────── */
+
+  /* Gentle press feedback on every clickable control */
+  button:not(:disabled),
+  a,
+  [role="button"] {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform, outline-color;
+    transition-duration: var(--default-transition-duration);
+    transition-timing-function: var(--default-transition-timing-function);
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:active {
+    transform: scale(0.98);
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Inputs: soft brand ring instead of the harsh default outline */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    transition: border-color 180ms var(--ease-smooth), box-shadow 180ms var(--ease-smooth), background-color 180ms var(--ease-smooth);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    border-color: #e2b030;
+    box-shadow: 0 0 0 3px rgb(212 148 10 / 0.14);
+  }
+
+  /* Keyboard focus ring for buttons and links */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid rgb(212 148 10 / 0.55);
+    outline-offset: 2px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: #d4940a;
+  }
+
+  /* Table rows fade their hover background instead of snapping */
+  tbody tr {
+    transition: background-color 150ms var(--ease-smooth);
+  }
+
+  /* Page content entrance (applied by DashboardLayout on route change) */
+  .page-enter {
+    animation: fade-up 0.35s var(--ease-smooth) both;
+  }
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Modal overlays: backdrop fades, panel eases up into place */
+.modal-overlay {
+  animation: fade-in 0.2s var(--ease-smooth) both;
+}
+
+.modal-overlay > * {
+  animation: modal-in 0.28s var(--ease-smooth) both;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* --- Tuhanas Brand Utilities --- */
@@ -81,21 +245,13 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(212, 148, 10, 0.12);
-  box-shadow: 0 8px 32px 0 rgba(212, 148, 10, 0.06);
-}
-
-/* Smooth Focus States */
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  transition: all 0.2s ease-in-out;
+  box-shadow: 0 8px 24px -8px rgba(26, 18, 8, 0.08);
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -105,10 +261,13 @@ textarea:focus {
 ::-webkit-scrollbar-thumb {
   background: #e8dcc8;
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4940a;
+  background: #d4b483;
+  background-clip: padding-box;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -148,6 +307,7 @@ textarea:focus {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #e8dcc8;
   border-radius: 999px;
+  border: none;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

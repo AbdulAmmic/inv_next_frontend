@@ -411,7 +411,7 @@ export default function StockPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="glass-card p-12 text-center rounded-[2rem] flex flex-col items-center"
+            className="glass-card p-12 text-center rounded-2xl flex flex-col items-center"
           >
             <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
               <Search className="w-8 h-8 text-slate-300" />
@@ -426,7 +426,7 @@ export default function StockPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+            className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
           >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-sm text-left">
@@ -674,7 +674,7 @@ function AdjustModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-4 z-[100]"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -777,7 +777,7 @@ function TransferModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-4 z-[100]"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -893,7 +893,7 @@ function EditStockModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-4 z-[100]"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1031,7 +1031,7 @@ function GrievanceModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-4 z-[100]"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}

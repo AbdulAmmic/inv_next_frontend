@@ -79,7 +79,7 @@ export default function SyncPage() {
         </div>
 
         {/* Pending Queue */}
-        <div className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl">
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl">
           <div className="px-6 py-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
             <h3 className="font-bold text-slate-900 flex items-center gap-2">
               <Database className="w-4 h-4 text-indigo-500" />
@@ -157,7 +157,7 @@ export default function SyncPage() {
         </div>
 
         {/* Recent History */}
-        <div className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl opacity-80">
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl opacity-80">
           <div className="px-6 py-5 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
             <h3 className="font-bold text-slate-900 flex items-center gap-2">
               <History className="w-4 h-4 text-slate-400" />

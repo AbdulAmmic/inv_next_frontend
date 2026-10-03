@@ -200,18 +200,18 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
   return (
     <div className="sticky top-0 z-40 px-3 pt-3 pb-1">
       <motion.header
-        initial={{ y: -20, opacity: 0 }}
+        initial={{ y: -8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="bg-white border border-amber-100 rounded-2xl shadow-lg shadow-amber-50/80 overflow-visible"
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-xl shadow-sm overflow-visible"
       >
-        <div className="px-4 h-[60px] flex items-center gap-3">
+        <div className="px-3 sm:px-4 h-14 flex items-center gap-3">
 
           {/* Mobile menu button */}
           {showMenuButton && (
             <button
               onClick={onMenuClick}
-              className="p-2 rounded-xl hover:bg-amber-50 transition-colors md:hidden flex-shrink-0"
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors lg:hidden flex-shrink-0"
             >
               <Menu className="w-5 h-5 text-amber-600" />
             </button>
@@ -228,17 +228,17 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
           </div>
 
           {/* DIVIDER */}
-          <div className="hidden sm:block w-px h-6 bg-amber-100 mx-1 flex-shrink-0" />
+          <div className="hidden sm:block w-px h-5 bg-slate-200 mx-1 flex-shrink-0" />
 
           {/* CENTER: Shop Selector Pill */}
           {shops.length > 0 && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200/70 rounded-xl flex-shrink-0">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex-shrink-0 transition-colors">
               <Store className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
               <select
                 value={selectedShop || ""}
                 onChange={handleShopChange}
                 disabled={userRole !== "admin" && userRole !== "subadmin"}
-                className="bg-transparent text-xs font-bold text-amber-800 outline-none cursor-pointer disabled:cursor-default max-w-[120px] truncate"
+                className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer disabled:cursor-default max-w-[140px] truncate"
               >
                 {shops.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -258,10 +258,9 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
 
             {/* POS Button */}
             <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => navigate("/dashboard/pos")}
-              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-400 text-white rounded-xl text-xs font-black shadow-md shadow-amber-200 hover:from-amber-600 hover:to-amber-500 transition-all"
+              className="hidden sm:flex items-center gap-2 px-3.5 h-9 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-sm shadow-amber-500/20 hover:shadow-md hover:shadow-amber-500/25 transition-all"
             >
               <ShoppingCart size={13} className="stroke-[2.5px]" />
               POS Terminal
@@ -271,14 +270,13 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
             <div className="relative" ref={notifRef}>
               <motion.button
                 onClick={() => setNotifOpen(!notifOpen)}
-                whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
-                className="relative p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-all"
+                className="relative w-9 h-9 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
                 title="Stock alerts"
               >
-                <Bell className="w-4 h-4 text-amber-600" />
+                <Bell className="w-4 h-4 text-slate-600" />
                 {alertCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-rose-500 text-white text-[9px] font-black rounded-full shadow-sm">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-rose-500 text-white text-[9px] font-bold rounded-full ring-2 ring-white">
                     {alertCount > 99 ? "99+" : alertCount}
                   </span>
                 )}
@@ -287,13 +285,14 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
               <AnimatePresence>
                 {notifOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-80 bg-white border border-amber-100 rounded-2xl shadow-2xl shadow-amber-100/50 overflow-hidden z-50"
+                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ transformOrigin: "top right" }}
+                    className="absolute right-0 mt-2 w-80 bg-white border border-slate-200/80 rounded-xl shadow-xl ring-1 ring-black/[0.02] overflow-hidden z-50"
                   >
-                    <div className="px-4 py-3 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-amber-100 flex items-center justify-between">
+                    <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                       <p className="font-black text-slate-900 text-sm">Stock Alerts</p>
                       <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full">
                         {alertCount}
@@ -335,7 +334,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                           setNotifOpen(false);
                           router.push("/dashboard/alerts");
                         }}
-                        className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+                        className="flex items-center justify-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
                       >
                         View all alerts
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -350,33 +349,33 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
             <div className="relative" ref={profileRef}>
               <motion.button
                 onClick={() => setProfileOpen(!profileOpen)}
-                whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-all"
+                className="flex items-center gap-2.5 pl-1 pr-2.5 h-9 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
               >
-                <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 text-white rounded-lg flex items-center justify-center font-black text-xs shadow-sm shadow-amber-200">
+                <div className="w-7 h-7 bg-gradient-to-br from-amber-400 to-amber-600 text-white rounded-md flex items-center justify-center font-bold text-xs">
                   {initial}
                 </div>
                 <div className="hidden sm:block text-left">
                   <p className="text-xs font-black text-slate-800 leading-none">{fullName.split(" ")[0]}</p>
-                  <p className="text-[9px] font-bold text-amber-500 uppercase tracking-wider leading-none mt-0.5">{userRole}</p>
+                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider leading-none mt-1">{userRole}</p>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`} />
               </motion.button>
 
               <AnimatePresence>
                 {profileOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-60 bg-white border border-amber-100 rounded-2xl shadow-2xl shadow-amber-100/50 overflow-hidden z-50"
+                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ transformOrigin: "top right" }}
+                    className="absolute right-0 mt-2 w-60 bg-white border border-slate-200/80 rounded-xl shadow-xl ring-1 ring-black/[0.02] overflow-hidden z-50"
                   >
                     {/* Profile Header */}
-                    <div className="px-4 py-4 bg-gradient-to-br from-amber-50 to-orange-50 border-b border-amber-100">
+                    <div className="px-4 py-4 bg-slate-50/60 border-b border-slate-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 text-white rounded-xl flex items-center justify-center font-black text-sm shadow-md shadow-amber-200">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 text-white rounded-lg flex items-center justify-center font-bold text-sm">
                           {initial}
                         </div>
                         <div className="min-w-0">
@@ -393,7 +392,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                     <div className="p-2 space-y-0.5">
                       <button
                         onClick={() => navigate("/dashboard/pos")}
-                        className="flex items-center justify-between w-full px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 rounded-xl transition-all group"
+                        className="flex items-center justify-between w-full px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors group"
                       >
                         <div className="flex items-center gap-2.5">
                           <ShoppingCart className="w-4 h-4" />
@@ -403,7 +402,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                       </button>
                       <button
                         onClick={() => navigate("/dashboard/settings")}
-                        className="flex items-center justify-between w-full px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700 rounded-xl transition-all group"
+                        className="flex items-center justify-between w-full px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors group"
                       >
                         <div className="flex items-center gap-2.5">
                           <Settings className="w-4 h-4" />
@@ -417,7 +416,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
                     <div className="p-2 pt-0 border-t border-slate-50">
                       <button
                         onClick={handleSignOut}
-                        className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                        className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-medium text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         Sign Out

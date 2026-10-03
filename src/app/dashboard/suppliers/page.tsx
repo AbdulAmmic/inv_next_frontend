@@ -384,7 +384,7 @@ export default function SuppliersPage() {
           ADD SUPPLIER MODAL
           =========================== */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center z-50">
           <div className="bg-white w-full max-w-lg p-6 rounded-xl shadow-xl">
             <h2 className="text-xl font-bold mb-4">Add Supplier</h2>
 

@@ -29,7 +29,7 @@ export default function ProductsStats({ products }: ProductStatsProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: stat.delay }}
-          className="glass-card p-5 md:p-6 rounded-[1.5rem] flex items-center gap-4 border border-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
+          className="glass-card p-5 md:p-6 rounded-xl flex items-center gap-4 border border-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
         >
           <div className={`p-3 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
             <stat.icon className="w-6 h-6" />

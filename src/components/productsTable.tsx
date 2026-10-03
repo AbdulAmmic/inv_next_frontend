@@ -276,7 +276,7 @@ export default function ProductsTable({
             <tr>
               <td colSpan={10} className="p-20 text-center">
                 <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
                     <Package className="w-8 h-8 text-slate-200" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">No products found</h3>

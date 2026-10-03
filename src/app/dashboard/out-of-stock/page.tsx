@@ -201,7 +201,7 @@ export default function OutOfStockPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="lg:col-span-2 glass-card p-4 rounded-[1.5rem] flex items-center shadow-xl shadow-slate-200/50 group"
+            className="lg:col-span-2 glass-card p-4 rounded-xl flex items-center shadow-xl shadow-slate-200/50 group"
           >
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-600 transition-colors w-5 h-5" />
@@ -219,7 +219,7 @@ export default function OutOfStockPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-card p-6 rounded-[1.5rem] flex items-center justify-between border-rose-100 bg-rose-50/30"
+            className="glass-card p-6 rounded-xl flex items-center justify-between border-rose-100 bg-rose-50/30"
           >
             <div>
               <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest leading-none">Total Depleted</p>
@@ -238,9 +238,9 @@ export default function OutOfStockPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-card rounded-[2.5rem] p-20 text-center flex flex-col items-center border border-white shadow-xl shadow-slate-200/50"
+              className="glass-card rounded-2xl p-20 text-center flex flex-col items-center border border-white shadow-xl shadow-slate-200/50"
             >
-              <div className="w-24 h-24 bg-emerald-50 rounded-[3rem] flex items-center justify-center mb-8">
+              <div className="w-24 h-24 bg-emerald-50 rounded-2xl flex items-center justify-center mb-8">
                 <Package className="w-12 h-12 text-emerald-500" />
               </div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">Full Stockroom!</h2>
@@ -260,7 +260,7 @@ export default function OutOfStockPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+              className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
             >
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left min-w-[900px]">
@@ -287,7 +287,7 @@ export default function OutOfStockPage() {
                         >
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-[1.2rem] flex items-center justify-center font-black text-lg shadow-md shadow-rose-100">
+                              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center font-black text-lg shadow-md shadow-rose-100">
                                 {item.productName.charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -372,7 +372,7 @@ export default function OutOfStockPage() {
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-[1rem] flex items-center justify-center font-black text-sm shadow-md shadow-rose-100 shrink-0">
+                          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center font-black text-sm shadow-md shadow-rose-100 shrink-0">
                             {item.productName.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -437,7 +437,7 @@ export default function OutOfStockPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="p-8 bg-slate-900 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-indigo-900/20 relative overflow-hidden"
+            className="p-8 bg-slate-900 rounded-2xl text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl shadow-indigo-900/20 relative overflow-hidden"
           >
             <div className="relative z-10">
               <h3 className="text-xl font-black tracking-tight mb-2">Restock Priority Applied</h3>
@@ -446,11 +446,11 @@ export default function OutOfStockPage() {
               </p>
             </div>
             <div className="flex gap-4 relative z-10 w-full md:w-auto">
-              <div className="flex-1 md:w-32 p-4 bg-white/5 border border-white/10 rounded-[1.5rem] backdrop-blur-md">
+              <div className="flex-1 md:w-32 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md">
                 <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Critical</p>
                 <p className="text-2xl font-black text-rose-500">{products.filter(p => (p.demand_percentage || 0) > 70).length}</p>
               </div>
-              <div className="flex-1 md:w-32 p-4 bg-white/5 border border-white/10 rounded-[1.5rem] backdrop-blur-md">
+              <div className="flex-1 md:w-32 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-md">
                 <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Upcoming</p>
                 <p className="text-2xl font-black text-amber-500">{products.filter(p => (p.demand_percentage || 0) <= 70).length}</p>
               </div>

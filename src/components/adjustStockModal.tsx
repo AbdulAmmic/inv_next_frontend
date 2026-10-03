@@ -66,7 +66,7 @@ export default function AdjustStockModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[3px] p-4">
       <div className="bg-white w-full max-w-md rounded-xl shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-900">

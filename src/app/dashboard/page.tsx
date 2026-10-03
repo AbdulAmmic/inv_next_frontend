@@ -17,7 +17,8 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, animate } from "framer-motion";
+import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -197,8 +198,9 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Dashboard</h1>
-            <p className="text-slate-500 text-sm font-medium mt-0.5">
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-[0.14em] mb-1">{greeting()}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-slate-500 text-sm font-medium mt-1">
               Overview of your business performance
               {lastRefreshed && (
                 <span className="ml-2 text-slate-400">
@@ -234,7 +236,7 @@ export default function DashboardPage() {
                     currentShopRef.current = v;
                     localStorage.setItem("selected_shop_id", v);
                   }}
-                  className="appearance-none bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer min-w-[180px]"
+                  className="appearance-none bg-white border border-slate-200 rounded-lg pl-4 pr-10 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all cursor-pointer min-w-[180px]"
                 >
                   {shops.map((shop) => (
                     <option key={shop.id} value={shop.id}>
@@ -276,26 +278,34 @@ export default function DashboardPage() {
         )}
 
         {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           <MetricCard
+            index={0}
+            href="/dashboard/products"
             title="Total Products"
             value={safeStats.products_count}
             icon={<Package className="w-5 h-5" />}
             color="blue"
           />
           <MetricCard
+            index={1}
+            href="/dashboard/customers"
             title="Customers"
             value={safeStats.customers_count}
             icon={<Users className="w-5 h-5" />}
             color="emerald"
           />
           <MetricCard
+            index={2}
+            href="/dashboard/suppliers"
             title="Suppliers"
             value={safeStats.suppliers_count}
             icon={<Truck className="w-5 h-5" />}
             color="indigo"
           />
           <MetricCard
+            index={3}
+            href="/dashboard/alerts"
             title="Low Stock"
             value={safeStats.low_stock_count}
             icon={<AlertTriangle className="w-5 h-5" />}
@@ -311,8 +321,13 @@ export default function DashboardPage() {
 
         {/* Financial Overview — Admin/Manager only */}
         {(role === "admin" || role === "subadmin" || role === "manager") && (
-          <div className="bg-white border border-slate-100 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="bg-white border border-slate-200/70 rounded-xl overflow-hidden shadow-sm"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Financial Performance</h2>
               <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <span
@@ -422,7 +437,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
       </main>
     </>
@@ -430,6 +445,27 @@ export default function DashboardPage() {
 }
 
 // ─── Metric Card ───────────────────────────────────────────────
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+};
+
+/** Animates a number from its previous value to the new one. */
+const CountUp = ({ value }: { value: number }) => {
+  const [display, setDisplay] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    const controls = animate(prev.current, value, {
+      duration: 0.9,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    prev.current = value;
+    return () => controls.stop();
+  }, [value]);
+  return <>{display.toLocaleString()}</>;
+};
+
 const MetricCard = ({
   title,
   value,
@@ -437,6 +473,8 @@ const MetricCard = ({
   color,
   isAlert,
   subtitle,
+  href,
+  index = 0,
 }: {
   title: string;
   value: number;
@@ -444,48 +482,57 @@ const MetricCard = ({
   color: string;
   isAlert?: boolean;
   subtitle?: string;
+  href?: string;
+  index?: number;
 }) => {
   const colorMap: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-600 border-blue-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
-    rose: "bg-rose-50 text-rose-600 border-rose-100",
+    blue: "bg-blue-50 text-blue-600 ring-blue-100",
+    emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+    indigo: "bg-indigo-50 text-indigo-600 ring-indigo-100",
+    rose: "bg-rose-50 text-rose-600 ring-rose-100",
   };
 
-  return (
+  const card = (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-white border border-slate-100 p-5 rounded-xl hover:border-slate-200 transition-colors ${
-        isAlert ? "border-rose-100 bg-rose-50/20" : ""
+      transition={{ duration: 0.45, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
+      className={`group relative h-full bg-white border p-5 rounded-xl shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+        isAlert ? "border-rose-200/80" : "border-slate-200/70 hover:border-slate-300/80"
       }`}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
             {title}
           </p>
-          <h3 className="text-2xl font-bold text-slate-900">
-            {Number(value || 0).toLocaleString()}
+          <h3 className="text-[28px] leading-none font-bold text-slate-900 tracking-tight tabular-nums">
+            <CountUp value={Number(value || 0)} />
           </h3>
           {subtitle && (
-            <p className="text-[10px] font-semibold text-rose-500 mt-0.5">{subtitle}</p>
+            <p className="text-[11px] font-semibold text-rose-500 mt-1.5">{subtitle}</p>
           )}
         </div>
-        <div className={`p-2.5 rounded-xl border ${colorMap[color]}`}>{icon}</div>
+        <div className={`p-2.5 rounded-lg ring-1 transition-transform duration-300 group-hover:scale-105 ${colorMap[color]}`}>{icon}</div>
       </div>
-      <div className="mt-4 flex items-center gap-1.5">
-        <div
-          className={`w-1.5 h-1.5 rounded-full ${
-            isAlert ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
-          }`}
-        />
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-          {isAlert ? "Action Required" : "Status: Healthy"}
-        </span>
+      <div className="mt-5 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="relative flex w-1.5 h-1.5">
+            {isAlert && <span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-60 animate-ping" />}
+            <span className={`relative inline-flex w-1.5 h-1.5 rounded-full ${isAlert ? "bg-rose-500" : "bg-emerald-500"}`} />
+          </span>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
+            {isAlert ? "Action required" : "Healthy"}
+          </span>
+        </div>
+        {href && (
+          <ArrowUpRight className="w-4 h-4 text-slate-300 transition-all duration-300 group-hover:text-slate-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        )}
       </div>
     </motion.div>
   );
+
+  return href ? <Link href={href} className="block rounded-xl">{card}</Link> : card;
 };
 
 // ─── Financial Card ────────────────────────────────────────────

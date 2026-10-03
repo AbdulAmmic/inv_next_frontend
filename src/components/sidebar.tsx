@@ -135,20 +135,26 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     return (
       <Link
         href={item.href}
+        title={!isOpen ? item.label : undefined}
         onClick={item.isLogout ? (e) => { e.preventDefault(); handleSignOut(); } : undefined}
         className={`
-          flex items-center group transition-all duration-200 py-3 rounded-2xl px-4 mb-1
+          relative flex items-center group transition-colors duration-200 h-10 rounded-lg px-3
           ${isActive
-            ? "bg-amber-500 text-white shadow-lg shadow-amber-200"
-            : "text-slate-500 hover:bg-amber-50 hover:text-amber-800"}
+            ? "bg-amber-50 text-amber-800"
+            : item.isLogout
+              ? "text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}
           ${!isOpen ? "justify-center px-0" : ""}
         `}
       >
-        <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isOpen ? "mr-4" : ""}`} />
-        {isOpen && <span className="font-semibold text-sm">{item.label}</span>}
-        {!isOpen && isActive && (
-          <div className="absolute left-0 w-1 h-6 bg-amber-500 rounded-r-full" />
-        )}
+        <span
+          className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-amber-500 transition-all duration-300 ${isActive ? "h-5 opacity-100" : "h-0 opacity-0"}`}
+        />
+        <item.icon
+          className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${isActive ? "text-amber-600" : "text-slate-400 group-hover:text-slate-700"} ${isOpen ? "mr-3" : ""}`}
+          strokeWidth={isActive ? 2.25 : 2}
+        />
+        {isOpen && <span className={`text-[13px] truncate ${isActive ? "font-bold" : "font-medium"}`}>{item.label}</span>}
       </Link>
     );
   };
@@ -156,43 +162,43 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   return (
     <>
       {isMobile && isOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden" onClick={toggleSidebar} />
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 lg:hidden animate-fade-in" onClick={toggleSidebar} />
       )}
 
       <aside
         className={`
             ${isMobile ? "fixed" : "relative"} top-0 left-0 z-40 h-screen
             flex flex-col bg-white border-r border-slate-100
-            transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)
-            ${isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : ""}
-            ${isOpen ? "w-72" : "w-24"}
+            transition-[width,translate,box-shadow] duration-300 ease-smooth
+            ${isMobile ? (isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full") : ""}
+            ${isOpen ? "w-64" : "w-[76px]"}
           `}
       >
         {/* Brand */}
-        <div className="h-20 flex items-center px-5 mb-4">
+        <div className="h-[68px] flex items-center px-5 mb-2 border-b border-slate-100/80">
           <div className={`flex items-center transition-all duration-300 ${!isOpen ? "w-full justify-center" : ""}`}>
             {isOpen ? (
               <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 flex-shrink-0">
-                  <BrandMark size={40} />
+                <div className="relative w-9 h-9 flex-shrink-0">
+                  <BrandMark size={36} rounded="rounded-lg" />
                 </div>
                 <div className="overflow-hidden whitespace-nowrap">
                   <p className="text-sm font-black text-slate-800 truncate max-w-[140px]">{businessName}</p>
-                  <p className="text-[9px] text-amber-700 font-black uppercase tracking-[0.2em] leading-none mt-0.5">Management System</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.18em] leading-none mt-1">Management System</p>
                 </div>
               </div>
             ) : (
-              <div className="relative w-10 h-10">
-                <BrandMark size={40} />
+              <div className="relative w-9 h-9">
+                <BrandMark size={36} rounded="rounded-lg" />
               </div>
             )}
           </div>
         </div>
 
         {/* Scrollable Navigation */}
-        <nav className="flex-1 px-4 overflow-y-auto custom-scrollbar space-y-1 pb-6">
+        <nav className="flex-1 px-3 pt-2 overflow-y-auto custom-scrollbar space-y-0.5 pb-6">
           <div className={`${isOpen ? 'px-2 mb-2' : 'hidden'}`}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">General</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.16em]">General</p>
           </div>
           {allowedMenu.map((item, index) => (
             <NavLink key={index} item={item} />
@@ -205,9 +211,9 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
         </nav>
 
         {/* Footer Navigation */}
-        <div className="px-4 py-6 border-t border-slate-50 gap-1 flex flex-col">
+        <div className="px-3 py-4 border-t border-slate-100 gap-0.5 flex flex-col">
           <div className={`${isOpen ? 'px-2 mb-2' : 'hidden'}`}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Account</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.16em]">Account</p>
           </div>
           {allowedBottom.map((item, index) => (
             <NavLink key={index} item={item} />
@@ -215,9 +221,9 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
 
           <button
             onClick={toggleSidebar}
-            className="w-full mt-4 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 hover:text-amber-800 hover:bg-amber-100 transition-all border border-amber-100"
+            className="w-full mt-3 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors border border-slate-200"
           >
-            {isOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+            {isOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </aside>

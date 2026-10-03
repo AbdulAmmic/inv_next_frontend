@@ -143,7 +143,7 @@ Total: ₦${sale.total.toLocaleString()}
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[3px]">
             <div className="bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col w-full max-w-sm sm:max-w-md">
 
                 {/* Header Actions */}

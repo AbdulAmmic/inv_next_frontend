@@ -264,7 +264,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", duration: 0.5 }}
-          className="glass-card rounded-[2rem] p-8 md:p-10"
+          className="glass-card rounded-2xl p-8 md:p-10"
         >
           <AnimatePresence mode="wait">
             {!showForgot ? (

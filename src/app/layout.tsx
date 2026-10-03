@@ -41,7 +41,25 @@ export default function RootLayout({
       <body
         className="antialiased text-black"
       >
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-right"
+          gutter={8}
+          toastOptions={{
+            duration: 3500,
+            style: {
+              borderRadius: "8px",
+              background: "#ffffff",
+              color: "#1a1208",
+              fontSize: "13px",
+              fontWeight: 500,
+              padding: "10px 14px",
+              border: "1px solid #ece4d6",
+              boxShadow: "0 10px 24px -8px rgb(26 18 8 / 0.14)",
+            },
+            success: { iconTheme: { primary: "#10b981", secondary: "#ffffff" } },
+            error: { iconTheme: { primary: "#f43f5e", secondary: "#ffffff" } },
+          }}
+        />
         {children}
       </body>
     </html>

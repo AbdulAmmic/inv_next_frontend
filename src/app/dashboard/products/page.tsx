@@ -321,7 +321,7 @@ export default function ProductsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-card p-4 rounded-[1.5rem] flex flex-col md:flex-row gap-4 shadow-xl shadow-slate-200/50"
+          className="glass-card p-4 rounded-xl flex flex-col md:flex-row gap-4 shadow-xl shadow-slate-200/50"
         >
           <div className="flex-1 relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors w-4 h-4" />
@@ -379,7 +379,7 @@ export default function ProductsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+          className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
         >
           <ProductsTable
             products={filteredProducts}

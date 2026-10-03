@@ -209,7 +209,7 @@ export default function AlertsPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="glass-card p-4 rounded-[1.5rem] flex items-center shadow-xl shadow-slate-200/50 group"
+        className="glass-card p-4 rounded-xl flex items-center shadow-xl shadow-slate-200/50 group"
       >
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
@@ -230,9 +230,9 @@ export default function AlertsPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="glass-card rounded-[2.5rem] p-20 text-center flex flex-col items-center border border-white shadow-xl shadow-slate-200/50"
+            className="glass-card rounded-2xl p-20 text-center flex flex-col items-center border border-white shadow-xl shadow-slate-200/50"
           >
-            <div className="w-24 h-24 bg-emerald-50 rounded-[3rem] flex items-center justify-center mb-8">
+            <div className="w-24 h-24 bg-emerald-50 rounded-2xl flex items-center justify-center mb-8">
               <Package className="w-12 h-12 text-emerald-500" />
             </div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">All Clear!</h2>
@@ -245,7 +245,7 @@ export default function AlertsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+            className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
           >
             <div className="overflow-x-auto">
               <table className="w-full text-left min-w-[900px]">

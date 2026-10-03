@@ -179,13 +179,13 @@ export default function CustomersPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: stat.delay }}
-              className="glass-card p-6 rounded-[2rem] flex items-center justify-between border border-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
+              className="glass-card p-6 rounded-2xl flex items-center justify-between border border-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
             >
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
                 <p className="text-3xl font-black text-slate-900 mt-1">{stat.value}</p>
               </div>
-              <div className={`p-4 rounded-[1.2rem] bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
+              <div className={`p-4 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
                 <stat.icon className="w-6 h-6" />
               </div>
             </motion.div>
@@ -197,7 +197,7 @@ export default function CustomersPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-card p-4 rounded-[1.5rem] shadow-xl shadow-slate-200/50 group"
+          className="glass-card p-4 rounded-xl shadow-xl shadow-slate-200/50 group"
         >
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors w-5 h-5" />
@@ -216,7 +216,7 @@ export default function CustomersPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="glass-card rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
+          className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50"
         >
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left min-w-[900px]">
@@ -242,7 +242,7 @@ export default function CustomersPage() {
                     >
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-900 text-white rounded-[1.2rem] flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200">
+                          <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200">
                             {customer.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -304,7 +304,7 @@ export default function CustomersPage() {
                   <tr>
                     <td colSpan={4} className="p-20 text-center">
                       <div className="flex flex-col items-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
                           <Users className="w-10 h-10 text-slate-200" />
                         </div>
                         <h3 className="text-xl font-extrabold text-slate-900">No customers found</h3>
@@ -344,7 +344,7 @@ export default function CustomersPage() {
                   className="p-5 flex flex-col gap-4 bg-white/50 hover:bg-white transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 text-white rounded-[1.2rem] flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200 shrink-0">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200 shrink-0">
                       {customer.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -444,7 +444,7 @@ export default function CustomersPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden overflow-y-auto max-h-screen no-scrollbar"
+              className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden overflow-y-auto max-h-screen no-scrollbar"
             >
               <div className="p-8 pb-4 flex justify-between items-center">
                 <div>
@@ -464,7 +464,7 @@ export default function CustomersPage() {
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
                     Full Identity *
                   </label>
-                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-[1.2rem] p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
+                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
                     <User className="text-slate-400 w-5 h-5 mr-4 group-focus-within:text-slate-900 transition-colors" />
                     <input
                       type="text"
@@ -482,7 +482,7 @@ export default function CustomersPage() {
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
                     Digital Reach
                   </label>
-                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-[1.2rem] p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
+                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
                     <Mail className="text-slate-400 w-5 h-5 mr-4 group-focus-within:text-slate-900 transition-colors" />
                     <input
                       type="email"
@@ -500,7 +500,7 @@ export default function CustomersPage() {
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
                     Direct Handle
                   </label>
-                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-[1.2rem] p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
+                  <div className="flex items-center bg-slate-50/50 border border-slate-100 rounded-xl p-4 focus-within:ring-4 focus-within:ring-slate-100 focus-within:border-slate-300 transition-all group">
                     <Phone className="text-slate-400 w-5 h-5 mr-4 group-focus-within:text-slate-900 transition-colors" />
                     <input
                       type="tel"
@@ -522,7 +522,7 @@ export default function CustomersPage() {
               <div className="p-8 pt-4 flex gap-4">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-6 py-4 text-slate-400 bg-slate-50 hover:bg-slate-100 rounded-[1.2rem] font-bold transition-all active:scale-95"
+                  className="flex-1 px-6 py-4 text-slate-400 bg-slate-50 hover:bg-slate-100 rounded-xl font-bold transition-all active:scale-95"
                   disabled={submitting}
                 >
                   Discard
@@ -530,7 +530,7 @@ export default function CustomersPage() {
                 <button
                   onClick={handleCreateCustomer}
                   disabled={submitting || !newCustomer.name.trim()}
-                  className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 text-white rounded-[1.2rem] font-black hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-xl shadow-slate-200"
+                  className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 bg-slate-900 text-white rounded-xl font-black hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-xl shadow-slate-200"
                 >
                   {submitting ? (
                     <>

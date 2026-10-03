@@ -141,7 +141,7 @@ const POSSystem: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       {showBarcodeScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg text-center">
             <div className="w-64 h-64 border-4 border-dashed border-indigo-500 rounded-lg flex items-center justify-center mb-4">
               <div className="animate-pulse text-indigo-500">

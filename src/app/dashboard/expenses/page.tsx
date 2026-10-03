@@ -453,7 +453,7 @@ export default function ExpensesPage() {
 
       {/* DELETE MODAL */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95 duration-200">
             <h3 className="font-bold text-lg mb-2">Delete Expense</h3>
             <p className="text-gray-600 mb-6">
@@ -480,7 +480,7 @@ export default function ExpensesPage() {
 
       {/* DETAILS MODAL */}
       {showDetailsModal && selectedExpense && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b flex justify-between items-center bg-gray-50">
               <h2 className="text-xl font-bold text-gray-800">Expense Details</h2>
@@ -549,7 +549,7 @@ export default function ExpensesPage() {
 
       {/* ADD EXPENSE MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-800">New Expense</h2>

@@ -330,7 +330,7 @@ export default function PurchasesPage() {
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-[1.2rem] flex items-center justify-between shadow-lg shadow-rose-100/50">
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between shadow-lg shadow-rose-100/50">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-rose-200 text-rose-600 rounded-lg animate-pulse">
                     <AlertCircle className="w-5 h-5" />
@@ -487,7 +487,7 @@ export default function PurchasesPage() {
                       >
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-slate-100 text-slate-900 rounded-[1.2rem] flex items-center justify-center font-black text-xs shadow-inner uppercase tracking-tighter">
+                            <div className="w-12 h-12 bg-slate-100 text-slate-900 rounded-xl flex items-center justify-center font-black text-xs shadow-inner uppercase tracking-tighter">
                               #{p.purchase_number.split('-')[1] || p.purchase_number.slice(-4)}
                             </div>
                             <div>
@@ -571,7 +571,7 @@ export default function PurchasesPage() {
                   <tr>
                     <td colSpan={6} className="p-8 sm:p-16 lg:p-24 text-center">
                       <div className="flex flex-col items-center">
-                        <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-6">
                           <Package className="w-10 h-10 text-slate-200" />
                         </div>
                         <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Purchase Registry Empty</h3>
@@ -610,7 +610,7 @@ export default function PurchasesPage() {
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-100 text-slate-900 rounded-[1rem] flex items-center justify-center font-black text-xs shadow-inner uppercase tracking-tighter shrink-0">
+                        <div className="w-10 h-10 bg-slate-100 text-slate-900 rounded-lg flex items-center justify-center font-black text-xs shadow-inner uppercase tracking-tighter shrink-0">
                           #{p.purchase_number.split('-')[1] || p.purchase_number.slice(-4)}
                         </div>
                         <div>

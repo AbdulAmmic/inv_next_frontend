@@ -231,7 +231,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[40] transition-all duration-300">
+    <div className="modal-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-2 sm:p-4 z-[40]">
       <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[96vh] overflow-hidden shadow-2xl animate-scaleIn">
         {/* Enhanced Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-700 p-4 sm:p-6 text-white">
@@ -567,7 +567,7 @@ const PurchaseModal = ({ isOpen, onClose, onSave, onProductAdded, onSupplierAdde
     )}
 
     {showSupplierModal && (
-      <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
+      <div className="modal-overlay fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-[3px] flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-lg rounded-xl p-5 space-y-4 shadow-2xl">
           <h3 className="text-lg font-bold">Quick Add Supplier</h3>
           <input
