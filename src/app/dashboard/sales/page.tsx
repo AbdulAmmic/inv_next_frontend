@@ -213,6 +213,30 @@ export default function SalesPage() {
   const paymentMethods = ["all", "Cash", "Card", "Transfer", "POS", "Credit"];
   const statuses = ["all", "completed", "refunded", "pending"];
 
+  const canSeeAmounts = currentUserRole === "admin" || currentUserRole === "subadmin";
+
+  const handleExport = () => {
+    if (!sortedSales.length) {
+      toast.error("No sales to export");
+      return;
+    }
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Sale #", "Date", "Customer", "Staff", "Amount", "Payment", "Status"];
+    const lines = sortedSales.map((s) =>
+      [s.sale_number, s.created_at_display, s.customer_name || "Walk-in", s.staff_name || "", s.amount, s.payment_method || "", s.status]
+        .map(esc)
+        .join(",")
+    );
+    const blob = new Blob(["\uFEFF" + [header.map(esc).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sales-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success(`Exported ${sortedSales.length} sales`);
+  };
+
   const formatCurrency = (val: number) => {
     if (currentUserRole !== "admin" && currentUserRole !== "subadmin") return "₦******";
     return `₦${val.toLocaleString()}`;
@@ -232,58 +256,76 @@ export default function SalesPage() {
     <>
       <main className="p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto space-y-6 lg:space-y-8 overflow-hidden">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Sales Records</h1>
-            <p className="text-slate-500 text-sm font-medium">Monitoring transactions for {selectedShop || "all shops"}</p>
-          </div>
+        {/* Header — same layout as the Stock page */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                Sales
+              </div>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Sales</h1>
+          </motion.div>
 
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto"
+          >
+            <div className="relative group w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search sale # or customer..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all w-full sm:w-64"
+              />
+            </div>
+
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-bold transition-all w-full sm:w-auto ${showFilters ? 'bg-slate-100 border-slate-300 text-slate-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
+              className={`inline-flex items-center justify-center gap-2 border rounded-xl px-4 py-2.5 text-sm font-bold active:scale-95 transition-all shadow-sm w-full sm:w-auto ${
+                showFilters ? "bg-slate-100 border-slate-300 text-slate-900" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+              }`}
             >
               <Filter className="w-4 h-4" />
-              {showFilters ? "Hide Filters" : "Filters"}
+              Filters
             </button>
+
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 disabled:opacity-50 transition-all shadow-sm w-full sm:w-auto"
+              title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Sync
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
-            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all w-full sm:w-auto">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-          </div>
+
+            {canSeeAmounts && (
+              <button
+                onClick={handleExport}
+                className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 w-full sm:w-auto"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            )}
+          </motion.div>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
-          <StatCard
-            title="Gross Revenue"
-            value={formatCurrency(totalSalesAmount)}
-            icon={<TrendingUp className="w-5 h-5" />}
-            color="emerald"
-          />
-          <StatCard
-            title="Total Returns"
-            value={formatCurrency(totalRefunds)}
-            icon={<TrendingDown className="w-5 h-5" />}
-            color="rose"
-          />
-          <StatCard
-            title="Net Position"
-            value={formatCurrency(netAmount)}
-            icon={<DollarSign className="w-5 h-5" />}
-            color="blue"
-          />
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
+        >
+          <StatCard title="Transactions" value={filteredSales.length.toLocaleString()} icon={<ShoppingBag className="w-5 h-5" />} color="blue" />
+          <StatCard title="Gross Revenue" value={formatCurrency(totalSalesAmount)} icon={<TrendingUp className="w-5 h-5" />} color="emerald" />
+          <StatCard title="Returns" value={formatCurrency(totalRefunds)} icon={<TrendingDown className="w-5 h-5" />} color="rose" />
+          <StatCard title="Net" value={formatCurrency(netAmount)} icon={<DollarSign className="w-5 h-5" />} color="amber" />
+        </motion.div>
 
         {/* Filters Panel */}
         <AnimatePresence>
@@ -294,51 +336,37 @@ export default function SalesPage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-6">
+              <div className="glass-card rounded-2xl p-4 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Advanced Filtering</h3>
+                  <h3 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Filters</h3>
                   <button
                     onClick={() => setFilters({
                       search: "", customer: "all", staff: "all", payment_method: "all", status: "all", startDate: "", endDate: ""
                     })}
-                    className="text-xs font-bold text-blue-600 hover:underline"
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-900"
                   >
-                    Reset All
+                    Clear all
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Search</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Sale # or Customer..."
-                        value={filters.search}
-                        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Payment Method</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Method</label>
                     <select
                       value={filters.payment_method}
                       onChange={(e) => setFilters({ ...filters, payment_method: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all capitalize"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all capitalize"
                     >
                       {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Status</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
                     <select
                       value={filters.status}
                       onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all capitalize"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all capitalize"
                     >
                       {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -346,11 +374,11 @@ export default function SalesPage() {
 
                   {currentUserRole === "admin" && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Staff Member</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff Member</label>
                       <select
                         value={filters.staff}
                         onChange={(e) => setFilters({ ...filters, staff: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all"
                       >
                         <option value="all">All Staff</option>
                         {staffList.map(s => <option key={s} value={s}>{s}</option>)}
@@ -359,22 +387,22 @@ export default function SalesPage() {
                   )}
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">From Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">From Date</label>
                     <input
                       type="date"
                       value={filters.startDate}
                       onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">To Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">To Date</label>
                     <input
                       type="date"
                       value={filters.endDate}
                       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-all"
                     />
                   </div>
                 </div>
@@ -384,67 +412,65 @@ export default function SalesPage() {
         </AnimatePresence>
 
         {/* Transactions Table */}
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-2xl overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50">
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full min-w-[940px] text-left border-collapse">
+            <table className="w-full min-w-[940px] text-sm text-left">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-16">#</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Ref & Date</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Staff</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                                    <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Sale</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Customer</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Staff</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Amount</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Status</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-slate-50">
                 {paginatedSales.length > 0 ? (
                   paginatedSales.map((sale, idx) => (
                     <motion.tr
                       key={sale.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="group hover:bg-slate-50/50 transition-colors"
+                      className="group hover:bg-slate-50/70 transition-colors"
                     >
-                      <td className="px-6 py-4 text-center font-bold text-slate-300">{idx + 1}</td>
-                      <td className="px-6 py-4">
-                        <p className="font-black text-slate-900">{sale.sale_number}</p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+                                            <td className="px-6 py-4">
+                        <p className="font-bold text-slate-900">{sale.sale_number}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium mt-0.5">
                           <Clock className="w-3 h-3 shrink-0" />
                           <span>{sale.created_at_display}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-700">{sale.customer_name || "Walk-in"}</p>
+                        <span className="text-slate-700">{sale.customer_name || "Walk-in"}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-700">{sale.staff_name || "Unknown"}</p>
+                        <span className="text-slate-600">{sale.staff_name || "Unknown"}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <p className={`font-black ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                        <p className={`font-bold ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                           ₦{Math.abs(sale.amount).toLocaleString()}
                         </p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{sale.payment_method}</p>
+                        <p className="text-[10px] font-medium text-slate-400 capitalize mt-0.5">{sale.payment_method}</p>
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={sale.status} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-2">
                           <button
                             onClick={() => handleViewReceipt(sale.id)}
-                            className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-lg text-slate-600 transition-all"
+                            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
                             title="Receipt"
                           >
-                            <Printer className="w-4 h-4" />
+                            <Printer size={18} />
                           </button>
                           <button
                             onClick={() => router.push(`/dashboard/sales/details?id=${sale.id}`)}
-                            className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-lg text-blue-600 transition-all"
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                             title="Details"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye size={18} />
                           </button>
                         </div>
                       </td>
@@ -452,13 +478,13 @@ export default function SalesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center gap-3 grayscale opacity-40">
-                        <ShoppingBag className="w-12 h-12" />
-                        <div>
-                          <p className="font-bold text-slate-900">No transactions recorded</p>
-                          <p className="text-xs font-medium">Try adjusting your filters or sync with the server</p>
+                    <td colSpan={6} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
+                          <ShoppingBag className="w-8 h-8 text-slate-300" />
                         </div>
+                        <h3 className="text-lg font-bold text-slate-900">No sales found</h3>
+                        <p className="text-slate-500 max-w-xs mx-auto mt-1">Try a different search or clear the filters.</p>
                       </div>
                     </td>
                   </tr>
@@ -478,8 +504,8 @@ export default function SalesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-black text-slate-900 break-words">{sale.sale_number}</p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-1">
+                      <p className="font-bold text-slate-900 break-words">{sale.sale_number}</p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium mt-0.5">
                         <Clock className="w-3 h-3 shrink-0" />
                         <span>{sale.created_at_display}</span>
                       </div>
@@ -488,21 +514,21 @@ export default function SalesPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl bg-slate-50 p-3 min-w-0">
+                    <div className="rounded-lg bg-slate-50 p-3 min-w-0">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer</p>
                       <p className="font-semibold text-slate-700 truncate">{sale.customer_name || "Walk-in"}</p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3 min-w-0">
+                    <div className="rounded-lg bg-slate-50 p-3 min-w-0">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff</p>
                       <p className="font-semibold text-slate-700 truncate">{sale.staff_name || "Unknown"}</p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="rounded-lg bg-slate-50 p-3">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount</p>
-                      <p className={`font-black ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                      <p className={`font-bold ${sale.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                         {formatCurrency(Math.abs(sale.amount))}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="rounded-lg bg-slate-50 p-3">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</p>
                       <p className="font-semibold text-slate-700 uppercase">{sale.payment_method || "N/A"}</p>
                     </div>
@@ -511,14 +537,14 @@ export default function SalesPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleViewReceipt(sale.id)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       <Printer className="w-4 h-4" />
                       Receipt
                     </button>
                     <button
                       onClick={() => router.push(`/dashboard/sales/details?id=${sale.id}`)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                       <Eye className="w-4 h-4" />
                       Details
@@ -528,12 +554,10 @@ export default function SalesPage() {
               ))
             ) : (
               <div className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 grayscale opacity-40">
-                  <ShoppingBag className="w-12 h-12" />
-                  <div>
-                    <p className="font-bold text-slate-900">No transactions recorded</p>
-                    <p className="text-xs font-medium">Try adjusting your filters or sync with the server</p>
-                  </div>
+                <div className="flex flex-col items-center">
+                  <ShoppingBag className="w-8 h-8 text-slate-300 mb-3" />
+                  <p className="font-bold text-slate-900">No sales found</p>
+                  <p className="text-sm text-slate-500 mt-1">Try a different search or clear the filters.</p>
                 </div>
               </div>
             )}
@@ -547,14 +571,10 @@ export default function SalesPage() {
             onPageChange={setPage}
           />
 
-          <div className="px-4 sm:px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-bold text-slate-400">
-            <span>SHOWING {filteredSales.length} OF {sales.length} RECORDS</span>
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="uppercase tracking-widest">Database Synchronized</span>
-            </div>
+          <div className="px-6 py-3 border-t border-slate-100 text-xs text-slate-500">
+            Showing {filteredSales.length.toLocaleString()} of {sales.length.toLocaleString()} sales
           </div>
-        </div>
+        </motion.div>
       </main>
 
       <AnimatePresence>
@@ -571,37 +591,36 @@ export default function SalesPage() {
 
 const StatCard = ({ title, value, icon, color }: any) => {
   const colorMap: any = {
-    emerald: "text-emerald-600 bg-emerald-50",
-    rose: "text-rose-600 bg-rose-50",
-    blue: "text-blue-600 bg-blue-50",
+    emerald: "bg-emerald-50 text-emerald-600",
+    rose: "bg-rose-50 text-rose-600",
+    blue: "bg-blue-50 text-blue-600",
+    amber: "bg-amber-50 text-amber-600",
   };
 
   return (
-    <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-all">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`p-2.5 rounded-xl ${colorMap[color]}`}>
-          {icon}
-        </div>
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</span>
+    <div className="glass-card p-4 rounded-2xl flex items-center gap-4">
+      <div className={`p-3 rounded-xl ${colorMap[color]}`}>{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+        <p className="text-lg font-bold text-slate-900 truncate">{value}</p>
       </div>
-      <div className="text-2xl font-black text-slate-900 tracking-tight">{value}</div>
     </div>
   );
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
   const configs: any = {
-    completed: { color: 'text-emerald-700 bg-emerald-50 border-emerald-100', icon: <CheckCircle className="w-3 h-3" /> },
-    refunded: { color: 'text-rose-700 bg-rose-50 border-rose-100', icon: <XCircle className="w-3 h-3" /> },
-    pending: { color: 'text-amber-700 bg-amber-50 border-amber-100', icon: <Clock className="w-3 h-3" /> },
+    completed: { color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+    refunded: { color: "bg-rose-100 text-rose-700", dot: "bg-rose-500" },
+    pending: { color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
   };
 
   const config = configs[status] || configs.pending;
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${config.color}`}>
-      {config.icon}
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${config.color}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
       {status}
-    </div>
+    </span>
   );
 };
