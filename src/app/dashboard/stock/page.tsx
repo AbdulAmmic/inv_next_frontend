@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStocks, adjustStock, createTransfer, getShops, updateStock } from "@/apiCalls";
 import { toast } from "react-hot-toast";
-import { ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown, Loader2 } from "lucide-react";
+import { CalendarClock, ArrowLeftRight, RefreshCw, Wrench, Edit, Search, Download, Package, Activity, AlertTriangle, Filter, ChevronDown, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import Loader from "@/components/Loader";
 import Pagination from "@/components/Pagination";
+import BatchExpiryModal from "@/components/BatchExpiryModal";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -50,7 +51,7 @@ export default function StockPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRow, setSelectedRow] = useState<StockRow | null>(null);
-  const [modalType, setModalType] = useState<"adjust" | "transfer" | "edit" | "grievance" | null>(null);
+  const [modalType, setModalType] = useState<"adjust" | "transfer" | "edit" | "grievance" | "expiry" | null>(null);
 
   // Reactive shop selection — listens for changes from other components/tabs
   const [selectedShopId, setSelectedShopId] = useState<string>(
@@ -509,6 +510,12 @@ export default function StockPage() {
                         </td>
 
                         <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedRow(row); setModalType("expiry"); }}
+                            title="View or edit expiry dates"
+                            className="rounded-full hover:ring-2 hover:ring-amber-200 transition-shadow"
+                          >
                           {row.nearestExpiry ? (
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                               row.expiryStatus === "expired"
@@ -521,8 +528,11 @@ export default function StockPage() {
                               {row.nearestExpiry}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-slate-400 font-bold italic">No batch data</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 font-bold italic hover:text-amber-700">
+                              <CalendarClock size={12} /> Set expiry
+                            </span>
                           )}
+                          </button>
                         </td>
 
                         {userRole !== "manager" && (
@@ -562,6 +572,17 @@ export default function StockPage() {
                                   <AlertTriangle size={18} />
                                 </button>
                               )}
+
+                              <button
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                onClick={() => {
+                                  setSelectedRow(row);
+                                  setModalType("expiry");
+                                }}
+                                title="Expiry Dates & Batches"
+                              >
+                                <CalendarClock size={18} />
+                              </button>
 
                               <button
                                 className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
@@ -631,6 +652,17 @@ export default function StockPage() {
           />
         )}
       </AnimatePresence>
+
+      {modalType === "expiry" && selectedRow && (
+        <BatchExpiryModal
+          stockId={selectedRow.id}
+          productName={selectedRow.productName}
+          currentStock={selectedRow.currentStock}
+          canEdit={["admin", "subadmin", "manager"].includes((userRole || "").toLowerCase())}
+          onClose={() => setModalType(null)}
+          onChanged={fetchData}
+        />
+      )}
     </>
   );
 }

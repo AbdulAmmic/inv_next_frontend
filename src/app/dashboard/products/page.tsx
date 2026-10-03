@@ -6,10 +6,11 @@ import ProductsStats from "@/components/productsStats";
 import ProductsTable from "@/components/productsTable";
 import ProductFormModal from "@/components/productsModal";
 import DeleteProductModal from "@/components/deleteProductsModal";
+import ImportProductsModal from "@/components/ImportProductsModal";
 import { getProducts, updateProduct, deleteProduct, getShops, getSuppliers, createProduct } from "@/apiCalls";
 import type { Product, StockStatus } from "@/app/types/products";
 import { toast } from "react-hot-toast";
-import { Plus, Search, Filter, MoreVertical, LayoutGrid, List as ListIcon, Download, RefreshCw, Package, ArrowUpRight, TrendingUp, AlertCircle, Trash2, Edit2, Image as ImageIcon, Camera, X, Loader2, Save, ShoppingCart, Truck, Store, BarChart3, ChevronDown } from "lucide-react";
+import { FileSpreadsheet, Plus, Search, Filter, MoreVertical, LayoutGrid, List as ListIcon, Download, RefreshCw, Package, ArrowUpRight, TrendingUp, AlertCircle, Trash2, Edit2, Image as ImageIcon, Camera, X, Loader2, Save, ShoppingCart, Truck, Store, BarChart3, ChevronDown } from "lucide-react";
 import Loader from "@/components/Loader";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -40,6 +41,7 @@ export default function ProductsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // ------------------------------------------------
   // UTIL – determine stock status
@@ -306,6 +308,16 @@ export default function ProductsPage() {
               <span className="hidden sm:inline">Refresh</span>
             </button>
 
+            {["admin", "subadmin", "manager"].includes(userRole.toLowerCase()) && (
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-emerald-300 transition-all shadow-sm"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span className="hidden sm:inline">Import / Export</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowAddModal(true)}
               className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl px-6 py-2.5 text-sm font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-200 group"
@@ -430,6 +442,16 @@ export default function ProductsPage() {
           />
         )}
       </AnimatePresence>
+
+      {showImportModal && (
+        <ImportProductsModal
+          shops={shops}
+          defaultShopId={selectedShop}
+          canChooseShop={userRole.toLowerCase() === "admin"}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => selectedShop && fetchProducts(selectedShop)}
+        />
+      )}
     </>
   );
 }

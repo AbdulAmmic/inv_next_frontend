@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
+  CalendarClock,
   Package,
   AlertTriangle,
   Search,
@@ -13,6 +14,7 @@ import {
 import { getStocks } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/Loader";
+import BatchExpiryModal from "@/components/BatchExpiryModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
@@ -39,6 +41,15 @@ export default function AlertsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
+  const [expiryRow, setExpiryRow] = useState<AlertRow | null>(null);
+  const canEditExpiry = (() => {
+    try {
+      const role = JSON.parse(localStorage.getItem("user") || "{}").role || "";
+      return ["admin", "subadmin", "manager"].includes(role.toLowerCase());
+    } catch {
+      return false;
+    }
+  })();
 
   const selectedShopId =
     typeof window !== "undefined"
@@ -300,6 +311,12 @@ export default function AlertsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setExpiryRow(row)}
+                            title="View or edit expiry dates"
+                            className="rounded-full hover:ring-2 hover:ring-amber-200 transition-shadow"
+                          >
                           {row.nearestExpiry ? (
                             <span
                               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
@@ -313,10 +330,21 @@ export default function AlertsPage() {
                               {row.nearestExpiry}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-slate-400 font-bold italic">—</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 font-bold italic hover:text-amber-700">
+                              <CalendarClock className="w-3 h-3" /> Set expiry
+                            </span>
                           )}
+                          </button>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setExpiryRow(row)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 mr-2 border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:border-amber-300 hover:text-amber-700 transition-all"
+                            title="Edit expiry dates"
+                          >
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            Expiry
+                          </button>
                           <button
                             onClick={() => router.push("/dashboard/stock")}
                             className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-600 transition-all active:scale-95"
@@ -334,6 +362,17 @@ export default function AlertsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {expiryRow && (
+        <BatchExpiryModal
+          stockId={expiryRow.id}
+          productName={expiryRow.productName}
+          currentStock={expiryRow.currentStock}
+          canEdit={canEditExpiry}
+          onClose={() => setExpiryRow(null)}
+          onChanged={fetchData}
+        />
+      )}
     </main>
   );
 }
