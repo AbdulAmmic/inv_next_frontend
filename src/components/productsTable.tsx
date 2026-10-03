@@ -60,11 +60,11 @@ export default function ProductsTable({
 
   const sortIcon = (field: string) =>
     sortField !== field ? (
-      <ChevronDown className="w-4 h-4 opacity-40" />
+      <ChevronDown className="w-3.5 h-3.5 opacity-30" />
     ) : sortOrder === "asc" ? (
-      <ChevronUp className="w-4 h-4 text-blue-600" />
+      <ChevronUp className="w-3.5 h-3.5 text-slate-700" />
     ) : (
-      <ChevronDown className="w-4 h-4 text-blue-600" />
+      <ChevronDown className="w-3.5 h-3.5 text-slate-700" />
     );
 
   const getStatusInfo = (status: string) => {
@@ -115,7 +115,7 @@ export default function ProductsTable({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex flex-col gap-3 p-4 bg-slate-900 text-white sticky top-0 z-20 rounded-t-2xl md:flex-row md:items-center md:justify-between"
+            className="flex flex-col gap-3 px-6 py-3 bg-amber-50 border-b border-amber-100 text-slate-900 sticky top-0 z-20 md:flex-row md:items-center md:justify-between"
           >
             <p className="font-bold text-sm">
               {selectedProducts.length} products selected
@@ -123,13 +123,13 @@ export default function ProductsTable({
             <div className="flex gap-3">
               <button
                 onClick={() => onSelectProduct([])}
-                className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+                className="px-3 py-1.5 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors"
               >
                 Deselect All
               </button>
               <button
                 onClick={onBulkDelete}
-                className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-900/20"
+                className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-sm font-semibold hover:bg-rose-700 transition-colors"
               >
                 Delete Selected
               </button>
@@ -141,30 +141,30 @@ export default function ProductsTable({
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left min-w-[1000px]">
           <thead>
-          <tr className="bg-slate-50/50 border-b border-slate-100 italic">
+          <tr className="bg-slate-50/50 border-b border-slate-100">
             <th className="px-6 py-4 w-10">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-slate-300"
                 checked={products.length > 0 && selectedProducts.length === products.length}
                 onChange={toggleSelectAll}
               />
             </th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => toggleSort("name")}>
-              <div className="flex items-center gap-2">Product Name {sortIcon("name")}</div>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] cursor-pointer" onClick={() => toggleSort("name")}>
+              <div className="flex items-center gap-2">Product {sortIcon("name")}</div>
             </th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Category</th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Shelf</th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] cursor-pointer text-center" onClick={() => toggleSort("stockQuantity")}>
-              <div className="flex items-center justify-center gap-2">Inventory {sortIcon("stockQuantity")}</div>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Category</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Shelf</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] cursor-pointer text-center" onClick={() => toggleSort("stockQuantity")}>
+              <div className="flex items-center justify-center gap-2">Quantity {sortIcon("stockQuantity")}</div>
             </th>
             {userRole === "admin" || userRole === "subadmin" ? (
-              <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Unit Cost</th>
+              <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Cost</th>
             ) : null}
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Sale Price</th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Status</th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Expiry</th>
-            <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-widest text-[10px] text-right">Actions</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Price</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Status</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px]">Expiry</th>
+            <th className="px-6 py-4 font-bold text-slate-600 uppercase tracking-wider text-[11px] text-right">Actions</th>
           </tr>
         </thead>
 
@@ -181,12 +181,12 @@ export default function ProductsTable({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ delay: idx * 0.02 }}
-                  className={`hover:bg-blue-50/30 transition-colors group ${selectedProducts.includes(product.id) ? 'bg-blue-50/50' : ''}`}
+                  className={`hover:bg-slate-50/70 transition-colors group ${selectedProducts.includes(product.id) ? 'bg-amber-50/40' : ''}`}
                 >
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-slate-300"
                       checked={selectedProducts.includes(product.id)}
                       onChange={() => toggleSelect(product.id)}
                     />
@@ -194,13 +194,11 @@ export default function ProductsTable({
 
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-900">{product.name}</div>
-                    <div className="text-[10px] text-slate-400 font-medium tracking-tight uppercase">{product.sku || 'No SKU'}</div>
+                    <div className="text-[10px] text-slate-400 font-medium font-mono">{product.sku || "No SKU"}</div>
                   </td>
 
                   <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                      {product.category}
-                    </span>
+                    <span className="text-slate-600">{product.category || "Uncategorized"}</span>
                   </td>
 
                   <td className="px-6 py-4">
@@ -210,20 +208,18 @@ export default function ProductsTable({
                   </td>
 
                   <td className="px-6 py-4 text-center">
-                    <div className="font-black text-slate-900 text-base">{product.stockQuantity}</div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase">{product.unit || "Units"}</div>
+                    <span className="font-bold text-slate-900">{product.stockQuantity}</span>
+                    <span className="text-[10px] text-slate-400 font-medium ml-1">{product.unit || ""}</span>
                   </td>
 
                   {userRole === "admin" || userRole === "subadmin" ? (
                     <td className="px-6 py-4">
-                      <div className="text-slate-500 font-medium text-xs italic">Cost</div>
-                      <div className="font-bold text-slate-900">₦{Number(product.costPrice).toLocaleString()}</div>
+                      <span className="text-slate-600">₦{Number(product.costPrice).toLocaleString()}</span>
                     </td>
                   ) : null}
 
                   <td className="px-6 py-4">
-                    <div className="text-slate-500 font-medium text-xs italic">Price</div>
-                    <div className="font-black text-blue-600">₦{Number(product.sellingPrice).toLocaleString()}</div>
+                    <span className="font-bold text-slate-900">₦{Number(product.sellingPrice).toLocaleString()}</span>
                   </td>
 
                   <td className="px-6 py-4">
@@ -245,7 +241,7 @@ export default function ProductsTable({
                         {product.nearestExpiry}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-400 font-bold italic">—</span>
+                      <span className="text-slate-300">—</span>
                     )}
                   </td>
 
@@ -253,17 +249,17 @@ export default function ProductsTable({
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => onEditProduct(product)}
-                        className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-xl transition-all shadow-sm"
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                         title="Edit Product"
                       >
-                        <Pencil size={16} />
+                        <Pencil size={18} />
                       </button>
                       <button
                         onClick={() => onDeleteProduct(product)}
-                        className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all shadow-sm"
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                         title="Delete Product"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -289,12 +285,12 @@ export default function ProductsTable({
         </table>
       </div>
 
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden divide-y divide-slate-100">
         {sortedProducts.map((product) => {
           const status = getStatusInfo(product.status);
           const StatusIcon = status.icon;
           return (
-            <div key={product.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div key={product.id} className="bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 text-base font-bold text-slate-900">
@@ -324,19 +320,19 @@ export default function ProductsTable({
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
-                <div className="rounded-2xl bg-slate-50 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Stock</p>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Stock</p>
                   <p className="mt-2 text-lg font-semibold text-slate-900">
                     {product.stockQuantity} <span className="text-xs font-medium text-slate-400">{product.unit || ""}</span>
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Sale Price</p>
-                  <p className="mt-2 font-semibold text-blue-600">₦{Number(product.sellingPrice).toLocaleString()}</p>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sale Price</p>
+                  <p className="mt-2 font-semibold text-slate-900">₦{Number(product.sellingPrice).toLocaleString()}</p>
                 </div>
                 {(userRole === "admin" || userRole === "subadmin") && (
-                  <div className="rounded-2xl bg-slate-50 p-3 col-span-2">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Unit Cost</p>
+                  <div className="rounded-lg bg-slate-50 p-3 col-span-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unit Cost</p>
                     <p className="mt-2 font-semibold text-slate-900">₦{Number(product.costPrice).toLocaleString()}</p>
                   </div>
                 )}
@@ -349,13 +345,13 @@ export default function ProductsTable({
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => onEditProduct(product)}
-                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => onDeleteProduct(product)}
-                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
+                    className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"
                   >
                     Delete
                   </button>
