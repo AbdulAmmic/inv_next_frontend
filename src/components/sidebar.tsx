@@ -1,26 +1,27 @@
 "use client";
 
 import {
-  Home,
-  Folder,
-  Users,
   Settings,
   HelpCircle,
   LogOut,
-  ChevronLeft,
-  Menu,
+  ChevronsLeft,
+  ChevronsRight,
   BarChart3,
-  FileText,
-  CreditCard,
   Package,
   ShoppingCart,
-  DollarSign,
   QrCode,
   ClipboardList,
   LayoutDashboard,
   RefreshCw,
   ShieldAlert,
-  Bell
+  Bell,
+  Boxes,
+  Tags,
+  Users,
+  Truck,
+  PackageX,
+  ShoppingBag,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,6 +37,8 @@ interface SidebarProps {
   isMobile: boolean;
   toggleSidebar: () => void;
 }
+
+const GROUP_ORDER = ["", "Inventory", "Sales", "Purchasing", "Finance", "System"];
 
 export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProps) {
   const [role, setRole] = useState<string>("");
@@ -75,22 +78,22 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   }, []);
 
   const allMenu = [
-    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
-    { icon: Package, label: "Products", href: "/dashboard/products" },
-    { icon: QrCode, label: "QR Labels", href: "/dashboard/products/labels" },
-    { icon: DollarSign, label: "Stock", href: "/dashboard/stock" },
-    { icon: Bell, label: "Alerts", href: "/dashboard/alerts" },
-    { icon: ShieldAlert, label: "Grievances", href: "/dashboard/grievances", key: "grievances" },
-    { icon: Folder, label: "Categories", href: "/dashboard/categories" },
-    { icon: Users, label: "Customers", href: "/dashboard/customers" },
-    { icon: BarChart3, label: "Finances", href: "/dashboard/finances", key: "finances" },
-    { icon: FileText, label: "Suppliers", href: "/dashboard/suppliers" },
-    { icon: ShoppingCart, label: "Sales", href: "/dashboard/sales" },
-    { icon: CreditCard, label: "Out of Stock", href: "/dashboard/out-of-stock" },
-    { icon: DollarSign, label: "Purchases", href: "/dashboard/purchases", key: "purchases" },
-    { icon: DollarSign, label: "Expenses", href: "/dashboard/expenses", key: "expenses" },
-    { icon: ClipboardList, label: "Audit Logs", href: "/dashboard/audit-logs", key: "audit-logs" },
-    { icon: RefreshCw, label: "Sync Status", href: "/dashboard/sync" },
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard", group: "" },
+    { icon: Package, label: "Products", href: "/dashboard/products", group: "Inventory" },
+    { icon: Boxes, label: "Stock", href: "/dashboard/stock", group: "Inventory" },
+    { icon: Bell, label: "Alerts", href: "/dashboard/alerts", group: "Inventory" },
+    { icon: PackageX, label: "Out of Stock", href: "/dashboard/out-of-stock", group: "Inventory" },
+    { icon: Tags, label: "Categories", href: "/dashboard/categories", group: "Inventory" },
+    { icon: QrCode, label: "QR Labels", href: "/dashboard/products/labels", group: "Inventory" },
+    { icon: ShoppingCart, label: "Sales", href: "/dashboard/sales", group: "Sales" },
+    { icon: Users, label: "Customers", href: "/dashboard/customers", group: "Sales" },
+    { icon: ShoppingBag, label: "Purchases", href: "/dashboard/purchases", key: "purchases", group: "Purchasing" },
+    { icon: Truck, label: "Suppliers", href: "/dashboard/suppliers", group: "Purchasing" },
+    { icon: BarChart3, label: "Finances", href: "/dashboard/finances", key: "finances", group: "Finance" },
+    { icon: Receipt, label: "Expenses", href: "/dashboard/expenses", key: "expenses", group: "Finance" },
+    { icon: ShieldAlert, label: "Grievances", href: "/dashboard/grievances", key: "grievances", group: "System" },
+    { icon: ClipboardList, label: "Audit Logs", href: "/dashboard/audit-logs", key: "audit-logs", group: "System" },
+    { icon: RefreshCw, label: "Sync Status", href: "/dashboard/sync", group: "System" },
   ];
 
   const bottomMenu = [
@@ -130,31 +133,42 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
     allowedMenu = allowedMenu.filter(item => !["finances", "audit-logs"].includes(item.key || ""));
   }
 
+  const groups = GROUP_ORDER
+    .map((name) => ({ name, items: allowedMenu.filter((i) => i.group === name) }))
+    .filter((g) => g.items.length > 0);
+
   const NavLink = ({ item }: { item: any }) => {
     const isActive = pathname === item.href;
     return (
       <Link
         href={item.href}
         title={!isOpen ? item.label : undefined}
-        onClick={item.isLogout ? (e) => { e.preventDefault(); handleSignOut(); } : undefined}
+        onClick={(e) => {
+          if (item.isLogout) {
+            e.preventDefault();
+            handleSignOut();
+          } else if (isMobile) {
+            toggleSidebar();
+          }
+        }}
         className={`
-          relative flex items-center group transition-colors duration-200 h-10 rounded-lg px-3
+          relative flex items-center group h-9 rounded-md px-2.5 transition-colors duration-150
           ${isActive
-            ? "bg-amber-50 text-amber-800"
+            ? "bg-white/[0.08] text-white"
             : item.isLogout
-              ? "text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}
+              ? "text-white/55 hover:bg-rose-500/10 hover:text-rose-300"
+              : "text-white/55 hover:bg-white/[0.05] hover:text-white"}
           ${!isOpen ? "justify-center px-0" : ""}
         `}
       >
         <span
-          className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-amber-500 transition-all duration-300 ${isActive ? "h-5 opacity-100" : "h-0 opacity-0"}`}
+          className={`absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-amber-400 transition-all duration-300 ${isActive ? "h-5 opacity-100" : "h-0 opacity-0"}`}
         />
         <item.icon
-          className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${isActive ? "text-amber-600" : "text-slate-400 group-hover:text-slate-700"} ${isOpen ? "mr-3" : ""}`}
-          strokeWidth={isActive ? 2.25 : 2}
+          className={`w-[17px] h-[17px] flex-shrink-0 transition-colors ${isActive ? "text-amber-400" : ""} ${isOpen ? "mr-3" : ""}`}
+          strokeWidth={isActive ? 2.2 : 1.9}
         />
-        {isOpen && <span className={`text-[13px] truncate ${isActive ? "font-bold" : "font-medium"}`}>{item.label}</span>}
+        {isOpen && <span className={`text-[13px] truncate ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>}
       </Link>
     );
   };
@@ -162,69 +176,73 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   return (
     <>
       {isMobile && isOpen && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 lg:hidden animate-fade-in" onClick={toggleSidebar} />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 lg:hidden animate-fade-in" onClick={toggleSidebar} />
       )}
 
       <aside
         className={`
             ${isMobile ? "fixed" : "relative"} top-0 left-0 z-40 h-screen
-            flex flex-col bg-white border-r border-slate-100
-            transition-[width,translate,box-shadow] duration-300 ease-smooth
+            flex flex-col bg-[#17110a] text-white
+            transition-[width,translate] duration-300 ease-smooth
             ${isMobile ? (isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full") : ""}
-            ${isOpen ? "w-64" : "w-[76px]"}
+            ${isOpen ? "w-60" : "w-[68px]"}
           `}
       >
+        {/* Subtle top glow in the brand colour */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-amber-500/[0.07] to-transparent" />
+
         {/* Brand */}
-        <div className="h-[68px] flex items-center px-5 mb-2 border-b border-slate-100/80">
-          <div className={`flex items-center transition-all duration-300 ${!isOpen ? "w-full justify-center" : ""}`}>
-            {isOpen ? (
-              <div className="flex items-center gap-3">
-                <div className="relative w-9 h-9 flex-shrink-0">
-                  <BrandMark size={36} rounded="rounded-lg" />
-                </div>
-                <div className="overflow-hidden whitespace-nowrap">
-                  <p className="text-sm font-black text-slate-800 truncate max-w-[140px]">{businessName}</p>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.18em] leading-none mt-1">Management System</p>
-                </div>
-              </div>
-            ) : (
-              <div className="relative w-9 h-9">
-                <BrandMark size={36} rounded="rounded-lg" />
+        <div className={`relative h-16 flex items-center ${isOpen ? "px-4" : "justify-center"}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-8 h-8 flex-shrink-0 rounded-lg ring-1 ring-white/10 overflow-hidden">
+              <BrandMark size={32} rounded="rounded-lg" />
+            </div>
+            {isOpen && (
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-white truncate max-w-[150px] leading-tight">{businessName}</p>
+                <p className="text-[10px] text-white/40 font-medium leading-tight mt-0.5">Management System</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Scrollable Navigation */}
-        <nav className="flex-1 px-3 pt-2 overflow-y-auto custom-scrollbar space-y-0.5 pb-6">
-          <div className={`${isOpen ? 'px-2 mb-2' : 'hidden'}`}>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.16em]">General</p>
-          </div>
-          {allowedMenu.map((item, index) => (
-            <NavLink key={index} item={item} />
+        {/* Navigation */}
+        <nav className="relative flex-1 px-3 pt-2 pb-4 overflow-y-auto overflow-x-hidden scrollbar-hide">
+          {groups.map((g) => (
+            <div key={g.name || "main"} className={g.name ? "mt-5" : ""}>
+              {g.name && (
+                isOpen ? (
+                  <p className="px-2.5 mb-1.5 text-[10px] font-semibold text-white/30 uppercase tracking-[0.14em]">{g.name}</p>
+                ) : (
+                  <div className="mx-auto mb-2 w-5 h-px bg-white/10" />
+                )
+              )}
+              <div className="space-y-0.5">
+                {g.items.map((item) => <NavLink key={item.href} item={item} />)}
+              </div>
+            </div>
           ))}
 
-          {/* Sync Status - Mobile/Small Display */}
-          <div className={`mt-4 ${!isOpen ? 'flex justify-center' : 'px-2'}`}>
-             <SyncStatus />
-          </div>
+          {isOpen && (
+            <div className="mt-6 lg:hidden">
+              <SyncStatus />
+            </div>
+          )}
         </nav>
 
-        {/* Footer Navigation */}
-        <div className="px-3 py-4 border-t border-slate-100 gap-0.5 flex flex-col">
-          <div className={`${isOpen ? 'px-2 mb-2' : 'hidden'}`}>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.16em]">Account</p>
-          </div>
-          {allowedBottom.map((item, index) => (
-            <NavLink key={index} item={item} />
-          ))}
+        {/* Footer */}
+        <div className="relative px-3 py-3 border-t border-white/[0.06] space-y-0.5">
+          {allowedBottom.map((item) => <NavLink key={item.href + item.label} item={item} />)}
 
-          <button
-            onClick={toggleSidebar}
-            className="w-full mt-3 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors border border-slate-200"
-          >
-            {isOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
-          </button>
+          {!isMobile && (
+            <button
+              onClick={toggleSidebar}
+              className={`mt-2 w-full h-8 rounded-md flex items-center gap-2 text-white/40 hover:text-white hover:bg-white/[0.05] text-xs font-medium transition-colors ${isOpen ? "px-2.5" : "justify-center"}`}
+              title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {isOpen ? <><ChevronsLeft size={16} /> Collapse</> : <ChevronsRight size={16} />}
+            </button>
+          )}
         </div>
       </aside>
     </>

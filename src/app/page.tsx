@@ -224,209 +224,241 @@ export default function LoginPage() {
     setShowForgot(false);
   };
 
-  return (
-    <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center font-nunito bg-stone-50">
-      {/* Background orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-200/40 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-100/50 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-amber-100/40 rounded-full blur-[80px]" />
+  const inputCls = (hasError: boolean) =>
+    `w-full h-11 pl-10 pr-3 rounded-lg bg-white border text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none disabled:opacity-60 ${
+      hasError
+        ? "border-rose-400 ring-4 ring-rose-50"
+        : "border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+    }`;
 
-      <main className="relative z-10 w-full max-w-[440px] px-6">
-        {/* Brand/Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="inline-flex flex-col items-center justify-center mb-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-200">
-              <Boxes className="w-7 h-7 text-white" />
-            </div>
+  return (
+    <div className="min-h-screen w-full grid lg:grid-cols-[1.05fr_1fr] bg-white">
+      {/* ── Brand panel ─────────────────────────────── */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#17110a] text-white p-12">
+        <div className="absolute inset-0 opacity-[0.35] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.09)_1px,transparent_0)] [background-size:22px_22px]" />
+        <div className="absolute -top-40 -left-32 w-[520px] h-[520px] rounded-full bg-amber-500/25 blur-[120px]" />
+        <div className="absolute -bottom-48 right-[-120px] w-[460px] h-[460px] rounded-full bg-orange-600/20 blur-[120px]" />
+
+        <div className="relative flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-900/40">
+            <Boxes className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-amber-900">
-            Login
-          </h1>
+          <div>
+            <p className="font-semibold tracking-tight">Inventory Manager</p>
+            <p className="text-[11px] text-white/50 uppercase tracking-[0.18em]">Multi-shop · Offline-first</p>
+          </div>
+        </div>
+
+        <div className="relative max-w-md">
+          <h2 className="text-[40px] leading-[1.1] font-semibold tracking-tight">
+            Every shelf, sale and expiry date —{" "}
+            <span className="bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">in one calm place.</span>
+          </h2>
+          <p className="mt-4 text-white/60 text-[15px] leading-relaxed">
+            Run your shops even when the internet drops. Everything syncs the moment you&apos;re back online.
+          </p>
+
+          {/* Illustrative preview card (static sample figures) */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-10 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-5"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-white/50">Today&apos;s sales</p>
+              <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-400/10 px-2 py-0.5 rounded-full">+12.4%</span>
+            </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">₦486,200</p>
+            <div className="mt-4 flex items-end gap-1.5 h-16">
+              {[38, 52, 44, 63, 58, 72, 66, 84, 78, 92, 86, 100].map((h, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ duration: 0.6, delay: 0.35 + i * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                  className={`flex-1 rounded-sm ${i === 11 ? "bg-amber-400" : "bg-white/15"}`}
+                />
+              ))}
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 pt-4 border-t border-white/10 text-xs">
+              <div><p className="text-white/40">Low stock</p><p className="font-semibold mt-0.5">7 items</p></div>
+              <div><p className="text-white/40">Expiring</p><p className="font-semibold mt-0.5">3 batches</p></div>
+              <div><p className="text-white/40">Sync</p><p className="font-semibold mt-0.5 text-emerald-300">Up to date</p></div>
+            </div>
+          </motion.div>
+        </div>
+
+        <p className="relative text-xs text-white/35">© {new Date().getFullYear()} Inventory Manager</p>
+      </aside>
+
+      {/* ── Form ───────────────────────────────────── */}
+      <main className="relative flex items-center justify-center px-6 py-12 bg-[var(--background)] lg:bg-white">
+        <div className="w-full max-w-[380px]">
+          <div className="lg:hidden mb-8 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+              <Boxes className="w-5 h-5 text-white" />
+            </div>
+            <p className="font-semibold text-slate-900 tracking-tight">Inventory Manager</p>
+          </div>
 
           {isOfflineMode && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-3 inline-flex items-center gap-2 bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-200"
+              className="mb-6 inline-flex items-center gap-2 bg-amber-50 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-amber-200"
             >
               <WifiOff className="w-3.5 h-3.5" />
-              Offline Session Active
+              Offline session active
             </motion.div>
           )}
-        </motion.div>
 
-        {/* Login Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", duration: 0.5 }}
-          className="glass-card rounded-2xl p-8 md:p-10"
-        >
           <AnimatePresence mode="wait">
             {!showForgot ? (
               <motion.div
                 key="login-form"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-slate-800">Welcome Back</h2>
-                  <p className="text-slate-500 text-sm mt-1">Please enter your details to sign in</p>
-                </div>
+                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Welcome back</h1>
+                <p className="text-slate-500 text-sm mt-1.5">Sign in to your account to continue.</p>
 
-                <div className="space-y-5" onKeyDown={(e) => e.key === "Enter" && !loading && handleLogin()}>
-                  {/* Email */}
+                <div className="mt-8 space-y-4" onKeyDown={(e) => e.key === "Enter" && !loading && handleLogin()}>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
+                    <label htmlFor="email" className="text-[13px] font-medium text-slate-700">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                       <input
+                        id="email"
                         type="email"
                         name="email"
+                        autoComplete="email"
                         placeholder="name@company.com"
                         value={formData.email}
                         onChange={handleChange}
                         disabled={loading}
-                        className={`w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none disabled:opacity-60 ${
-                          errors.email
-                            ? "border-red-500 ring-red-100 ring-4"
-                            : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                        }`}
+                        className={inputCls(!!errors.email)}
                       />
                     </div>
-                    {errors.email && <p className="text-red-500 text-xs ml-1 mt-1">{errors.email}</p>}
+                    {errors.email && <p className="text-rose-500 text-xs">{errors.email}</p>}
                   </div>
 
-                  {/* Password */}
                   <div className="space-y-1.5">
-                    <div className="flex justify-between items-center ml-1">
-                      <label className="text-sm font-semibold text-slate-700">Password</label>
+                    <div className="flex justify-between items-center">
+                      <label htmlFor="password" className="text-[13px] font-medium text-slate-700">Password</label>
                       <button
                         type="button"
                         onClick={() => setShowForgot(true)}
-                        className="text-xs font-bold text-amber-600 hover:text-amber-800 transition-colors"
+                        className="text-xs font-medium text-amber-700 hover:text-amber-900"
                       >
-                        Forgot?
+                        Forgot password?
                       </button>
                     </div>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                       <input
+                        id="password"
                         type={showPassword ? "text" : "password"}
                         name="password"
+                        autoComplete="current-password"
                         placeholder="••••••••"
                         value={formData.password}
                         onChange={handleChange}
                         disabled={loading}
-                        className={`w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/60 border transition-all duration-200 outline-none disabled:opacity-60 ${
-                          errors.password
-                            ? "border-red-500 ring-red-100 ring-4"
-                            : "border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100"
-                        }`}
+                        className={`${inputCls(!!errors.password)} pr-10`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-600 transition-colors"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    {errors.password && <p className="text-red-500 text-xs ml-1 mt-1">{errors.password}</p>}
+                    {errors.password && <p className="text-rose-500 text-xs">{errors.password}</p>}
                   </div>
 
-                  {/* Server waking indicator */}
                   {serverWaking && (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center gap-2 text-amber-700 text-xs font-medium bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
+                      className="flex items-center gap-2 text-amber-800 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5"
                     >
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Server is waking up — this takes up to 60 seconds on first load
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      Server is waking up — this can take up to a minute on first load.
                     </motion.div>
                   )}
 
-                  {/* Sign In Button */}
-                  <motion.button
-                    whileHover={{ scale: loading ? 1 : 1.01 }}
-                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                  <button
                     onClick={handleLogin}
                     disabled={loading}
-                    className="w-full mt-4 py-4 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full h-11 mt-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Sign In</span>
-                        <Sparkles className="w-4 h-4 text-amber-100 group-hover:rotate-12 transition-transform" />
+                        Sign in
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                       </>
                     )}
-                  </motion.button>
+                  </button>
                 </div>
               </motion.div>
             ) : (
               <motion.div
                 key="forgot-form"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               >
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-slate-800">Reset Password</h2>
-                  <p className="text-slate-500 text-sm mt-1">We'll send you a link to recover your account</p>
-                </div>
+                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Reset password</h1>
+                <p className="text-slate-500 text-sm mt-1.5">We&apos;ll send you a link to recover your account.</p>
 
-                <form onSubmit={handleForgotPassword} className="space-y-6">
+                <form onSubmit={handleForgotPassword} className="mt-8 space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-600 transition-colors w-5 h-5" />
+                    <label htmlFor="forgot-email" className="text-[13px] font-medium text-slate-700">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                       <input
+                        id="forgot-email"
                         type="email"
                         required
                         placeholder="name@company.com"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 border border-amber-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all outline-none"
+                        className={inputCls(false)}
                       />
                     </div>
                   </div>
-
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
+                  <button
                     type="submit"
-                    className="w-full py-4 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                    className="w-full h-11 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 flex items-center justify-center gap-2"
                   >
-                    <Send size={18} />
-                    <span>Send Reset Link</span>
-                  </motion.button>
+                    <Send size={15} />
+                    Send reset link
+                  </button>
                 </form>
 
                 <button
                   onClick={() => setShowForgot(false)}
-                  className="mt-6 w-full text-sm font-bold text-slate-500 hover:text-amber-700 flex items-center justify-center gap-2 transition-colors"
+                  className="mt-5 w-full text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center justify-center gap-1.5"
                 >
-                  <ArrowLeft size={16} />
-                  Back to Login
+                  <ArrowLeft size={15} />
+                  Back to sign in
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
 
-        <p className="mt-8 text-center text-slate-400 text-xs font-medium">
-          Protected by industry standard encryption.
-        </p>
+          <p className="mt-10 text-xs text-slate-400 flex items-center gap-1.5">
+            <Lock className="w-3 h-3" /> Encrypted connection · works offline after first sign-in
+          </p>
+        </div>
       </main>
     </div>
   );

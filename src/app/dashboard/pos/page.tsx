@@ -9,6 +9,9 @@ import {
 } from "@/apiCalls";
 import { toast } from "react-hot-toast";
 import ReceiptComponent from "@/components/ReceiptComponent";
+import { db } from "@/db";
+import { beepSuccess, beepError, primeScanAudio } from "@/scanFeedback";
+import { useBarcodeWedge } from "@/hooks/useBarcodeWedge";
 import { askAboutProduct } from "@/ai";
 import { isAIEnabled } from "@/businessTheme";
 
@@ -46,9 +49,7 @@ import {
 } from '@headlessui/react';
 import { motion, AnimatePresence } from "framer-motion";
 
-const QrReader = dynamic(() => import("react-qr-reader").then((mod) => mod.QrReader), {
-  ssr: false,
-});
+const BarcodeScanner = dynamic(() => import("@/components/BarcodeScanner"), { ssr: false });
 
 /* -------------------------
    Types
@@ -63,6 +64,7 @@ interface StockRow {
   product_id: string;
   productName: string;
   sku?: string;
+  barcode?: string;
   currentStock: number;
   sellingPrice: number;
   category?: string;
@@ -137,7 +139,7 @@ export default function POSPage() {
   const [receipt, setReceipt] = useState<any | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [lastScanned, setLastScanned] = useState<string>("");
+  const [scanStatus, setScanStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -256,10 +258,15 @@ export default function POSPage() {
       setStockLoading(true);
       const res = await getStocks(shopId);
       const arr = res.data || [];
+      const barcodes = new Map<string, string>();
+      try {
+        (await db.products.toArray()).forEach((p: any) => p.barcode && barcodes.set(p.id, String(p.barcode)));
+      } catch { /* barcode lookup is best-effort */ }
       const mapped: StockRow[] = arr.map((item: any) => ({
         product_id: item.product_id,
         productName: item.productName,
         sku: item.sku,
+        barcode: item.barcode || barcodes.get(item.product_id),
         currentStock: Number(item.currentStock) || 0,
         sellingPrice: item.sellingPrice,
         category: item.category,
@@ -300,7 +307,7 @@ export default function POSPage() {
     ));
   };
 
-  const addToCart = (row: StockRow) => {
+  const addToCart = (row: StockRow): boolean => {
     const baseUnitName = row.unit || "Unit";
     const key = `${row.product_id}::${baseUnitName}`;
     const existing = cart.find((p) => p.key === key);
@@ -308,7 +315,7 @@ export default function POSPage() {
     // Adding 1 base unit needs 1 base unit of stock
     if (availableBase(row.product_id) < 1) {
       toast.error(row.currentStock <= 0 ? "Out of stock" : "Not enough stock left");
-      return;
+      return false;
     }
 
     if (existing) {
@@ -333,7 +340,43 @@ export default function POSPage() {
     }
 
     adjustDisplayStock(row.product_id, -1);
+    return true;
   };
+
+  // ── Barcode scanning (camera, USB/Bluetooth scanner, or typed + Enter) ──
+  const findByCode = (raw: string) => {
+    const code = raw.trim();
+    if (!code) return undefined;
+    const lower = code.toLowerCase();
+    return (
+      stock.find((s) => s.barcode && s.barcode === code) ||
+      stock.find((s) => s.sku && s.sku.toLowerCase() === lower) ||
+      // EAN-13 scanners sometimes report UPC-A with a leading 0 (or vice versa)
+      stock.find((s) => s.barcode && (s.barcode === code.replace(/^0/, "") || s.barcode === "0" + code))
+    );
+  };
+
+  const handleScan = (raw: string) => {
+    const code = raw.trim();
+    const found = findByCode(code);
+    if (!found) {
+      beepError();
+      setScanStatus({ ok: false, text: `No product with code ${code}` });
+      toast.error(`No product matches ${code}`, { id: "scan" });
+      return;
+    }
+    if (addToCart(found)) {
+      beepSuccess();
+      setSearch("");
+      setScanStatus({ ok: true, text: `Added ${found.productName}` });
+      toast.success(`Added ${found.productName}`, { id: "scan", duration: 1500 });
+    } else {
+      beepError();
+      setScanStatus({ ok: false, text: `${found.productName} is out of stock` });
+    }
+  };
+
+  useBarcodeWedge(handleScan, !receipt);
 
   const removeItem = (key: string) => {
     const removed = cart.find((i) => i.key === key);
@@ -523,15 +566,23 @@ export default function POSPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  data-scan-target
+                  placeholder="Search or scan barcode..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && search.trim() && findByCode(search)) {
+                      e.preventDefault();
+                      handleScan(search);
+                    }
+                  }}
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-100 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-medium"
                 />
               </div>
               <button
-                onClick={() => setShowScanner(true)}
+                onClick={() => { primeScanAudio(); setScanStatus(null); setShowScanner(true); }}
                 className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-colors"
+                title="Scan with camera"
               >
                 <Camera className="w-5 h-5" />
               </button>
@@ -908,54 +959,11 @@ export default function POSPage() {
           )}
 
           {showScanner && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[3px]">
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl overflow-hidden"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900">Scan Barcode</h3>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Position code within frame</p>
-                  </div>
-                  <button onClick={() => setShowScanner(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <X className="w-4 h-4 text-slate-400" />
-                  </button>
-                </div>
-
-                <div className="aspect-square bg-slate-900 rounded-2xl overflow-hidden relative border-4 border-slate-50 shadow-inner">
-                  <QrReader
-                    onResult={(result, error) => {
-                      if (!!result) {
-                        const code = (result as any).text;
-                        if (code !== lastScanned) {
-                          setLastScanned(code);
-                          setSearch(code);
-                          toast.success(`Scanned: ${code}`);
-                          setShowScanner(false);
-                          // Auto-add if exact match
-                          const found = stock.find(s => s.sku === code);
-                          if (found) addToCart(found);
-                        }
-                      }
-                    }}
-                    constraints={{ facingMode: 'environment' }}
-                    className="w-full h-full"
-                  />
-                  <div className="absolute inset-0 border-2 border-blue-500/30 rounded-2xl pointer-events-none">
-                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-blue-500/50 animate-pulse" />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3">
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
-                    <Package className="w-5 h-5 text-blue-600" />
-                    <p className="text-[10px] font-bold text-blue-800 uppercase tracking-tight">Active scan engaged. Use device camera to identify stock items via SKUs.</p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+            <BarcodeScanner
+              onDetected={handleScan}
+              onClose={() => setShowScanner(false)}
+              status={scanStatus}
+            />
           )}
         </AnimatePresence>
       </main>

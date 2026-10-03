@@ -33,6 +33,30 @@ interface HeaderProps {
   showMenuButton?: boolean;
 }
 
+const PAGE_TITLES: Record<string, [string, string]> = {
+  "/dashboard": ["", "Overview"],
+  "/dashboard/products": ["Inventory", "Products"],
+  "/dashboard/products/labels": ["Inventory", "QR Labels"],
+  "/dashboard/stock": ["Inventory", "Stock"],
+  "/dashboard/alerts": ["Inventory", "Alerts"],
+  "/dashboard/out-of-stock": ["Inventory", "Out of Stock"],
+  "/dashboard/categories": ["Inventory", "Categories"],
+  "/dashboard/sales": ["Sales", "Sales"],
+  "/dashboard/sales/details": ["Sales", "Sale Details"],
+  "/dashboard/customers": ["Sales", "Customers"],
+  "/dashboard/pos": ["Sales", "POS Terminal"],
+  "/dashboard/purchases": ["Purchasing", "Purchases"],
+  "/dashboard/purchases/details": ["Purchasing", "Purchase Details"],
+  "/dashboard/suppliers": ["Purchasing", "Suppliers"],
+  "/dashboard/finances": ["Finance", "Finances"],
+  "/dashboard/expenses": ["Finance", "Expenses"],
+  "/dashboard/grievances": ["System", "Grievances"],
+  "/dashboard/audit-logs": ["System", "Audit Logs"],
+  "/dashboard/sync": ["System", "Sync Status"],
+  "/dashboard/settings": ["Account", "Settings"],
+  "/dashboard/stores": ["Account", "Stores"],
+};
+
 export default function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -198,14 +222,14 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
   const currentShopName = shops.find(s => s.id === selectedShop)?.name || "All Shops";
 
   return (
-    <div className="sticky top-0 z-40 px-3 pt-3 pb-1">
+    <div className="sticky top-0 z-40">
       <motion.header
         initial={{ y: -8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-xl shadow-sm overflow-visible"
+        className="bg-white/85 backdrop-blur-md border-b border-slate-200/70 overflow-visible"
       >
-        <div className="px-3 sm:px-4 h-14 flex items-center gap-3">
+        <div className="px-3 sm:px-6 h-14 flex items-center gap-3">
 
           {/* Mobile menu button */}
           {showMenuButton && (
@@ -217,8 +241,20 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
             </button>
           )}
 
-          {/* LEFT: Logo */}
-          <div className="flex items-center gap-3 flex-shrink-0">
+          {/* LEFT: page title on desktop (the sidebar already carries the brand) */}
+          {(() => {
+            const [section, title] = PAGE_TITLES[pathname] || ["", ""];
+            return title ? (
+              <div className="hidden lg:flex items-center gap-2 text-sm min-w-0">
+                {section && <span className="text-slate-400">{section}</span>}
+                {section && <span className="text-slate-300">/</span>}
+                <span className="font-semibold text-slate-900 truncate">{title}</span>
+              </div>
+            ) : null;
+          })()}
+
+          {/* LEFT: Logo (mobile / tablet) */}
+          <div className="flex lg:hidden items-center gap-3 flex-shrink-0">
             <div className="relative w-8 h-8">
               <BrandMark size={32} rounded="rounded-lg" />
             </div>
