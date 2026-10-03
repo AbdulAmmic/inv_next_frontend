@@ -1331,7 +1331,11 @@ export const createPurchase = async (data: any) => {
     ...item,
     id: item.id || crypto.randomUUID(),
   }));
-  const serverPayload = { ...data, items };
+  // Purchase id is also fixed up front: if the response is lost after the
+  // server saved it, the offline retry below re-sends the same id and the
+  // server returns the existing purchase instead of creating a duplicate.
+  const id = data.id || crypto.randomUUID();
+  const serverPayload = { ...data, id, items };
 
   if (isOnline()) {
     try {
@@ -1348,7 +1352,6 @@ export const createPurchase = async (data: any) => {
     }
   }
 
-  const id = data.id || crypto.randomUUID();
   const now = new Date().toISOString();
   const purchase = normalizePurchase({
     ...data,
