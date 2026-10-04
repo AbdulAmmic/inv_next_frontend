@@ -10,6 +10,7 @@ import {
   Package,
   ShoppingCart,
   Barcode,
+  FileSpreadsheet,
   ClipboardList,
   LayoutDashboard,
   RefreshCw,
@@ -80,6 +81,7 @@ export default function Sidebar({ isOpen, isMobile, toggleSidebar }: SidebarProp
   const allMenu = [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard", group: "" },
     { icon: Package, label: "Products", href: "/dashboard/products", group: "Inventory" },
+    { icon: FileSpreadsheet, label: "Bulk Import", href: "/dashboard/products/import", group: "Inventory" },
     { icon: Boxes, label: "Stock", href: "/dashboard/stock", group: "Inventory" },
     { icon: Bell, label: "Alerts", href: "/dashboard/alerts", group: "Inventory" },
     { icon: PackageX, label: "Out of Stock", href: "/dashboard/out-of-stock", group: "Inventory" },

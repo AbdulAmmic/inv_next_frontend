@@ -615,6 +615,44 @@ export const deleteProduct = async (id: string) => {
 };
 
 // #############################################################
+// PRODUCT CATEGORIES (managed online; offline shows names from products)
+// #############################################################
+const CATEGORY_CACHE_KEY = 'product_categories_cache';
+
+export const getCategories = async (): Promise<{ data: { categories: any[]; uncategorized_count: number }; offline: boolean }> => {
+  try {
+    const res = await api.get('/categories');
+    try { localStorage.setItem(CATEGORY_CACHE_KEY, JSON.stringify(res.data)); } catch { /* quota */ }
+    return { data: res.data, offline: false };
+  } catch (e: any) {
+    if (e?.response) throw e;
+    // Offline: last server copy, else derive from locally cached products
+    try {
+      const cached = JSON.parse(localStorage.getItem(CATEGORY_CACHE_KEY) || 'null');
+      if (cached) return { data: cached, offline: true };
+    } catch { /* fall through */ }
+    const products = await db.products.filter((p: any) => !p.is_deleted).toArray();
+    const counts = new Map<string, { name: string; n: number }>();
+    let uncategorized = 0;
+    for (const p of products) {
+      const name = String(p.category || '').trim();
+      if (!name) { uncategorized++; continue; }
+      const key = name.toLowerCase();
+      counts.set(key, { name: counts.get(key)?.name || name, n: (counts.get(key)?.n || 0) + 1 });
+    }
+    const categories = [...counts.values()]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => ({ id: `local:${c.name}`, name: c.name, description: '', product_count: c.n }));
+    return { data: { categories, uncategorized_count: uncategorized }, offline: true };
+  }
+};
+
+export const createCategory = (data: { name: string; description?: string }) => api.post('/categories', data);
+export const updateCategory = (id: string, data: { name?: string; description?: string }) => api.put(`/categories/${id}`, data);
+export const deleteCategory = (id: string, moveTo?: string) =>
+  api.delete(`/categories/${id}`, { params: moveTo ? { move_to: moveTo } : {} });
+
+// #############################################################
 // 📊 STOCK MANAGEMENT (PER SHOP)
 // #############################################################
 export const getStocks = async (shop_id?: string) => {

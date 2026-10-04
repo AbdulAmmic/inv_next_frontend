@@ -37,6 +37,7 @@ const PAGE_TITLES: Record<string, [string, string]> = {
   "/dashboard": ["", "Overview"],
   "/dashboard/products": ["Inventory", "Products"],
   "/dashboard/products/labels": ["Inventory", "Barcode Labels"],
+  "/dashboard/products/import": ["Inventory", "Bulk Import"],
   "/dashboard/stock": ["Inventory", "Stock"],
   "/dashboard/alerts": ["Inventory", "Alerts"],
   "/dashboard/out-of-stock": ["Inventory", "Out of Stock"],

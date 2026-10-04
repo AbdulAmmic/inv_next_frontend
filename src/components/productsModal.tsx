@@ -9,6 +9,7 @@ import {
   getProduct,
   createStock,
   createAdjustment,
+  getCategories,
 } from "@/apiCalls";
 import type { Product } from "@/app/types/products";
 import { toast } from "react-hot-toast";
@@ -60,6 +61,14 @@ export default function ProductFormModal({
   // Pharmacy-style sub-unit selling: one base unit (e.g. pack) contains
   // `per_base` of this unit (e.g. 10 cards), each sold at `price`.
   const [subUnits, setSubUnits] = useState<{ name: string; per_base: number; price: number }[]>([]);
+
+  // Existing category names, offered as suggestions so spelling stays consistent
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategoryOptions((res.data.categories || []).map((c: any) => c.name)))
+      .catch(() => {});
+  }, []);
 
   // -------------------------------------------
   // Load shops + for edit mode load product
@@ -288,8 +297,12 @@ export default function ProductFormModal({
                 value={formData.category}
                 onChange={(e) => updateField("category", e.target.value)}
                 placeholder="e.g. Drinks, Groceries"
+                list="product-category-options"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
+              <datalist id="product-category-options">
+                {categoryOptions.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">

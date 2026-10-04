@@ -28,6 +28,12 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
 
+  // Opened from the Categories page: /dashboard/products?category=Name
+  useEffect(() => {
+    const category = new URLSearchParams(window.location.search).get("category");
+    if (category) setSearch(category);
+  }, []);
+
   const [stockFilter, setStockFilter] = useState<
     "" | "outOfStock" | "lowStock" | "inStock"
   >("");
@@ -338,7 +344,7 @@ export default function ProductsPage() {
                 className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span className="hidden sm:inline">Import / Export</span>
+                Import / Export
               </button>
             )}
 

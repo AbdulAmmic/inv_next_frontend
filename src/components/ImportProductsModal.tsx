@@ -18,15 +18,17 @@ interface Props {
   shops: Shop[];
   defaultShopId: string;
   canChooseShop: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onImported: () => void;
+  /** Render inside a page instead of as a pop-up. */
+  asPage?: boolean;
 }
 
 const PREVIEW_COLS = TEMPLATE_COLUMNS.filter((c) =>
   ["name", "sku", "price", "cost_price", "quantity", "min_quantity", "expiry_date", "shelf_location"].includes(c.key)
 );
 
-export default function ImportProductsModal({ shops, defaultShopId, canChooseShop, onClose, onImported }: Props) {
+export default function ImportProductsModal({ shops, defaultShopId, canChooseShop, onClose, onImported, asPage = false }: Props) {
   const [shopId, setShopId] = useState(defaultShopId || shops[0]?.id || "");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<ImportRow[]>([]);
@@ -128,8 +130,8 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
   const reset = () => { setFile(null); setRows([]); setResult(null); };
 
   return (
-    <div className="modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[3px]">
-      <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+    <div className={asPage ? "" : "modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[3px]"}>
+      <div className={asPage ? "glass-card rounded-2xl flex flex-col overflow-hidden" : "bg-white w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden"}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -141,13 +143,16 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
               <p className="text-xs text-slate-500">Add new products or update existing ones in bulk</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" aria-label="Close">
-            <X className="w-5 h-5" />
-          </button>
+          {!asPage && (
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500" aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className={`flex-1 p-6 space-y-5 ${asPage ? "" : "overflow-y-auto"}`}>
           {/* Step 1 — template */}
+          <StepLabel n={1} text="Get the template (or export your current products to edit)" />
           <section className="grid sm:grid-cols-2 gap-3">
             <button
               onClick={() => downloadTemplate().catch(() => toast.error("Couldn't create the template"))}
@@ -173,6 +178,7 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
           </section>
 
           {/* Shop */}
+          <StepLabel n={2} text="Choose the shop that receives the stock" />
           <div className="flex items-center gap-3">
             <Store className="w-4 h-4 text-slate-400" />
             <label className="text-sm text-slate-600">Stock, shelf &amp; expiry go to</label>
@@ -186,7 +192,8 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
             </select>
           </div>
 
-          {/* Step 2 — upload */}
+          {/* Step 3 — upload */}
+          {!result && <StepLabel n={3} text="Upload the filled file, check the preview, then import" />}
           {!rows.length && (
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -296,15 +303,25 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
               <button onClick={reset} className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Import another file
               </button>
-              <button onClick={onClose} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">
-                Done
-              </button>
+              {!asPage && (
+                <button onClick={onClose} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">
+                  Done
+                </button>
+              )}
             </>
           ) : (
             <>
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">
-                Cancel
-              </button>
+              {asPage ? (
+                rows.length > 0 && (
+                  <button onClick={reset} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                    Start over
+                  </button>
+                )
+              ) : (
+                <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                  Cancel
+                </button>
+              )}
               <button
                 onClick={handleImport}
                 disabled={!rows.length || importing}
@@ -317,6 +334,15 @@ export default function ImportProductsModal({ shops, defaultShopId, canChooseSho
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StepLabel({ n, text }: { n: number; text: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center shrink-0">{n}</span>
+      <p className="text-sm font-semibold text-slate-800">{text}</p>
     </div>
   );
 }
