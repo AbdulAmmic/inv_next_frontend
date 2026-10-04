@@ -1,806 +1,420 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Wallet,
-  ArrowDownCircle,
-  TrendingUp,
-  Store,
-  Boxes,
-  CircleDollarSign,
-  Users,
-  Truck,
-  AlertTriangle,
-  Package,
-  BarChart3,
-  RefreshCw,
-  Calendar,
-  ChevronDown,
-  Loader2
-} from "lucide-react";
-import { getShops, getFullStats } from "@/apiCalls";
-import { motion, AnimatePresence } from "framer-motion";
-import Loader from "@/components/Loader";
+import Link from "next/link";
+import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  TrendingUp, Wallet, CircleDollarSign, ArrowDownCircle, Truck, Boxes, Package, AlertTriangle,
+  RefreshCw, Calendar, ChevronDown, Store, Receipt, ShoppingCart, ArrowRight,
+} from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { getShops, getFullStats } from "@/apiCalls";
+import Loader from "@/components/Loader";
 
 interface FinancialStats {
   total_sales_amount: number;
+  total_sales_count?: number;
   gross_profit: number;
   net_profit: number;
   total_expenses: number;
-  total_purchase_amount: number;
-  total_sales_count?: number;
-  total_purchases_count?: number;
   total_expenses_count?: number;
+  total_purchase_amount: number;
+  total_purchases_count?: number;
+  cost_of_goods_sold?: number;
+  operating_expenses?: number;
+  stock_losses?: number;
   inventory_selling_value: number;
   inventory_cost_value: number;
   products_count: number;
-  customers_count: number;
-  suppliers_count: number;
   low_stock_count: number;
   out_of_stock_count: number;
 }
 
-interface Shop {
-  id: string;
-  name: string;
+type RangeKey =
+  | "today" | "yesterday" | "last7days" | "last30days" | "week" | "lastweek"
+  | "month" | "lastmonth" | "quarter" | "lastquarter" | "year" | "lastyear" | "custom";
+
+const RANGES: { key: RangeKey; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "last7days", label: "Last 7 days" },
+  { key: "last30days", label: "Last 30 days" },
+  { key: "week", label: "This week" },
+  { key: "lastweek", label: "Last week" },
+  { key: "month", label: "This month" },
+  { key: "lastmonth", label: "Last month" },
+  { key: "quarter", label: "This quarter" },
+  { key: "lastquarter", label: "Last quarter" },
+  { key: "year", label: "This year" },
+  { key: "lastyear", label: "Last year" },
+];
+
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Start/end (inclusive) for a preset. Weeks start on Monday. */
+function rangeFor(key: RangeKey): { start: string; end: string } {
+  const t = new Date();
+  const d = (y: number, m: number, day: number) => new Date(y, m, day);
+  const mondayOf = (x: Date) => { const r = new Date(x); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); return r; };
+  const q = Math.floor(t.getMonth() / 3);
+  switch (key) {
+    case "today": return { start: ymd(t), end: ymd(t) };
+    case "yesterday": { const y = new Date(t); y.setDate(y.getDate() - 1); return { start: ymd(y), end: ymd(y) }; }
+    case "last7days": { const s = new Date(t); s.setDate(s.getDate() - 6); return { start: ymd(s), end: ymd(t) }; }
+    case "last30days": { const s = new Date(t); s.setDate(s.getDate() - 29); return { start: ymd(s), end: ymd(t) }; }
+    case "week": return { start: ymd(mondayOf(t)), end: ymd(t) };
+    case "lastweek": { const s = mondayOf(t); s.setDate(s.getDate() - 7); const e = new Date(s); e.setDate(e.getDate() + 6); return { start: ymd(s), end: ymd(e) }; }
+    case "month": return { start: ymd(d(t.getFullYear(), t.getMonth(), 1)), end: ymd(t) };
+    case "lastmonth": return { start: ymd(d(t.getFullYear(), t.getMonth() - 1, 1)), end: ymd(d(t.getFullYear(), t.getMonth(), 0)) };
+    case "quarter": return { start: ymd(d(t.getFullYear(), q * 3, 1)), end: ymd(t) };
+    case "lastquarter": { const y = q === 0 ? t.getFullYear() - 1 : t.getFullYear(); const lq = q === 0 ? 3 : q - 1; return { start: ymd(d(y, lq * 3, 1)), end: ymd(d(y, lq * 3 + 3, 0)) }; }
+    case "year": return { start: ymd(d(t.getFullYear(), 0, 1)), end: ymd(t) };
+    case "lastyear": return { start: ymd(d(t.getFullYear() - 1, 0, 1)), end: ymd(d(t.getFullYear() - 1, 11, 31)) };
+    default: return { start: ymd(t), end: ymd(t) };
+  }
 }
 
-type MetricColor = "emerald" | "blue" | "purple" | "rose" | "amber" | "orange" | "slate";
-
-interface MetricCardProps {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: MetricColor;
-}
-
-interface MiniMetricCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color: MetricColor;
-}
-
-interface StockAlertCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color: "orange" | "rose";
-  description: string;
-}
+const naira = (n: number) => `₦${Number(n || 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+const compact = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : Math.abs(n) >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : `${n}`);
+const pct = (part: number, whole: number) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}%` : "—");
+const displayDate = (s: string) => {
+  const d = new Date(s + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined });
+};
 
 export default function FinancesPage() {
   const router = useRouter();
-  const [userRole, setUserRole] = useState<string>("");
-  const [roleChecked, setRoleChecked] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
+  const [shopId, setShopId] = useState<string | null>(null); // "" = all shops
+  const [rangeKey, setRangeKey] = useState<RangeKey>("month");
+  const [range, setRange] = useState(() => rangeFor("month"));
+  const [draft, setDraft] = useState(() => rangeFor("month"));
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [stats, setStats] = useState<FinancialStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("Preparing Dashboard..."); // New State
-  const [stats, setStats] = useState<FinancialStats | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [selectedShop, setSelectedShop] = useState<string>("");
-  const [timeRange, setTimeRange] = useState<string>("month");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [customDateRange, setCustomDateRange] = useState({
-    startDate: "",
-    endDate: "",
-  });
-  const [dateRangeLabel, setDateRangeLabel] = useState("This Month");
 
-  // Stable reference so Recharts doesn't treat this as new data (and
-  // recompute its internal scales/layout) on every unrelated re-render.
+  // Role guard (managers and staff don't see finances)
+  useEffect(() => {
+    let role = "";
+    try { role = (JSON.parse(localStorage.getItem("user") || "{}").role || "").toLowerCase(); } catch { /* none */ }
+    if (role === "manager" || role === "staff") {
+      toast.error("You don't have access to Finances");
+      router.replace("/dashboard");
+      return;
+    }
+    setAllowed(true);
+    setIsAdmin(role === "admin");
+    getShops()
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setShops(list);
+        const saved = localStorage.getItem("selected_shop_id");
+        setShopId(saved && list.some((s: any) => s.id === saved) ? saved : list[0]?.id || "");
+      })
+      .catch(() => setShopId(""));
+  }, [router]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const close = (e: MouseEvent) => { if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [pickerOpen]);
+
+  useEffect(() => {
+    if (shopId === null) return;
+    let cancelled = false;
+    stats ? setRefreshing(true) : setLoading(true);
+    setError(null);
+    getFullStats({ shop_id: shopId, start_date: range.start, end_date: range.end })
+      .then((res) => { if (!cancelled) setStats(res.data); })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setError(err?.response?.status === 403 ? "You don't have permission to view these figures." : "Couldn't load the figures. Try refreshing.");
+      })
+      .finally(() => { if (!cancelled) { setLoading(false); setRefreshing(false); } });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId, range]);
+
+  const refresh = () => setRange((r) => ({ ...r }));
+
+  const choosePreset = (key: RangeKey) => {
+    const r = rangeFor(key);
+    setRangeKey(key);
+    setRange(r);
+    setDraft(r);
+    setPickerOpen(false);
+  };
+
+  const applyCustom = () => {
+    if (!draft.start || !draft.end) return;
+    if (draft.start > draft.end) return toast.error("Start date must be before end date");
+    setRangeKey("custom");
+    setRange({ ...draft });
+    setPickerOpen(false);
+  };
+
+  const s = stats;
+  const sales = s?.total_sales_amount || 0;
+  const cogs = s?.cost_of_goods_sold ?? Math.max(0, sales - (s?.gross_profit || 0));
+  const gross = s?.gross_profit || 0;
+  const losses = s?.stock_losses ?? 0;
+  const opex = s?.operating_expenses ?? Math.max(0, (s?.total_expenses || 0) - losses);
+  const net = s?.net_profit || 0;
+  const potentialProfit = (s?.inventory_selling_value || 0) - (s?.inventory_cost_value || 0);
+
   const chartData = useMemo(() => [
-    { name: 'Revenue', value: Math.max(0, stats?.total_sales_amount || 0), color: '#10b981' },
-    { name: 'Purchases', value: Math.max(0, stats?.total_purchase_amount || 0), color: '#f59e0b' },
-    { name: 'Expenses', value: Math.max(0, stats?.total_expenses || 0), color: '#ef4444' },
-    { name: 'Gross Profit', value: Math.max(0, stats?.gross_profit || 0), color: '#3b82f6' },
-    { name: 'Net Profit', value: Math.max(0, stats?.net_profit || 0), color: '#8b5cf6' },
-  ], [stats?.total_sales_amount, stats?.total_purchase_amount, stats?.total_expenses, stats?.gross_profit, stats?.net_profit]);
+    { name: "Sales", value: sales, color: "#10b981" },
+    { name: "Cost of goods", value: cogs, color: "#94a3b8" },
+    { name: "Expenses", value: opex + losses, color: "#f43f5e" },
+    { name: "Net profit", value: net, color: net >= 0 ? "#d4940a" : "#be123c" },
+  ], [sales, cogs, opex, losses, net]);
 
-  // Predefined date ranges
-  const predefinedRanges = [
-    { label: "Today", value: "today" },
-    { label: "Yesterday", value: "yesterday" },
-    { label: "Last 7 Days", value: "last7days" },
-    { label: "Last 30 Days", value: "last30days" },
-    { label: "This Week", value: "week" },
-    { label: "Last Week", value: "lastweek" },
-    { label: "This Month", value: "month" },
-    { label: "Last Month", value: "lastmonth" },
-    { label: "This Quarter", value: "quarter" },
-    { label: "Last Quarter", value: "lastquarter" },
-    { label: "This Year", value: "year" },
-    { label: "Last Year", value: "lastyear" },
-    { label: "Year to Date", value: "ytd" },
-    { label: "Custom Range", value: "custom" },
-  ];
+  const rangeLabel = rangeKey === "custom" ? "Custom range" : RANGES.find((r) => r.key === rangeKey)?.label;
+  const field = "bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
 
-  useEffect(() => {
-    // Role Guard: managers cannot access finances
-    try {
-      const stored = localStorage.getItem("user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const role = (parsed.role || "").toLowerCase();
-        setUserRole(role);
-        if (role === "manager" || role === "staff") {
-          toast.error("Access denied: You cannot view Finances.");
-          router.replace("/dashboard");
-          return;
-        }
-      }
-    } catch {}
-    setRoleChecked(true);
-    loadShops();
-    // Set default dates
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    setCustomDateRange({
-      startDate: formatDate(firstDayOfMonth),
-      endDate: formatDate(today),
-    });
-  }, []);
-
-  useEffect(() => {
-    if (selectedShop) {
-      if (stats) setRefreshing(true); // Don't full screen load if we have data
-      fetchStats(selectedShop);
-    }
-  }, [selectedShop, customDateRange]);
-
-  const loadShops = async () => {
-    try {
-      setLoadingMessage("Loading Shops...");
-      const res = await getShops();
-      const shopsData = Array.isArray(res.data) ? res.data : [];
-      setShops(shopsData);
-      if (shopsData.length > 0) {
-        const savedShop = localStorage.getItem("selected_shop_id");
-        setSelectedShop(savedShop && shopsData.some((s: Shop) => s.id === savedShop) ? savedShop : shopsData[0].id);
-      } else {
-        await fetchStats("");
-      }
-    } catch (err) {
-      console.error("Failed to load shops", err);
-      await fetchStats("");
-    }
-  };
-
-  const fetchStats = async (shopId: string) => {
-    try {
-      if (!stats) setLoading(true);
-      setError(null);
-
-      // Fun dynamic messages
-      const messages = [
-        "Analyzing Sales Trends...",
-        "Calculating Profit Margins...",
-        "Reviewing Expenses...",
-        "Checking Inventory Value...",
-        "Summarizing Financial Health..."
-      ];
-      setLoadingMessage(messages[Math.floor(Math.random() * messages.length)]);
-
-      const params: any = { shop_id: shopId };
-
-      // Always use the computed customDateRange which is kept in sync by handleTimeRangeChange
-      if (customDateRange.startDate && customDateRange.endDate) {
-        params.start_date = customDateRange.startDate;
-        params.end_date = customDateRange.endDate;
-      }
-
-      const res = await getFullStats(params);
-      setStats(res.data);
-    } catch (err: any) {
-      console.error("Failed loading stats", err);
-      setError(err.response?.status === 403
-        ? "You do not have permission to view financial statistics."
-        : "Failed to load financial statistics. Please try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchStats(selectedShop || "");
-  };
-
-  const handleTimeRangeChange = (value: string) => {
-    setTimeRange(value);
-    setShowDatePicker(false);
-
-    // Update date range label
-    const selected = predefinedRanges.find(range => range.value === value);
-    if (selected) {
-      setDateRangeLabel(selected.label);
-    }
-
-    // Set custom dates for predefined ranges
-    const today = new Date();
-    switch (value) {
-      case "today":
-        setCustomDateRange({
-          startDate: formatDate(today),
-          endDate: formatDate(today),
-        });
-        break;
-      case "yesterday":
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        setCustomDateRange({
-          startDate: formatDate(yesterday),
-          endDate: formatDate(yesterday),
-        });
-        break;
-      case "last7days":
-        const last7Days = new Date(today);
-        last7Days.setDate(last7Days.getDate() - 6);
-        setCustomDateRange({
-          startDate: formatDate(last7Days),
-          endDate: formatDate(today),
-        });
-        break;
-      case "last30days":
-        const last30Days = new Date(today);
-        last30Days.setDate(last30Days.getDate() - 29);
-        setCustomDateRange({
-          startDate: formatDate(last30Days),
-          endDate: formatDate(today),
-        });
-        break;
-      case "week":
-        const firstDayOfWeek = new Date(today);
-        const day = firstDayOfWeek.getDay();
-        const diff = firstDayOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-        firstDayOfWeek.setDate(diff);
-        setCustomDateRange({
-          startDate: formatDate(firstDayOfWeek),
-          endDate: formatDate(today),
-        });
-        break;
-      case "lastweek":
-        const lastWeekStart = new Date(today);
-        lastWeekStart.setDate(lastWeekStart.getDate() - 7 - lastWeekStart.getDay());
-        const lastWeekEnd = new Date(lastWeekStart);
-        lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-        setCustomDateRange({
-          startDate: formatDate(lastWeekStart),
-          endDate: formatDate(lastWeekEnd),
-        });
-        break;
-      case "month":
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        setCustomDateRange({
-          startDate: formatDate(firstDayOfMonth),
-          endDate: formatDate(today),
-        });
-        break;
-      case "lastmonth":
-        const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        setCustomDateRange({
-          startDate: formatDate(firstDayLastMonth),
-          endDate: formatDate(lastDayLastMonth),
-        });
-        break;
-      case "quarter":
-        const quarter = Math.floor(today.getMonth() / 3);
-        const firstDayOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
-        setCustomDateRange({
-          startDate: formatDate(firstDayOfQuarter),
-          endDate: formatDate(today),
-        });
-        break;
-      case "lastquarter":
-        const currentQuarter = Math.floor(today.getMonth() / 3);
-        const lastQParams = currentQuarter === 0
-          ? { year: today.getFullYear() - 1, q: 3 }
-          : { year: today.getFullYear(), q: currentQuarter - 1 };
-
-        const firstDayLastQuarter = new Date(lastQParams.year, lastQParams.q * 3, 1);
-        const lastDayLastQuarter = new Date(lastQParams.year, (lastQParams.q + 1) * 3, 0);
-
-        setCustomDateRange({
-          startDate: formatDate(firstDayLastQuarter),
-          endDate: formatDate(lastDayLastQuarter),
-        });
-        break;
-      case "year": // This Year / YTD
-      case "ytd":
-        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-        setCustomDateRange({
-          startDate: formatDate(firstDayOfYear),
-          endDate: formatDate(today),
-        });
-        break;
-      case "lastyear":
-        const firstDayLastYear = new Date(today.getFullYear() - 1, 0, 1);
-        const lastDayLastYear = new Date(today.getFullYear(), 0, 0);
-        setCustomDateRange({
-          startDate: formatDate(firstDayLastYear),
-          endDate: formatDate(lastDayLastYear),
-        });
-        break;
-    }
-  };
-
-  const handleCustomDateApply = () => {
-    if (customDateRange.startDate && customDateRange.endDate) {
-      setTimeRange("custom");
-      setDateRangeLabel(
-        `${formatDisplayDate(customDateRange.startDate)} - ${formatDisplayDate(customDateRange.endDate)}`
-      );
-      setShowDatePicker(false);
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const formatDisplayDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-    });
-  };
-
-  const formatNaira = (n: number) =>
-    "₦" + Number(n || 0).toLocaleString("en-NG");
-
-  if (!roleChecked) {
-    return (
-      <>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader text="Checking permissions..." />
-        </div>
-      </>
-    );
-  }
-
-  if (loading && !stats) {
-    return (
-      <>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader text={loadingMessage} subText="Crunching the financial numbers for you..." />
-        </div>
-      </>
-    );
+  if (!allowed || (loading && !stats)) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader text="Loading finances..." subText="" /></div>;
   }
 
   return (
-    <>
-      {refreshing && (
-        <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-[100] flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/90 backdrop-blur-md p-5 sm:p-8 rounded-2xl shadow-2xl flex flex-col items-center border border-white/50 mx-4 text-center"
-          >
-            <Loader2 className="w-10 h-10 text-amber-600 animate-spin mb-4" />
-            <p className="text-slate-900 font-black text-xl tracking-tight">{loadingMessage}</p>
-            <p className="text-slate-500 font-medium mt-1">Refining data points...</p>
-          </motion.div>
+    <main className={`p-4 sm:p-6 lg:p-10 space-y-6 lg:space-y-8 max-w-[100vw] overflow-hidden transition-opacity ${refreshing ? "opacity-70" : ""}`}>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-wider">Finance</div>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Finances</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {rangeLabel} · {displayDate(range.start)}{range.start !== range.end && ` – ${displayDate(range.end)}`}
+          </p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto">
+          {/* Date range */}
+          <div ref={pickerRef} className="relative w-full sm:w-auto">
+            <button onClick={() => setPickerOpen((o) => !o)} className={`${field} w-full sm:min-w-[190px] flex items-center justify-between gap-3`}>
+              <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" />{rangeLabel}</span>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${pickerOpen ? "rotate-180" : ""}`} />
+            </button>
+            {pickerOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-[calc(100vw-2rem)] sm:w-80 bg-white rounded-xl border border-slate-200 shadow-xl p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-1">
+                  {RANGES.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => choosePreset(r.key)}
+                      className={`px-3 py-2 rounded-lg text-left text-sm ${rangeKey === r.key ? "bg-slate-900 text-white font-semibold" : "text-slate-600 hover:bg-slate-50"}`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Custom range</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={draft.start} max={draft.end || undefined} onChange={(e) => setDraft((d) => ({ ...d, start: e.target.value }))} className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm" />
+                    <input type="date" value={draft.end} min={draft.start || undefined} onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))} className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm" />
+                  </div>
+                  <button onClick={applyCustom} className="w-full py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Apply</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Shop */}
+          <div className="relative w-full sm:w-auto">
+            <select
+              value={shopId ?? ""}
+              onChange={(e) => { setShopId(e.target.value); if (e.target.value) localStorage.setItem("selected_shop_id", e.target.value); }}
+              className={`${field} appearance-none w-full sm:min-w-[170px] pr-9 cursor-pointer`}
+            >
+              {isAdmin && shops.length > 1 && <option value="">All shops</option>}
+              {shops.length === 0 && <option value="">All shops</option>}
+              {shops.map((sh) => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+            </select>
+            <Store className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          <button onClick={refresh} disabled={refreshing} className="inline-flex items-center justify-center bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 shadow-sm" title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </motion.div>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-sm text-rose-700">
+          <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
-      <main className="p-4 sm:p-6 lg:p-10 space-y-6 lg:space-y-8 max-w-[100vw] overflow-hidden">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                Financials
-              </div>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Dashboard
-            </h1>
-            <p className="text-slate-500 font-medium mt-1">Real-time business performance analytics</p>
-          </motion.div>
+      {/* 1. Key figures */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Stat label="Sales" value={naira(sales)} sub={`${(s?.total_sales_count || 0).toLocaleString()} sales`} icon={TrendingUp} tone="bg-emerald-50 text-emerald-600" />
+        <Stat label="Gross profit" value={naira(gross)} sub={`${pct(gross, sales)} margin`} icon={Wallet} tone="bg-sky-50 text-sky-600" />
+        <Stat label="Expenses & losses" value={naira(opex + losses)} sub={`${pct(opex + losses, sales)} of sales`} icon={ArrowDownCircle} tone="bg-rose-50 text-rose-600" />
+        <Stat
+          label="Net profit"
+          value={naira(net)}
+          sub={`${pct(net, sales)} margin`}
+          icon={CircleDollarSign}
+          tone={net >= 0 ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"}
+          valueClass={net < 0 ? "text-rose-600" : ""}
+        />
+      </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full md:w-auto"
-          >
-            {/* Date Range Selector */}
-            <div className="relative group/date">
-              <button
-                onClick={() => setShowDatePicker(!showDatePicker)}
-                className="flex items-center gap-3 px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-amber-300 hover:shadow-amber-100 transition-all font-bold text-slate-700 w-full sm:min-w-[220px] justify-between group"
-              >
-                <div className="flex items-center gap-3 text-slate-500 group-hover:text-amber-600 transition-colors">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-sm tracking-tight">{dateRangeLabel}</span>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {showDatePicker && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 w-[calc(100vw-2rem)] sm:w-[340px] overflow-hidden"
-                  >
-                    <div className="p-6 space-y-6">
-                      <div>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Quick Select</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {predefinedRanges.map((range) => (
-                            <button
-                              key={range.value}
-                              onClick={() => handleTimeRangeChange(range.value)}
-                              className={`px-3 py-2.5 text-xs font-bold rounded-xl transition-all ${timeRange === range.value
-                                ? 'bg-amber-600 text-white shadow-lg shadow-amber-200'
-                                : 'text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-100'
-                                }`}
-                            >
-                              {range.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-50 pt-6">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Custom Range</h3>
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-[9px] font-bold text-slate-400 mb-1.5 px-1 uppercase tracking-tighter">Start Date</p>
-                              <input
-                                type="date"
-                                value={customDateRange.startDate}
-                                onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <p className="text-[9px] font-bold text-slate-400 mb-1.5 px-1 uppercase tracking-tighter">End Date</p>
-                              <input
-                                type="date"
-                                value={customDateRange.endDate}
-                                onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200 transition-all"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleCustomDateApply}
-                            disabled={!customDateRange.startDate || !customDateRange.endDate}
-                            className="w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-slate-200"
-                          >
-                            Apply Custom Scope
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="relative group/select">
-              <select
-                className="appearance-none px-4 sm:px-5 py-3 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-amber-300 hover:shadow-amber-100 transition-all font-bold text-slate-700 w-full sm:min-w-[180px] focus:outline-none cursor-pointer pr-10"
-                value={selectedShop}
-                onChange={(e) => {
-                  setSelectedShop(e.target.value);
-                  localStorage.setItem("selected_shop_id", e.target.value);
-                }}
-              >
-                {shops.length === 0 && <option value="">All Shops</option>}
-                {shops.map((shop) => (
-                  <option key={shop.id} value={shop.id}>
-                    {shop.name}
-                  </option>
-                ))}
-              </select>
-              <Store className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none group-hover/select:text-amber-600 transition-colors" />
-            </div>
-
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all shadow-sm w-full sm:w-auto"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-          </motion.div>
-        </div>
-
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-            <span>{error}</span>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6 items-start">
+        {/* 2. Profit & loss statement */}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Profit &amp; loss</h2>
           </div>
-        )}
-
-        {/* Active Range & PI */}
-        <div className="flex flex-col gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex flex-wrap items-center gap-3"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-50 border border-amber-100 text-amber-700 rounded-full shadow-sm shadow-amber-100">
-              <Calendar className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-black uppercase tracking-wider">
-                {timeRange !== "custom" && <span className="mr-1 opacity-60 italic">{dateRangeLabel}:</span>}
-                {formatDisplayDate(customDateRange.startDate)} — {formatDisplayDate(customDateRange.endDate)}
+          <div className="p-5 text-sm">
+            <PLRow label="Sales" value={sales} />
+            <PLRow label="Cost of goods sold" value={-cogs} muted />
+            <PLRow label="Gross profit" value={gross} strong note={pct(gross, sales)} border />
+            <PLRow label="Operating expenses" value={-opex} muted href="/dashboard/expenses" />
+            <PLRow label="Stock losses (damaged, lost, expired)" value={-losses} muted href="/dashboard/grievances" />
+            <div className="mt-3 pt-3 border-t-2 border-slate-900 flex items-baseline justify-between">
+              <span className="font-bold text-slate-900">Net profit</span>
+              <span className="text-right">
+                <span className={`block text-lg font-bold tabular-nums ${net < 0 ? "text-rose-600" : "text-slate-900"}`}>{naira(net)}</span>
+                <span className="block text-[11px] text-slate-400">{pct(net, sales)} of sales</span>
               </span>
             </div>
-          </motion.div>
-
-          {/* Performance Ratios */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-            {[
-              { label: "Profit Margin", value: stats && stats.total_sales_amount > 0 ? `${((stats.net_profit / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: TrendingUp, color: "emerald" as MetricColor },
-              { label: "ROI", value: stats && stats.total_purchase_amount > 0 ? `${((stats.net_profit / stats.total_purchase_amount) * 100).toFixed(1)}%` : "0%", icon: BarChart3, color: "blue" as MetricColor },
-              { label: "Expense Ratio", value: stats && stats.total_sales_amount > 0 ? `${((stats.total_expenses / stats.total_sales_amount) * 100).toFixed(1)}%` : "0%", icon: Wallet, color: "amber" as MetricColor },
-            ].map((pi) => (
-              <MetricCard key={pi.label} title={pi.label} value={pi.value} icon={<pi.icon className="w-5 h-5" />} color={pi.color} />
-            ))}
+            <p className="mt-4 text-xs text-slate-400 leading-relaxed">
+              Purchases aren&apos;t subtracted here: stock bought becomes a cost only when it&apos;s sold (cost of goods sold).
+            </p>
           </div>
-        </div>
+        </motion.section>
 
-        {/* Main Financial Metrics */}
-        <div>
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Revenue &amp; Profit</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
-            <MetricCard
-              title="Total Sales"
-              value={formatNaira(stats?.total_sales_amount || 0)}
-              icon={<TrendingUp className="w-6 h-6" />}
-              color="emerald"
-            />
-            <MetricCard
-              title="Gross Profit"
-              value={formatNaira(stats?.gross_profit || 0)}
-              icon={<Wallet className="w-6 h-6" />}
-              color="blue"
-            />
-            <MetricCard
-              title="Net Profit"
-              value={formatNaira(stats?.net_profit || 0)}
-              icon={<CircleDollarSign className="w-6 h-6" />}
-              color="purple"
-            />
-            <MetricCard
-              title="Total Expenses"
-              value={formatNaira(stats?.total_expenses || 0)}
-              icon={<ArrowDownCircle className="w-6 h-6" />}
-              color="rose"
-            />
-            <MetricCard
-              title="Total Purchases"
-              value={formatNaira(stats?.total_purchase_amount || 0)}
-              icon={<Truck className="w-6 h-6" />}
-              color="orange"
-            />
+        {/* 3. Chart + ratios */}
+        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Where the money went</h2>
           </div>
-
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 px-1">Inventory Valuation</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-8">
-            <MetricCard
-              title="Inventory Value (Selling Price)"
-              value={formatNaira(stats?.inventory_selling_value || 0)}
-              icon={<Boxes className="w-6 h-6" />}
-              color="amber"
-            />
-            <MetricCard
-              title="Inventory Cost (Cost Price)"
-              value={formatNaira(stats?.inventory_cost_value || 0)}
-              icon={<Package className="w-6 h-6" />}
-              color="slate"
-            />
-          </div>
-        </div>
-
-        {/* Financial Flow Chart */}
-        <div className="glass-card mb-8 rounded-2xl p-5 w-full">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-slate-900">Financial Flow Overview</h3>
-          </div>
-          <div className="w-full h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} 
-                  dy={10} 
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 11 }} 
-                  tickFormatter={(val) => `₦${(val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val)}`}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
-                  content={({ active, payload, label }: any) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-white p-3 border border-slate-100 shadow-xl rounded-xl">
-                          <p className="font-bold text-slate-700 text-sm mb-1">{label}</p>
-                          <p className="text-slate-900 font-black text-lg">
-                            {formatNaira(payload[0].value || 0)}
-                          </p>
+          <div className="p-5">
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} interval={0} padding={{ left: 12, right: 12 }} tick={{ fill: "#64748b", fontSize: 12 }} dy={8} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} tickFormatter={(v) => `₦${compact(v)}`} />
+                  <Tooltip
+                    cursor={{ fill: "#f8fafc" }}
+                    content={({ active, payload, label }: any) =>
+                      active && payload?.length ? (
+                        <div className="bg-white px-3 py-2 border border-slate-200 shadow-lg rounded-lg">
+                          <p className="text-xs text-slate-500">{label}</p>
+                          <p className="font-bold text-slate-900 tabular-nums">{naira(payload[0].value || 0)}</p>
                         </div>
-                      );
+                      ) : null
                     }
-                    return null;
-                  }}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Business Overview Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Business Metrics */}
-          <div className="glass-card rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Business Overview</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MiniMetricCard
-                title="Products"
-                value={stats?.products_count || 0}
-                icon={<Package className="w-5 h-5" />}
-                color="blue"
-              />
-              <MiniMetricCard
-                title="Customers"
-                value={stats?.customers_count || 0}
-                icon={<Users className="w-5 h-5" />}
-                color="purple"
-              />
-              <MiniMetricCard
-                title="Suppliers"
-                value={stats?.suppliers_count || 0}
-                icon={<Truck className="w-5 h-5" />}
-                color="emerald"
-              />
-              <MiniMetricCard
-                title="Total Transactions"
-                value={(stats?.total_sales_count || 0) + (stats?.total_purchases_count || 0) + (stats?.total_expenses_count || 0)}
-                icon={<BarChart3 className="w-5 h-5" />}
-                color="amber"
-              />
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56}>
+                    {chartData.map((d) => <Cell key={d.name} fill={d.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Ratio label="Gross margin" value={pct(gross, sales)} />
+              <Ratio label="Net margin" value={pct(net, sales)} />
+              <Ratio label="Expense ratio" value={pct(opex + losses, sales)} />
+              <Ratio label="Avg. sale" value={s?.total_sales_count ? naira(sales / s.total_sales_count) : "—"} />
             </div>
           </div>
+        </motion.section>
+      </div>
 
-          {/* Right Column - Stock Status */}
-          <div className="glass-card rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Stock Status</h3>
-            <div className="space-y-4">
-              <StockAlertCard
-                title="Low Stock Items"
-                value={stats?.low_stock_count || 0}
-                icon={<AlertTriangle className="w-5 h-5" />}
-                color="orange"
-                description="Items needing restock"
-              />
-              <StockAlertCard
-                title="Out of Stock"
-                value={stats?.out_of_stock_count || 0}
-                icon={<AlertTriangle className="w-5 h-5" />}
-                color="rose"
-                description="Urgent attention needed"
-              />
-              <div className="bg-slate-50 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-600">Stock Health</span>
-                  <span className="text-sm font-bold text-emerald-600">
-                    {stats && stats.products_count > 0
-                      ? `${(100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)).toFixed(0)}%`
-                      : "100%"
-                    }
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                    style={{
-                      width: stats && stats.products_count > 0
-                        ? `${100 - ((stats.low_stock_count + stats.out_of_stock_count) / stats.products_count * 100)}%`
-                        : '100%'
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* 4. Money spent */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-3">Money spent in this period</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <LinkStat href="/dashboard/purchases" label="Stock purchases" value={naira(s?.total_purchase_amount || 0)} sub={`${(s?.total_purchases_count || 0).toLocaleString()} orders`} icon={Truck} tone="bg-blue-50 text-blue-600" />
+          <LinkStat href="/dashboard/expenses" label="Operating expenses" value={naira(opex)} sub={`${(s?.total_expenses_count || 0).toLocaleString()} entries`} icon={Receipt} tone="bg-rose-50 text-rose-600" />
+          <LinkStat href="/dashboard/grievances" label="Stock losses" value={naira(losses)} sub="Damaged, lost or expired" icon={AlertTriangle} tone="bg-amber-50 text-amber-600" />
         </div>
-      </main>
-    </>
+      </motion.div>
+
+      {/* 5. Inventory (right now, not limited to the date range) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <h2 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-3">Inventory right now</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Stat label="Stock at cost" value={naira(s?.inventory_cost_value || 0)} sub={`${(s?.products_count || 0).toLocaleString()} products`} icon={Package} tone="bg-slate-100 text-slate-600" />
+          <Stat label="Stock at selling price" value={naira(s?.inventory_selling_value || 0)} sub="If everything sells" icon={Boxes} tone="bg-emerald-50 text-emerald-600" />
+          <Stat label="Profit in stock" value={naira(potentialProfit)} sub={`${pct(potentialProfit, s?.inventory_selling_value || 0)} of selling value`} icon={ShoppingCart} tone="bg-amber-50 text-amber-600" />
+          <LinkStat
+            href="/dashboard/alerts"
+            label="Needs restocking"
+            value={`${(s?.low_stock_count || 0) + (s?.out_of_stock_count || 0)}`}
+            sub={`${s?.out_of_stock_count || 0} out of stock · ${s?.low_stock_count || 0} low`}
+            icon={AlertTriangle}
+            tone={(s?.out_of_stock_count || 0) > 0 ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-500"}
+          />
+        </div>
+      </motion.div>
+    </main>
   );
 }
 
-const metricColorClasses: Record<MetricColor, string> = {
-  emerald: "bg-emerald-50 text-emerald-600",
-  blue: "bg-blue-50 text-blue-600",
-  purple: "bg-purple-50 text-purple-600",
-  rose: "bg-rose-50 text-rose-600",
-  amber: "bg-amber-50 text-amber-600",
-  orange: "bg-orange-50 text-orange-600",
-  slate: "bg-slate-100 text-slate-600",
-};
+/* ---------- small pieces ---------- */
 
-// Flat stat card matching the app's glass-card theme — no gradients, no
-// fabricated trend numbers we can't actually back with historical data.
-const MetricCard = ({ title, value, icon, color }: MetricCardProps) => (
-  <div className="glass-card rounded-2xl p-5 flex items-center gap-4 hover:shadow-lg hover:shadow-slate-200/50 transition-all">
-    <div className={`p-3 rounded-xl ${metricColorClasses[color]} shrink-0`}>
-      {icon}
-    </div>
-    <div className="min-w-0">
-      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1 truncate">{title}</p>
-      <p className="text-xl font-black text-slate-900 truncate">{value}</p>
-    </div>
-  </div>
-);
-
-const MiniMetricCard = ({ title, value, icon, color }: MiniMetricCardProps) => (
-  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-    <div className={`p-2 rounded-lg ${metricColorClasses[color]}`}>
-      {icon}
-    </div>
-    <div>
-      <p className="text-sm text-slate-500">{title}</p>
-      <p className="text-lg font-bold text-slate-900">{value.toLocaleString()}</p>
-    </div>
-  </div>
-);
-
-const StockAlertCard = ({ title, value, icon, color, description }: StockAlertCardProps) => {
-  const colorClasses = {
-    orange: "bg-orange-50 text-orange-600 border-orange-200",
-    rose: "bg-rose-50 text-rose-600 border-rose-200",
-  };
-
+function Stat({ label, value, sub, icon: Icon, tone, valueClass = "" }: { label: string; value: string; sub?: string; icon: any; tone: string; valueClass?: string }) {
   return (
-    <div className={`flex items-center justify-between p-4 border rounded-xl ${colorClasses[color]}`}>
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-white">
-          {icon}
-        </div>
-        <div>
-          <p className="font-semibold">{title}</p>
-          <p className="text-sm opacity-75">{description}</p>
-        </div>
+    <div className="glass-card p-4 rounded-2xl flex items-center gap-4 h-full">
+      <div className={`p-3 rounded-xl shrink-0 ${tone}`}><Icon className="w-5 h-5" /></div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+        <p className={`text-lg font-bold text-slate-900 tabular-nums truncate ${valueClass}`}>{value}</p>
+        {sub && <p className="text-[11px] text-slate-500 truncate">{sub}</p>}
       </div>
-      <span className="text-2xl font-bold">{value}</span>
     </div>
   );
-};
+}
+
+function LinkStat(props: { href: string; label: string; value: string; sub?: string; icon: any; tone: string }) {
+  return (
+    <Link href={props.href} className="group block h-full rounded-2xl">
+      <div className="relative h-full transition-transform group-hover:-translate-y-0.5">
+        <Stat {...props} />
+        <ArrowRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-hover:text-slate-600 transition-colors" />
+      </div>
+    </Link>
+  );
+}
+
+function PLRow({ label, value, muted, strong, note, border, href }: { label: string; value: number; muted?: boolean; strong?: boolean; note?: string; border?: boolean; href?: string }) {
+  const amount = (
+    <span className={`tabular-nums ${strong ? "font-bold text-slate-900" : muted ? "text-slate-600" : "font-semibold text-slate-900"}`}>
+      {value < 0 ? `(${naira(-value)})` : naira(value)}
+    </span>
+  );
+  return (
+    <div className={`flex items-baseline justify-between gap-4 py-2 ${border ? "mt-1 border-t border-slate-200" : ""}`}>
+      <span className={`${strong ? "font-semibold text-slate-900" : muted ? "text-slate-500 pl-3" : "text-slate-700"}`}>
+        {href ? <Link href={href} className="hover:text-slate-900 hover:underline underline-offset-2">{label}</Link> : label}
+        {note && <span className="ml-2 text-[11px] font-normal text-slate-400">{note}</span>}
+      </span>
+      {amount}
+    </div>
+  );
+}
+
+function Ratio({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+      <p className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">{value}</p>
+    </div>
+  );
+}
