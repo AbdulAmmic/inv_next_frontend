@@ -6,6 +6,7 @@ import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import SyncBanner from "@/components/SyncBanner";
 import AIAssistant from "@/components/AIAssistant";
+import BottomNav from "@/components/BottomNav";
 import { seedDatabaseFromSQL, isDBSeeded } from "@/seedDB";
 import { pullUpdates } from "@/syncEngine";
 import { db } from "@/db";
@@ -242,6 +243,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }, []);
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+    // The POS screen has its own fixed cart bar on phones
+    const showBottomNav = !pathname?.startsWith("/dashboard/pos");
 
     // ─────────────────────────────────────────────────────────────
     // Loading screen — only on completely fresh device
@@ -309,10 +312,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Header onMenuClick={toggleSidebar} showMenuButton={isMobile} />
                 </div>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--background)] [scrollbar-gutter:stable]">
-                    <div key={pathname} className="page-enter min-h-full max-w-[1600px] mx-auto w-full">
+                    <div
+                        key={pathname}
+                        className={`page-enter min-h-full max-w-[1600px] mx-auto w-full ${showBottomNav ? "pb-[calc(92px+env(safe-area-inset-bottom))] lg:pb-0" : ""}`}
+                    >
                         {children}
                     </div>
                 </div>
+                <BottomNav hidden={!showBottomNav || (isMobile && sidebarOpen)} onMore={() => setSidebarOpen(true)} />
             </div>
         </div>
     );

@@ -1127,6 +1127,16 @@ export const createCustomer = async (data: any) => {
   return { data: customer };
 };
 
+export const updateCustomer = async (id: string, data: { name?: string; phone?: string; email?: string; address?: string }) => {
+  const updated_at = new Date().toISOString();
+  // Atomic so a local edit is never left without its queued sync change
+  await db.transaction('rw', db.customers, db.sync_queue, async () => {
+    await db.customers.update(id, { ...data, updated_at });
+    await queueChange('customers', id, 'UPDATE', data);
+  });
+  return { data: { id, ...data, updated_at } };
+};
+
 // #############################################################
 // 🧑‍💼 SUPPLIERS
 // #############################################################

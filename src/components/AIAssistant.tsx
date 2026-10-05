@@ -67,11 +67,11 @@ export default function AIAssistant() {
 
   return (
     <>
-      {/* Launcher — bottom-left so it never collides with the sync banner (bottom-right) */}
+      {/* Launcher — bottom-left; raised on phones to clear the bottom nav / POS cart bar */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 left-6 z-[9990] w-12 h-12 rounded-2xl bg-violet-600 text-white shadow-xl shadow-violet-200 flex items-center justify-center hover:bg-violet-700 active:scale-95 transition-all"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] lg:bottom-6 left-4 lg:left-6 z-[9990] w-12 h-12 rounded-2xl bg-violet-600 text-white shadow-xl shadow-violet-200 flex items-center justify-center hover:bg-violet-700 active:scale-95 transition-all"
           title="Ask the AI assistant"
         >
           <Sparkles className="w-5 h-5" />
@@ -79,7 +79,7 @@ export default function AIAssistant() {
       )}
 
       {open && (
-        <div className="fixed bottom-6 left-6 z-[9990] w-[380px] max-w-[calc(100vw-32px)] h-[520px] max-h-[calc(100vh-96px)] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+        <div className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] lg:bottom-6 left-4 lg:left-6 z-[9990] w-[380px] max-w-[calc(100vw-32px)] h-[520px] max-h-[calc(100vh-180px)] lg:max-h-[calc(100vh-96px)] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-5 py-4 bg-violet-600 text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
